@@ -38,6 +38,7 @@ services:
     container_name: starter_backend
     volumes:
       - ./backend:/app
+      - ./scripts:/app/scripts:ro
     environment:
       - DJANGO_SETTINGS_MODULE=core.settings.dev
       - DB_HOST=db

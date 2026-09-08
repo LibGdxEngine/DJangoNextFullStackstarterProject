@@ -18,13 +18,19 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_spectacular',
     
-    # Local apps
-    'api.apps.ApiConfig',
+    # Platform apps
+    'apps.common.apps.CommonConfig',
+    'apps.accounts.apps.AccountsConfig',
+    'apps.organizations.apps.OrganizationsConfig',
+    'apps.billing.apps.BillingConfig',
+    'apps.notifications.apps.NotificationsConfig',
+    'apps.audit.apps.AuditConfig',
 ]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # Needs to be at the top
     'django.middleware.security.SecurityMiddleware',
+    'core.middleware.request_id.RequestIdMiddleware',  # Trace requests with X-Request-ID
     'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise static serving
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -71,6 +77,9 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+# Custom User Model
+AUTH_USER_MODEL = 'accounts.User'
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'

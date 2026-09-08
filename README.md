@@ -1,44 +1,61 @@
-# Full-Stack Dockerized Boilerplate (Next.js + Django)
+# Mobser Full-Stack Platform (Next.js + Django)
 
-A production-ready template incorporating a modern frontend, powerful backend, caching, task worker queues, and an automated HTTPS proxy. Built to work out of the box with Docker.
+A production-ready platform template structured around decoupled reusable platform modules and dedicated product modules. Incorporates a modern Next.js frontend, Django REST Framework backend, Celery task workers, Redis caching, PostgreSQL persistence, and an automated HTTPS reverse proxy via Caddy.
 
 ## Tech Stack
-*   **Frontend**: [Next.js](https://nextjs.org/) (React, TypeScript, Tailwind CSS v4)
-*   **Backend**: [Django](https://www.djangoproject.com/) (REST Framework, WhiteNoise)
-*   **Database**: [PostgreSQL](https://www.postgresql.org/)
-*   **Caching & Broker**: [Redis](https://redis.io/)
-*   **Task Queue**: [Celery](https://docs.celeryq.dev/en/stable/)
-*   **Reverse Proxy**: [Caddy](https://caddyserver.com/)
+*   **Frontend**: [Next.js](https://nextjs.org/) (React 19, TypeScript, Tailwind CSS v4, NextAuth.js)
+*   **Backend**: [Django 5.x](https://www.djangoproject.com/) (REST Framework, SimpleJWT, WhiteNoise, drf-spectacular)
+*   **Database**: [PostgreSQL 16](https://www.postgresql.org/)
+*   **Caching & Broker**: [Redis 7](https://redis.io/)
+*   **Task Queue**: [Celery 5.4](https://docs.celeryq.dev/en/stable/)
+*   **Reverse Proxy**: [Caddy 2](https://caddyserver.com/)
 
 ---
 
 ## Project Structure
 
 ```text
-starter_project/
-├── backend/                  # Django backend
-│   ├── api/                  # Django App (endpoints & tasks)
-│   ├── core/                 # Django settings configuration
-│   │   ├── settings/
-│   │   │   ├── base.py       # Shared settings
-│   │   │   ├── dev.py        # Development settings
-│   │   │   └── prod.py       # Production-hardened settings
-│   ├── Dockerfile            # Dev Backend image configuration
-│   ├── Dockerfile.prod       # Prod Backend image configuration
-│   ├── entrypoint.sh         # Startup check & database migrations script
-│   └── requirements.txt      # Python dependencies
-├── frontend/                 # Next.js frontend
-│   ├── src/                  # Next.js app pages (App Router)
-│   ├── Dockerfile            # Dev Frontend image configuration
-│   ├── Dockerfile.prod       # Prod Frontend image configuration (multi-stage)
-│   └── next.config.ts        # Next.js config (standalone build mode enabled)
-├── caddy/                    # Web server reverse proxy configuration
-│   ├── Caddyfile             # Production Caddy routing (SSL active)
-│   └── Caddyfile.dev         # Development Caddy routing
-├── docker-compose.yml        # Development Docker Compose
-├── docker-compose.prod.yml   # Production Docker Compose
-├── .env.dev                  # Dev environment variables
-└── .env.prod                 # Prod environment variables (with placeholders)
+Mobser/
+├── backend/                        # Django backend
+│   ├── core/                       # Core configuration & gateways
+│   │   ├── settings/               # Split settings (base, dev, prod)
+│   │   ├── middleware/             # Core middleware (Request ID tracing)
+│   │   ├── celery.py               # Celery application initialization
+│   │   └── urls.py                 # Central URL aggregation & API routing
+│   ├── apps/                       # Reusable horizontal platform modules
+│   │   ├── accounts/               # Custom User model (UUID), JWT & profiles
+│   │   ├── organizations/          # Multi-tenancy, workspaces & roles
+│   │   ├── billing/                # Plans, customers & subscriptions
+│   │   ├── notifications/          # In-app notifications & Celery dispatchers
+│   │   ├── audit/                  # Audit logging service & security events
+│   │   └── common/                 # Base models (UUID, timestamps), pagination & health
+│   ├── product/                    # Dedicated domain-specific product modules
+│   │   └── README.md               # Product extension guidelines
+│   ├── Dockerfile                  # Development container definition
+│   ├── Dockerfile.prod             # Production hardened container definition
+│   ├── entrypoint.sh               # DB connectivity check & automated migration
+│   └── requirements.txt            # Python dependencies
+├── frontend/                       # Next.js frontend
+│   ├── src/
+│   │   ├── app/                    # Next.js App Router (pages & layouts)
+│   │   ├── components/             # Reusable UI kit components (Button, Card, Badge)
+│   │   ├── features/               # Feature-sliced modules (auth, system, overview)
+│   │   ├── lib/                    # Shared API client, auth options & utilities
+│   │   ├── hooks/                  # Custom React hooks (useSystemStatus, useDebounce)
+│   │   └── types/                  # Domain TypeScript interfaces & NextAuth types
+│   ├── Dockerfile                  # Dev frontend image configuration
+│   └── Dockerfile.prod             # Multi-stage standalone production build
+├── caddy/                          # Reverse proxy configuration
+│   ├── Caddyfile                   # Production routing & automated TLS
+│   └── Caddyfile.dev               # Development proxy routing
+├── scripts/                        # Automation & database seeding scripts
+│   └── seed_dev_data.py            # Development database seed script
+├── docker-compose.yml              # Development Docker Compose
+├── docker-compose.prod.yml         # Production Docker Compose
+├── Makefile                        # Central developer operations CLI
+├── .env.example                    # Complete environment variables template
+├── .env.dev                        # Development environment variables
+└── .env.prod                       # Production environment variables
 ```
 
 ---

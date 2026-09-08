@@ -1,9 +1,9 @@
-.PHONY: help up down build restart ps logs logs-backend logs-frontend shell backend-shell frontend-shell makemigrations migrate createsuperuser test-backend test-frontend clean prod-up prod-down prod-build
+.PHONY: help up down build restart ps logs logs-backend logs-frontend shell backend-shell frontend-shell makemigrations migrate createsuperuser seed check test-backend test-frontend clean prod-up prod-down prod-build
 
 # Default target: show help
 help:
 	@echo "======================================================================="
-	@echo "                 Dockerized Next.js & Django Template                  "
+	@echo "                      Mobser Modular Platform                          "
 	@echo "======================================================================="
 	@echo "Usage: make <target>"
 	@echo ""
@@ -17,10 +17,12 @@ help:
 	@echo "  logs-backend      - Tail backend container logs"
 	@echo "  logs-frontend     - Tail frontend container logs"
 	@echo ""
-	@echo "Django Operations:"
-	@echo "  migrate           - Apply database migrations"
+	@echo "Platform & Database:"
+	@echo "  migrate           - Apply database migrations across platform apps"
 	@echo "  makemigrations    - Create new database migrations"
+	@echo "  seed              - Seed database with demo admin, organization & plans"
 	@echo "  createsuperuser   - Create a superuser interactively"
+	@echo "  check             - Run Django system configuration checks"
 	@echo "  shell             - Open Django interactive Python shell"
 	@echo "  backend-shell     - Open bash shell inside backend container"
 	@echo ""
@@ -65,15 +67,21 @@ logs-backend:
 logs-frontend:
 	docker compose logs -f frontend
 
-# Django Commands
+# Django Operations
 migrate:
 	docker compose exec backend python manage.py migrate
 
 makemigrations:
 	docker compose exec backend python manage.py makemigrations
 
+seed:
+	docker compose exec backend python scripts/seed_dev_data.py
+
 createsuperuser:
 	docker compose exec backend python manage.py createsuperuser
+
+check:
+	docker compose exec backend python manage.py check
 
 shell:
 	docker compose exec backend python manage.py shell

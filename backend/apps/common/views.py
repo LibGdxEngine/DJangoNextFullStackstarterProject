@@ -1,13 +1,14 @@
-from rest_framework.decorators import api_view
+import logging
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.db import connection
 from django.core.cache import cache
-from .tasks import test_celery_task
-import logging
 
 logger = logging.getLogger(__name__)
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def hello_world(request):
     """
     Simple hello world API endpoint.
@@ -18,9 +19,10 @@ def hello_world(request):
     })
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def system_status(request):
     """
-    Checks the status of the Database, Redis (via cache), and triggers a Celery task.
+    Checks the health of Database, Redis (via cache backend), and Celery task execution.
     """
     status = {
         "database": "down",
@@ -28,7 +30,7 @@ def system_status(request):
         "celery": "unknown"
     }
 
-    # Check database connection
+    # 1. Check Database connection
     try:
         connection.ensure_connection()
         status["database"] = "up"
@@ -36,7 +38,7 @@ def system_status(request):
         logger.error(f"Database health check failed: {e}")
         status["database"] = f"down: {str(e)}"
 
-    # Check redis connection (Django cache backend)
+    # 2. Check Redis connection
     try:
         cache.set("health_check_key", "ok", timeout=5)
         val = cache.get("health_check_key")
@@ -46,8 +48,9 @@ def system_status(request):
         logger.error(f"Redis health check failed: {e}")
         status["redis"] = f"down: {str(e)}"
 
-    # Trigger async celery task
+    # 3. Trigger async Celery task
     try:
+        from apps.notifications.tasks import test_celery_task
         task = test_celery_task.delay(4, 5)
         status["celery"] = {
             "status": "triggered",
