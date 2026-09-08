@@ -34,7 +34,7 @@ def send_notification_task(recipient_id, title, message, notification_type='INFO
             notification_type=notification_type,
             link=link
         )
-        logger.info(f"Notification {notification.id} created for user {user.username}")
+        logger.info(f"Notification {notification.id} created for user {user.email}")
         return str(notification.id)
     except Exception as e:
         logger.error(f"Failed to create notification: {e}")

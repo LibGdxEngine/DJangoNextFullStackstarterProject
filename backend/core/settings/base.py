@@ -15,12 +15,15 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_spectacular',
     
     # Platform apps
     'apps.common.apps.CommonConfig',
     'apps.accounts.apps.AccountsConfig',
+    'apps.messaging.apps.MessagingConfig',
+    'apps.integrations.apps.IntegrationsConfig',
     'apps.organizations.apps.OrganizationsConfig',
     'apps.billing.apps.BillingConfig',
     'apps.notifications.apps.NotificationsConfig',
@@ -78,6 +81,14 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Authentication Backends
+AUTHENTICATION_BACKENDS = [
+    'apps.accounts.backends.EmailOrPhoneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+SILENCED_SYSTEM_CHECKS = ['auth.W004']
+
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
 
@@ -112,7 +123,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'apps.accounts.authentication.VersionedJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
@@ -133,11 +144,34 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': False,
+    'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': os.environ.get('SECRET_KEY', 'django-insecure-dev-secret-key-template-project-1234'),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'TOKEN_OBTAIN_SERIALIZER': 'apps.accounts.api.serializers.auth.CustomTokenObtainPairSerializer',
+}
+
+# ------------------------------------------------------------------------------
+# Messaging & WhatsApp Integration Settings (HireAgents)
+# ------------------------------------------------------------------------------
+OTP_SECRET = os.environ.get('OTP_SECRET', 'dev-otp-secret-key-32-chars-minimum-mobser')
+WHATSAPP_AUTH_TEMPLATE = os.environ.get('WHATSAPP_AUTH_TEMPLATE', 'auth_verification_otp')
+HIREAGENTS_BASE_URL = os.environ.get('HIREAGENTS_BASE_URL', 'https://hireagents.blinksolutions.tech')
+
+HIREAGENTS_CONNECTIONS = {
+    'auth': {
+        'channel_id': os.environ.get('HIREAGENTS_AUTH_CHANNEL_ID', ''),
+        'api_key': os.environ.get('HIREAGENTS_AUTH_API_KEY', ''),
+        'webhook_api_key': os.environ.get('HIREAGENTS_AUTH_WEBHOOK_API_KEY', 'dev-hireagents-auth-webhook-key'),
+        'webhook_signing_secret': os.environ.get('HIREAGENTS_AUTH_WEBHOOK_SIGNING_SECRET', ''),
+    },
+    'support': {
+        'channel_id': os.environ.get('HIREAGENTS_SUPPORT_CHANNEL_ID', ''),
+        'api_key': os.environ.get('HIREAGENTS_SUPPORT_API_KEY', ''),
+        'webhook_api_key': os.environ.get('HIREAGENTS_SUPPORT_WEBHOOK_API_KEY', 'dev-hireagents-support-webhook-key'),
+        'webhook_signing_secret': os.environ.get('HIREAGENTS_SUPPORT_WEBHOOK_SIGNING_SECRET', ''),
+    },
 }
 
 # Celery configurations

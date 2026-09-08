@@ -28,26 +28,27 @@ def seed():
     print("🌱 Seeding Mobser development database...")
 
     # 1. Superuser
-    username = os.environ.get("DEV_SUPERUSER_USER", "admin")
     email = os.environ.get("DEV_SUPERUSER_EMAIL", "admin@mobser.local")
+    phone = os.environ.get("DEV_SUPERUSER_PHONE", "+201000000000")
     password = os.environ.get("DEV_SUPERUSER_PASSWORD", "admin12345")
 
     user, created = User.objects.get_or_create(
-        username=username,
+        email=email,
         defaults={
-            "email": email,
+            "phone": phone,
             "first_name": "Admin",
             "last_name": "Mobser",
             "is_staff": True,
             "is_superuser": True,
+            "status": "active",
         }
     )
     if created:
         user.set_password(password)
         user.save()
-        print(f"  ✓ Created superuser: {username} (pass: {password})")
+        print(f"  ✓ Created superuser: {email} / {phone} (pass: {password})")
     else:
-        print(f"  • Superuser {username} already exists.")
+        print(f"  • Superuser {email} already exists.")
 
     # 2. Demo Organization
     org, org_created = Organization.objects.get_or_create(
@@ -71,7 +72,7 @@ def seed():
         }
     )
     if mem_created:
-        print(f"  ✓ Added {user.username} as OWNER of {org.name}")
+        print(f"  ✓ Added {user.email} as OWNER of {org.name}")
 
     # 4. Billing Plans
     plans_data = [

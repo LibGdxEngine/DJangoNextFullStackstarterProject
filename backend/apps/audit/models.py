@@ -22,5 +22,5 @@ class AuditLog(BaseModel):
         verbose_name_plural = 'Audit Logs'
 
     def __str__(self):
-        actor_name = self.actor.username if self.actor else "System"
+        actor_name = self.actor.email if self.actor else "System"
         return f"[{self.created_at:%Y-%m-%d %H:%M:%S}] {actor_name} -> {self.action} on {self.resource_type}:{self.resource_id}"

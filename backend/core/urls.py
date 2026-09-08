@@ -29,6 +29,8 @@ urlpatterns = [
     path('api/token/verify/', TokenVerifyView.as_view(), name='api_token_verify'),
 
     # Modular Platform App Routes
+    path('api/v1/auth/', include('apps.accounts.api.urls', namespace='auth')),
+    path('api/v1/webhooks/hireagents/', include('apps.integrations.hireagents.urls', namespace='hireagents-webhooks')),
     path('api/common/', include('apps.common.urls', namespace='common')),
     path('api/accounts/', include('apps.accounts.urls', namespace='accounts')),
     path('api/organizations/', include('apps.organizations.urls', namespace='organizations')),

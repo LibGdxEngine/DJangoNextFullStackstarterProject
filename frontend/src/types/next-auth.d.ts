@@ -5,10 +5,13 @@ declare module "next-auth" {
     accessToken?: string;
     refreshToken?: string;
     username?: string;
+    email?: string;
+    phone?: string;
   }
   interface User extends DefaultUser {
     accessToken?: string;
     refreshToken?: string;
+    phone?: string;
   }
 }
 
@@ -17,5 +20,7 @@ declare module "next-auth/jwt" {
     accessToken?: string;
     refreshToken?: string;
     username?: string;
+    email?: string;
+    phone?: string;
   }
 }
