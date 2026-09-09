@@ -65,6 +65,12 @@ this single-maintainer repository. `CODEOWNERS`
 identifies the maintainer for workflow, deployment, and migration changes.
 An agent must not bypass failed checks or remove tests to obtain a green result.
 
+Dependabot groups weekly version updates and limits each ecosystem/directory to
+one open version-update PR. npm/Python major upgrades and Docker runtime-line
+upgrades need deliberate maintenance; GitHub Actions upgrades remain grouped.
+GitHub applies separate limits to security-update PRs. Updates still need the
+same CI gate and maintainer review before merging.
+
 ## Host ownership and runtime
 
 | Path or resource | Owner / role |
