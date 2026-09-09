@@ -3,7 +3,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
 from apps.integrations.hireagents.models import WebhookEvent
-from apps.integrations.hireagents.handlers import process_hireagents_event
+from apps.integrations.tasks import process_hireagents_event
 
 
 TEST_CONNECTIONS = {
@@ -33,7 +33,7 @@ class HireAgentsWebhookTests(TestCase):
         )
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @patch("apps.integrations.hireagents.handlers.process_hireagents_event.delay")
+    @patch("apps.integrations.hireagents.webhooks.process_hireagents_event.delay")
     def test_valid_webhook_persists_event_and_enqueues_worker(self, mock_delay):
         url = reverse("hireagents-webhooks:webhook", kwargs={"connection": "auth"})
         payload = {
@@ -42,12 +42,13 @@ class HireAgentsWebhookTests(TestCase):
             "to": "+201039811349",
             "status": "delivered",
         }
-        res = self.client.post(
-            url,
-            payload,
-            content_type="application/json",
-            HTTP_X_API_KEY="test-auth-webhook-secret-key",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            res = self.client.post(
+                url,
+                payload,
+                content_type="application/json",
+                HTTP_X_API_KEY="test-auth-webhook-secret-key",
+            )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn("event_id", res.data)
 
@@ -77,3 +78,33 @@ class HireAgentsWebhookTests(TestCase):
         event.refresh_from_db()
         self.assertEqual(event.status, WebhookEvent.Status.PROCESSED)
         self.assertIsNotNone(event.processed_at)
+
+    def test_reprocessing_an_event_is_a_no_op(self):
+        event = WebhookEvent.objects.create(
+            provider="hireagents",
+            connection="auth",
+            provider_event_id="evt_abc_2",
+            event_type="message.sent",
+            payload={"id": "msg_2"},
+            status=WebhookEvent.Status.PENDING,
+        )
+        self.assertTrue(process_hireagents_event(str(event.id)))
+        self.assertFalse(process_hireagents_event(str(event.id)))
+
+    @patch("apps.integrations.hireagents.webhooks.process_hireagents_event.delay")
+    def test_replayed_delivery_is_stored_and_queued_once(self, mock_delay):
+        url = reverse("hireagents-webhooks:webhook", kwargs={"connection": "auth"})
+        payload = {"id": "msg_evt_dupe", "event": "message.sent"}
+
+        for _ in range(2):
+            with self.captureOnCommitCallbacks(execute=True):
+                res = self.client.post(
+                    url,
+                    payload,
+                    content_type="application/json",
+                    HTTP_X_API_KEY="test-auth-webhook-secret-key",
+                )
+            self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(WebhookEvent.objects.filter(provider_event_id="msg_evt_dupe").count(), 1)
+        mock_delay.assert_called_once()

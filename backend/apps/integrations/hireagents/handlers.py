@@ -1,7 +1,5 @@
 import logging
-import traceback
-from celery import shared_task
-from django.utils import timezone
+
 from .models import WebhookEvent
 
 logger = logging.getLogger(__name__)
@@ -61,34 +59,3 @@ HANDLERS = {
     "contact.updated": handle_contact_updated,
     "opportunity.stage_changed": handle_opportunity_stage_changed,
 }
-
-
-@shared_task(bind=True, max_retries=2, default_retry_delay=10)
-def process_hireagents_event(self, event_id: str):
-    """
-    Celery background worker task to process a persisted HireAgents WebhookEvent.
-    """
-    try:
-        event = WebhookEvent.objects.get(id=event_id)
-    except WebhookEvent.DoesNotExist:
-        logger.error("WebhookEvent %s not found. Skipping.", event_id)
-        return False
-
-    try:
-        handler = HANDLERS.get(event.event_type)
-        if handler:
-            handler(event)
-            event.status = WebhookEvent.Status.PROCESSED
-        else:
-            logger.info("No specific handler registered for event type '%s'. Marked ignored.", event.event_type)
-            event.status = WebhookEvent.Status.IGNORED
-
-        event.processed_at = timezone.now()
-        event.save(update_fields=["status", "processed_at"])
-        return True
-    except Exception as exc:
-        logger.error("Error processing WebhookEvent %s: %s\n%s", event_id, exc, traceback.format_exc())
-        event.status = WebhookEvent.Status.FAILED
-        event.error = f"{exc}\n{traceback.format_exc()}"
-        event.save(update_fields=["status", "error"])
-        raise

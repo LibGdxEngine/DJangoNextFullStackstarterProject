@@ -3,11 +3,12 @@ import hmac
 import logging
 import secrets
 from django.conf import settings
+from django.db import transaction
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from .handlers import process_hireagents_event
+from apps.integrations.tasks import process_hireagents_event
 from .models import WebhookEvent
 
 logger = logging.getLogger(__name__)
@@ -80,17 +81,33 @@ def hireagents_webhook_view(request, connection: str):
     event_type = payload.get("event") or payload.get("event_type") or payload.get("type") or "generic"
     provider_event_id = str(payload.get("id") or payload.get("event_id") or "")
 
-    event = WebhookEvent.objects.create(
-        provider="hireagents",
-        connection=connection,
-        provider_event_id=provider_event_id or None,
-        event_type=event_type,
-        payload=payload,
-        status=WebhookEvent.Status.PENDING,
-    )
+    event_defaults = {
+        "event_type": event_type,
+        "payload": payload,
+        "status": WebhookEvent.Status.PENDING,
+    }
 
-    # Enqueue background processing
-    process_hireagents_event.delay(str(event.id))
+    # A redelivered event reuses the stored row rather than queueing a second time.
+    if provider_event_id:
+        event, created = WebhookEvent.objects.get_or_create(
+            provider="hireagents",
+            connection=connection,
+            provider_event_id=provider_event_id,
+            defaults=event_defaults,
+        )
+    else:
+        event = WebhookEvent.objects.create(
+            provider="hireagents",
+            connection=connection,
+            provider_event_id=None,
+            **event_defaults,
+        )
+        created = True
+
+    if created:
+        transaction.on_commit(lambda: process_hireagents_event.delay(str(event.id)))
+    else:
+        logger.info("Duplicate HireAgents event %s ignored", provider_event_id)
 
     return Response(
         {"status": "received", "event_id": str(event.id)},

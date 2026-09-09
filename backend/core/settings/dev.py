@@ -36,3 +36,14 @@ if all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT]):
 
 # CORS settings for dev
 CORS_ALLOW_ALL_ORIGINS = True
+
+# Mirrors the database fallback above: use Redis when it is pointed at, otherwise stay
+# in-process so tests and non-docker runs need no broker. Note that the idempotency lock
+# is only distributed when a real Redis is configured.
+if not os.environ.get('CACHE_URL') and not os.environ.get('REDIS_URL'):
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'mobser-dev',
+        }
+    }

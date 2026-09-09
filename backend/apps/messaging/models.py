@@ -29,6 +29,8 @@ class OutboundMessage(models.Model):
     )
     provider_message_id = models.CharField(max_length=255, blank=True, null=True)
     error_message = models.TextField(blank=True, default="")
+    # Set by the caller so a redelivered task reuses this row instead of sending twice.
+    idempotency_key = models.CharField(max_length=64, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -37,6 +39,13 @@ class OutboundMessage(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Outbound Message"
         verbose_name_plural = "Outbound Messages"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["idempotency_key"],
+                condition=models.Q(idempotency_key__isnull=False),
+                name="messaging_outboundmessage_idempotency_key_unique",
+            ),
+        ]
 
     def __str__(self):
         return f"[{self.status}] {self.destination} via {self.provider}:{self.connection}"

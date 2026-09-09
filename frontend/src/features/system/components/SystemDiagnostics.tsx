@@ -78,7 +78,7 @@ export function SystemDiagnostics() {
         )}
 
         {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Database */}
           <div className="p-4 rounded-lg bg-zinc-800/30 border border-zinc-800 flex flex-col justify-between">
             <div>
@@ -129,6 +129,30 @@ export function SystemDiagnostics() {
               </div>
               <p className="text-xs text-zinc-400">
                 Asynchronous task queue dispatcher via Redis broker.
+              </p>
+            </div>
+          </div>
+
+          {/* Celery Beat */}
+          <div className="p-4 rounded-lg bg-zinc-800/30 border border-zinc-800 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs uppercase font-semibold text-zinc-400">Celery Beat</span>
+                <Badge
+                  variant={getBadgeVariant(
+                    typeof statusData?.beat === "object"
+                      ? statusData.beat.status
+                      : statusData?.beat
+                  )}
+                  size="sm"
+                >
+                  {typeof statusData?.beat === "object"
+                    ? statusData.beat.status
+                    : statusData?.beat || "WAITING"}
+                </Badge>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Scheduler heartbeat driving recurring maintenance jobs.
               </p>
             </div>
           </div>

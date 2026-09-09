@@ -1,0 +1,298 @@
+﻿python.exe : Creating test database for alias 'default'...
+At line:1 char:30
++ ... ser\backend; & .\.venv\Scripts\python.exe manage.py test 2>&1 | Out-F ...
++                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Creating test d...as 'default'... 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+C:\Mobser\Mobser\backend\.venv\Lib\site-packages\django\core\handlers\base.py:6
+1: UserWarning: No directory at: C:\Mobser\Mobser\backend\staticfiles\
+  mw_instance = middleware(adapted_handler)
+[2026-09-09 14:52:56,806] INFO apps.accounts.services.signup ???[???] Created 
+user 17d5a42c-83c1-474f-a9ba-dc4b2dc91521 (status=pending). Challenge 
+c1d163cc-100c-46dd-bc24-5c33b7073bfd created.
+[2026-09-09 14:52:57,609] WARNING django.request ???[???] Forbidden: 
+/api/v1/auth/login/
+.[2026-09-09 14:53:00,051] INFO apps.accounts.services.password ???[???] 
+Password reset challenge ad5eb20d-6817-4e2a-91db-46e2825add2c created for user 
+5630832d-d3c1-45c3-a5be-56b3d085c5e5
+[2026-09-09 14:53:00,881] INFO apps.accounts.services.password ???[???] 
+Password successfully reset for user 5630832d-d3c1-45c3-a5be-56b3d085c5e5
+[2026-09-09 14:53:01,934] WARNING django.request ???[???] Unauthorized: 
+/api/v1/auth/login/
+.[2026-09-09 14:53:03,779] INFO apps.accounts.services.profile ???[???] Phone 
+number successfully updated for user 0b9f7519-70a7-40cd-b3a8-276c303d8407 to 
++201099998888
+.[2026-09-09 14:53:04,574] WARNING django.request ???[???] Unauthorized: 
+/api/v1/auth/social/google/
+...[2026-09-09 14:53:05,381] WARNING django.request ???[???] Unauthorized: 
+/api/v1/auth/social/google/
+.[2026-09-09 14:53:05,383] WARNING django.request ???[???] Bad Request: 
+/api/v1/auth/social/google/
+.[2026-09-09 14:53:05,385] WARNING django.request ???[???] Bad Request: 
+/api/v1/auth/social/google/
+....[2026-09-09 14:53:07,315] WARNING django.request ???[???] Bad Request: 
+/api/v1/auth/social/facebook/
+.[2026-09-09 14:53:07,318] WARNING django.request ???[???] Unauthorized: 
+/api/v1/auth/social/google/
+.........[2026-09-09 14:53:17,200] WARNING 
+apps.integrations.hireagents.webhooks ???[???] Invalid or missing X-Api-Key 
+for HireAgents webhook 'auth'
+[2026-09-09 14:53:17,200] WARNING django.request ???[???] Unauthorized: 
+/api/v1/webhooks/hireagents/auth/
+.E[2026-09-09 14:53:20,018] WARNING apps.integrations.hireagents.webhooks 
+???[???] HireAgents webhook received for unknown connection: 'nonexistent'
+[2026-09-09 14:53:20,019] WARNING django.request ???[???] Not Found: 
+/api/v1/webhooks/hireagents/nonexistent/
+.E..........[2026-09-09 14:53:26,854] INFO apps.accounts.tasks.cleanup 
+apps.accounts.tasks.purge_expired_jwt_tokens[None] Deleted 0 expired 
+outstanding tokens
+.[2026-09-09 14:53:27,665] INFO apps.accounts.tasks.cleanup 
+apps.accounts.tasks.purge_expired_jwt_tokens[None] Deleted 1 expired 
+outstanding tokens
+.[2026-09-09 14:53:28,455] INFO apps.accounts.tasks.cleanup 
+apps.accounts.tasks.purge_expired_verification_challenges[None] Deleted 0 
+expired verification challenges
+.[2026-09-09 14:53:29,432] INFO apps.accounts.tasks.cleanup 
+apps.accounts.tasks.purge_expired_verification_challenges[None] Deleted 1 
+expired verification challenges
+.[2026-09-09 14:53:30,551] INFO apps.accounts.tasks.cleanup 
+apps.accounts.tasks.purge_expired_verification_challenges[None] Deleted 1 
+expired verification challenges
+.....[2026-09-09 14:53:34,950] INFO apps.billing.tasks.subscriptions 
+apps.billing.tasks.sync_subscriptions[None] Marked 1 subscriptions past due 
+and canceled 0 past the grace window
+[2026-09-09 14:53:34,952] INFO apps.billing.tasks.subscriptions 
+apps.billing.tasks.sync_subscriptions[None] Marked 0 subscriptions past due 
+and canceled 1 past the grace window
+.[2026-09-09 14:53:34,955] INFO apps.billing.tasks.subscriptions 
+apps.billing.tasks.sync_subscriptions[None] Marked 1 subscriptions past due 
+and canceled 0 past the grace window
+.[2026-09-09 14:53:34,958] INFO apps.billing.tasks.subscriptions 
+apps.billing.tasks.sync_subscriptions[None] Marked 1 subscriptions past due 
+and canceled 0 past the grace window
+.[2026-09-09 14:53:34,961] INFO apps.billing.tasks.subscriptions 
+apps.billing.tasks.sync_subscriptions[None] Marked 0 subscriptions past due 
+and canceled 0 past the grace window
+.[2026-09-09 14:53:34,966] INFO apps.billing.tasks.subscriptions 
+apps.billing.tasks.sync_subscriptions[None] Marked 0 subscriptions past due 
+and canceled 0 past the grace window
+.[2026-09-09 14:53:34,969] INFO apps.billing.tasks.subscriptions 
+apps.billing.tasks.sync_subscriptions[None] Marked 0 subscriptions past due 
+and canceled 0 past the grace window
+.[2026-09-09 14:53:34,972] INFO apps.common.tasks.cleanup 
+apps.common.tasks.cleanup_expired_sessions[None] Deleted 1 expired sessions
+..[2026-09-09 14:53:34,983] INFO apps.common.tasks.cleanup 
+apps.common.tasks.cleanup_temp_uploads[None] Deleted 1 abandoned temp uploads
+.[2026-09-09 14:53:34,989] INFO apps.common.tasks.cleanup 
+apps.common.tasks.cleanup_temp_uploads[None] Deleted 1 abandoned temp uploads
+.[2026-09-09 14:53:38,714] INFO apps.notifications.tasks.dispatch apps.notifica
+tions.tasks.send_notification[7c0676d8-9a5f-484a-b5ce-fe5e45c04504] 
+Notification e311af0c-8a88-4d51-b955-512957f1ae26 created for user 
+owner@example.com
+[2026-09-09 14:53:38,738] INFO celery.app.trace apps.notifications.tasks.send_n
+otification[7c0676d8-9a5f-484a-b5ce-fe5e45c04504] Task apps.notifications.tasks
+.send_notification[7c0676d8-9a5f-484a-b5ce-fe5e45c04504] succeeded in 
+0.026426199998240918s: 'e311af0c-8a88-4d51-b955-512957f1ae26'
+[2026-09-09 14:53:38,738] INFO apps.notifications.tasks.reports 
+apps.notifications.tasks.send_scheduled_reports[None] Queued 1 scheduled 
+report notifications
+.[2026-09-09 14:53:42,402] INFO apps.notifications.tasks.dispatch apps.notifica
+tions.tasks.send_notification[1a604af6-e4fb-408d-80d8-b08f91045306] 
+Notification 1bdd4d5a-ef1e-4fbc-ab54-7bc6b82b94eb created for user 
+owner@example.com
+[2026-09-09 14:53:42,402] INFO celery.app.trace apps.notifications.tasks.send_n
+otification[1a604af6-e4fb-408d-80d8-b08f91045306] Task apps.notifications.tasks
+.send_notification[1a604af6-e4fb-408d-80d8-b08f91045306] succeeded in 
+0.0019184999982826412s: '1bdd4d5a-ef1e-4fbc-ab54-7bc6b82b94eb'
+[2026-09-09 14:53:42,403] INFO apps.notifications.tasks.reports 
+apps.notifications.tasks.send_scheduled_reports[None] Queued 1 scheduled 
+report notifications
+.[2026-09-09 14:53:45,996] INFO apps.notifications.tasks.dispatch apps.notifica
+tions.tasks.send_notification[116b83d3-653c-4a53-ba8e-82994ba183f2] 
+Notification 02429624-282d-4815-8ff0-05b58955f763 created for user 
+owner@example.com
+[2026-09-09 14:53:45,996] INFO celery.app.trace apps.notifications.tasks.send_n
+otification[116b83d3-653c-4a53-ba8e-82994ba183f2] Task apps.notifications.tasks
+.send_notification[116b83d3-653c-4a53-ba8e-82994ba183f2] succeeded in 
+0.0018154999997932464s: '02429624-282d-4815-8ff0-05b58955f763'
+[2026-09-09 14:53:45,996] INFO apps.notifications.tasks.reports 
+apps.notifications.tasks.send_scheduled_reports[None] Queued 1 scheduled 
+report notifications
+[2026-09-09 14:53:46,000] INFO apps.notifications.tasks.dispatch apps.notificat
+ions.tasks.send_notification[605e4740-91a3-45bb-a629-ef061113bddc] 
+Notification for key 
+aac7dac570724f5b9320e004189848d3c5c4120821e96ea4f0181f93f1e64fec already 
+exists; skipping
+[2026-09-09 14:53:46,001] INFO celery.app.trace apps.notifications.tasks.send_n
+otification[605e4740-91a3-45bb-a629-ef061113bddc] Task apps.notifications.tasks
+.send_notification[605e4740-91a3-45bb-a629-ef061113bddc] succeeded in 
+0.0016697999999450985s: '02429624-282d-4815-8ff0-05b58955f763'
+[2026-09-09 14:53:46,001] INFO apps.notifications.tasks.reports 
+apps.notifications.tasks.send_scheduled_reports[None] Queued 1 scheduled 
+report notifications
+.[2026-09-09 14:53:49,750] INFO apps.notifications.tasks.reports 
+apps.notifications.tasks.send_scheduled_reports[None] Queued 0 scheduled 
+report notifications
+.[2026-09-09 14:53:49,755] INFO apps.organizations.tasks.invitations 
+apps.organizations.tasks.expire_pending_invitations[None] Expired 0 pending 
+invitations
+.[2026-09-09 14:53:49,757] INFO apps.organizations.tasks.invitations 
+apps.organizations.tasks.expire_pending_invitations[None] Expired 1 pending 
+invitations
+.[2026-09-09 14:53:49,760] INFO apps.organizations.tasks.invitations 
+apps.organizations.tasks.expire_pending_invitations[None] Expired 0 pending 
+invitations
+.
+======================================================================
+ERROR: test_process_hireagents_event_handler (apps.accounts.tests.test_integrat
+ions_webhooks.HireAgentsWebhookTests.test_process_hireagents_event_handler)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\connection.py", 
+line 1055, in connect_check_health
+    sock = self._connect()
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\connection.py", 
+line 1581, in _connect
+    for res in socket.getaddrinfo(
+               ~~~~~~~~~~~~~~~~~~^
+        self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ):
+    ^
+  File "C:\Python313\Lib\socket.py", line 977, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno 11001] getaddrinfo failed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File 
+"C:\Mobser\Mobser\backend\apps\accounts\tests\test_integrations_webhooks.py", 
+line 74, in test_process_hireagents_event_handler
+    success = process_hireagents_event(str(event.id))
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\celery\local.py", 
+line 182, in __call__
+    return self._get_current_object()(*a, **kw)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\celery\app\task.py", 
+line 430, in __call__
+    return self.run(*args, **kwargs)
+           ~~~~~~~~^^^^^^^^^^^^^^^^^
+  File 
+"C:\Mobser\Mobser\backend\.venv\Lib\site-packages\celery\app\autoretry.py", 
+line 38, in run
+    return task._orig_run(*args, **kwargs)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Mobser\Mobser\backend\apps\integrations\tasks\webhooks.py", line 
+29, in process_hireagents_event
+    with idempotent(key, task_name=self.name, task_id=self.request.id) as 
+guard:
+         ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Mobser\Mobser\backend\apps\common\tasks\idempotency.py", line 70, 
+in __enter__
+    self._lock_acquired = cache.add(self._lock_key, self.task_id or "1", 
+self.lock_timeout)
+                          
+~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\django\core\cache\back
+ends\redis.py", line 184, in add
+    return self._cache.add(key, value, self.get_backend_timeout(timeout))
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\django\core\cache\back
+ends\redis.py", line 96, in add
+    return bool(client.set(key, value, ex=timeout, nx=True))
+                ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\utils.py", line 
+523, in wrapper
+    return func(*args, **kwargs)
+  File 
+"C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\commands\core.py", 
+line 4457, in set
+    return self.execute_command("SET", *pieces, **options)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\client.py", 
+line 867, in execute_command
+    return self._execute_command(*args, **options)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\client.py", 
+line 873, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\utils.py", line 
+258, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\connection.py", 
+line 3273, in get_connection
+    connection.connect()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\connection.py", 
+line 1028, in connect
+    self.retry.call_with_retry(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        lambda: self.connect_check_health(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        lambda error: self.disconnect(error),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\retry.py", line 
+132, in call_with_retry
+    raise error
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\retry.py", line 
+120, in call_with_retry
+    return do()
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\connection.py", 
+line 1029, in <lambda>
+    lambda: self.connect_check_health(
+            ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        check_health=True, retry_socket_connect=False
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "C:\Mobser\Mobser\backend\.venv\Lib\site-packages\redis\connection.py", 
+line 1077, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 11001 connecting to redis:6379. 
+getaddrinfo failed.
+
+======================================================================
+ERROR: test_valid_webhook_persists_event_and_enqueues_worker (apps.accounts.tes
+ts.test_integrations_webhooks.HireAgentsWebhookTests.test_valid_webhook_persist
+s_event_and_enqueues_worker)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Python313\Lib\unittest\mock.py", line 1423, in patched
+    with self.decoration_helper(patched,
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+                                args,
+                                ^^^^^
+                                keywargs) as (newargs, newkeywargs):
+                                ^^^^^^^^^
+  File "C:\Python313\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Python313\Lib\unittest\mock.py", line 1405, in decoration_helper
+    arg = exit_stack.enter_context(patching)
+  File "C:\Python313\Lib\contextlib.py", line 530, in enter_context
+    result = _enter(cm)
+  File "C:\Python313\Lib\unittest\mock.py", line 1481, in __enter__
+    self.target = self.getter()
+                  ~~~~~~~~~~~^^
+  File "C:\Python313\Lib\pkgutil.py", line 528, in resolve_name
+    result = getattr(result, p)
+AttributeError: module 'apps.integrations.hireagents.handlers' has no 
+attribute 'process_hireagents_event'
+
+----------------------------------------------------------------------
+Ran 62 tests in 53.914s
+
+FAILED (errors=2)
+Destroying test database for alias 'default'...
+
+Found 62 test(s).
+System check identified no issues (1 silenced).
+EXIT=1

@@ -5,6 +5,10 @@ export interface SystemStatus {
     status: string;
     task_id: string;
   } | string;
+  beat: {
+    status: string;
+    last_seen: string | null;
+  } | string;
 }
 
 export interface HelloResponse {

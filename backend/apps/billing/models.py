@@ -52,5 +52,21 @@ class Subscription(BaseModel):
     stripe_subscription_id = models.CharField(max_length=255, blank=True, null=True)
     current_period_end = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        constraints = [
+            # The provider id is the external idempotency key: a replayed sync must not
+            # create a second subscription.
+            models.UniqueConstraint(
+                fields=['stripe_subscription_id'],
+                condition=~models.Q(stripe_subscription_id=None) & ~models.Q(stripe_subscription_id=''),
+                name='billing_subscription_stripe_id_unique',
+            ),
+            models.UniqueConstraint(
+                fields=['customer'],
+                condition=models.Q(status__in=['trialing', 'active']),
+                name='billing_subscription_one_live_per_customer',
+            ),
+        ]
+
     def __str__(self):
         return f"{self.customer.organization.name} - {self.plan.name} ({self.status})"

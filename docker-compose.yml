@@ -48,6 +48,7 @@ services:
       - DB_PASSWORD=postgres
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CACHE_URL=redis://redis:6379/1
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
     depends_on:
       db:
@@ -62,7 +63,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: starter_celery_worker
-    command: celery -A core worker -l info
+    command: celery -A core worker -l info -Q celery,maintenance
     volumes:
       - ./backend:/app
     environment:
@@ -74,11 +75,38 @@ services:
       - DB_PASSWORD=postgres
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CACHE_URL=redis://redis:6379/1
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: starter_celery_beat
+    command: celery -A core beat -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.dev
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CACHE_URL=redis://redis:6379/1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
 
   frontend:
     build:

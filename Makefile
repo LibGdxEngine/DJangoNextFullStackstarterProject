@@ -1,4 +1,4 @@
-.PHONY: help up down build restart ps logs logs-backend logs-frontend shell backend-shell frontend-shell makemigrations migrate createsuperuser seed check test-backend test-frontend clean prod-up prod-down prod-build
+.PHONY: help up down build restart ps logs logs-backend logs-frontend logs-worker logs-beat shell backend-shell frontend-shell beat-shell makemigrations migrate createsuperuser seed check test-backend test-frontend clean prod-up prod-down prod-build
 
 PROD_ENV_FILE ?= .env.prod
 PROD_COMPOSE = docker compose $(if $(strip $(PROD_ENV_FILE)),--env-file $(PROD_ENV_FILE)) -f docker-compose.prod.yml
@@ -19,6 +19,11 @@ help:
 	@echo "  logs              - Tail all container logs"
 	@echo "  logs-backend      - Tail backend container logs"
 	@echo "  logs-frontend     - Tail frontend container logs"
+	@echo ""
+	@echo "Background Jobs:"
+	@echo "  logs-worker       - Tail Celery worker logs"
+	@echo "  logs-beat         - Tail Celery Beat scheduler logs"
+	@echo "  beat-shell        - Open bash shell inside the Celery Beat container"
 	@echo ""
 	@echo "Platform & Database:"
 	@echo "  migrate           - Apply database migrations across platform apps"
@@ -70,6 +75,15 @@ logs-backend:
 
 logs-frontend:
 	docker compose logs -f frontend
+
+logs-worker:
+	docker compose logs -f celery_worker
+
+logs-beat:
+	docker compose logs -f celery_beat
+
+beat-shell:
+	docker compose exec celery_beat bash
 
 # Django Operations
 migrate:

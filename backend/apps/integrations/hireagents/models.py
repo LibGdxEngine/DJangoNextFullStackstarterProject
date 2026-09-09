@@ -38,6 +38,14 @@ class WebhookEvent(models.Model):
         ordering = ["-received_at"]
         verbose_name = "Webhook Event"
         verbose_name_plural = "Webhook Events"
+        constraints = [
+            # Providers retry deliveries, so the same event id must never be stored twice.
+            models.UniqueConstraint(
+                fields=["provider", "connection", "provider_event_id"],
+                condition=models.Q(provider_event_id__isnull=False),
+                name="integrations_webhookevent_provider_event_unique",
+            ),
+        ]
 
     def __str__(self):
         return f"[{self.status}] {self.provider}:{self.connection} - {self.event_type} ({self.id})"

@@ -39,4 +39,17 @@ then
     python manage.py collectstatic --noinput
 fi
 
+# Beat's DatabaseScheduler reads django_celery_beat tables, but the backend
+# container owns migrations, so wait for it rather than racing it.
+case " $* " in
+    *" beat "*)
+        echo "Waiting for migrations to be applied..."
+        until python manage.py migrate --check >/dev/null 2>&1
+        do
+            sleep 2
+        done
+        echo "Migrations are applied!"
+        ;;
+esac
+
 exec "$@"

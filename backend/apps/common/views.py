@@ -27,7 +27,8 @@ def system_status(request):
     status = {
         "database": "down",
         "redis": "down",
-        "celery": "unknown"
+        "celery": "unknown",
+        "beat": "unknown"
     }
 
     # 1. Check Database connection
@@ -59,5 +60,17 @@ def system_status(request):
     except Exception as e:
         logger.error(f"Celery task trigger failed: {e}")
         status["celery"] = f"failed to trigger: {str(e)}"
+
+    # 4. Read the Celery Beat heartbeat; a missing key means beat stopped scheduling.
+    try:
+        from apps.common.tasks import BEAT_HEARTBEAT_CACHE_KEY
+        last_seen = cache.get(BEAT_HEARTBEAT_CACHE_KEY)
+        status["beat"] = {
+            "status": "up" if last_seen else "down",
+            "last_seen": last_seen
+        }
+    except Exception as e:
+        logger.error(f"Celery beat health check failed: {e}")
+        status["beat"] = f"down: {str(e)}"
 
     return Response(status)

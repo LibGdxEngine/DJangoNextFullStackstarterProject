@@ -24,11 +24,15 @@ def send_whatsapp_verification(
     code: str,
     purpose: str = "signup",
     connection_name: str = "auth",
+    idempotency_key: str | None = None,
 ) -> Dict[str, Any]:
     """
     High-level messaging service for dispatching verification codes over WhatsApp.
     The caller has no awareness of whether the underlying transport is HireAgents,
     Twilio, Meta Cloud API, or SMS.
+
+    Passing an idempotency_key makes the call safe to repeat: a key that already reached the
+    provider returns the original result instead of sending a second message.
     """
     template_name = getattr(settings, "WHATSAPP_AUTH_TEMPLATE", "auth_verification_otp")
     variables = {
@@ -36,15 +40,29 @@ def send_whatsapp_verification(
         "purpose": purpose,
     }
 
+    log_defaults = {
+        "provider": "hireagents",
+        "connection": connection_name,
+        "channel": "whatsapp",
+        "destination": to,
+        "template_name": template_name,
+        "status": OutboundMessage.Status.QUEUED,
+    }
+
     # Log outbound attempt
-    message_log = OutboundMessage.objects.create(
-        provider="hireagents",
-        connection=connection_name,
-        channel="whatsapp",
-        destination=to,
-        template_name=template_name,
-        status=OutboundMessage.Status.QUEUED,
-    )
+    if idempotency_key:
+        message_log, _ = OutboundMessage.objects.get_or_create(
+            idempotency_key=idempotency_key,
+            defaults=log_defaults,
+        )
+        if message_log.status == OutboundMessage.Status.SENT:
+            logger.info(
+                "WhatsApp verification for key %s was already delivered; skipping provider call",
+                idempotency_key,
+            )
+            return {"id": message_log.provider_message_id, "deduplicated": True}
+    else:
+        message_log = OutboundMessage.objects.create(**log_defaults)
 
     try:
         provider = get_whatsapp_provider(connection_name=connection_name)

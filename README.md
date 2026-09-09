@@ -186,3 +186,49 @@ Performs dynamic, runtime connection validation:
 1.  **Database Connection**: Attempts a raw check to ensure PostgreSQL is up.
 2.  **Redis Connection**: Sets and gets a temporary cache key to verify Redis is operational.
 3.  **Celery Worker Integration**: Fires an async Celery task (`test_celery_task.delay(4, 5)`) to verify background queue processing.
+4.  **Celery Beat Heartbeat**: Reads the heartbeat key refreshed every minute by the scheduler, so a dead beat container is visible without reading logs.
+
+---
+
+## Scheduled Jobs (Celery Beat)
+
+Two background containers back the queue:
+
+| Service | Command | Role |
+| --- | --- | --- |
+| `celery_worker` | `celery -A core worker -l info -Q celery,maintenance` | Executes tasks from both the default and maintenance queues |
+| `celery_beat` | `celery -A core beat -l info` | Enqueues recurring jobs on schedule |
+
+Maintenance sweeps are routed to a dedicated `maintenance` queue via `CELERY_TASK_ROUTES`, so a long cleanup never delays latency-sensitive work such as OTP delivery. The worker must therefore consume both queues.
+
+### Recurring jobs
+
+| Task | Default cadence | Retention setting |
+| --- | --- | --- |
+| `apps.accounts.tasks.purge_expired_jwt_tokens` | Daily 03:00 UTC | `EXPIRED_TOKEN_RETENTION_DAYS` |
+| `apps.accounts.tasks.purge_expired_verification_challenges` | Daily 03:15 UTC | `VERIFICATION_CHALLENGE_RETENTION_DAYS` |
+| `apps.common.tasks.cleanup_expired_sessions` | Daily 03:30 UTC | Uses each session's own `expire_date` |
+| `apps.common.tasks.cleanup_temp_uploads` | Daily 03:45 UTC | `TEMP_UPLOAD_RETENTION_HOURS` |
+| `apps.common.tasks.cleanup_task_records` | Daily 04:00 UTC | `TASK_RECORD_RETENTION_DAYS` |
+| `apps.organizations.tasks.expire_pending_invitations` | Hourly | `INVITATION_EXPIRY_DAYS` (applied at creation) |
+| `apps.billing.tasks.sync_subscriptions` | Every 6 hours | `SUBSCRIPTION_PAST_DUE_GRACE_HOURS` |
+| `apps.notifications.tasks.send_scheduled_reports` | Mondays 07:00 UTC | `SCHEDULED_REPORT_PERIOD_DAYS` |
+| `apps.common.tasks.beat_heartbeat` | Every 60 seconds | — |
+
+### Changing a schedule
+
+Defaults live in `CELERY_BEAT_SCHEDULE` in `core/settings/base.py`. Because the project uses `django_celery_beat`'s `DatabaseScheduler`, those defaults are synced into the database on beat startup and can then be retimed, paused, or disabled from the Django admin under **Periodic Tasks** without a redeploy.
+
+Retention windows are environment variables — see `.env.example`.
+
+```bash
+make logs-beat      # confirm jobs are being scheduled
+make logs-worker    # confirm jobs are being executed
+```
+
+### Extending
+
+Tasks live in a `tasks/` package per app, and every submodule that defines a task must be re-exported from that package's `__init__.py` — `autodiscover_tasks()` only imports `<app>.tasks`.
+
+`sync_subscriptions` moves a subscription through `ACTIVE`/`TRIALING` → `PAST_DUE` → `CANCELED` using only local period data. `charge_via_provider` in `apps/billing/tasks/subscriptions.py` is the integration point for a real payment processor.
+
