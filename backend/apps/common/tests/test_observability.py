@@ -120,6 +120,22 @@ class HealthTests(SimpleTestCase):
                     redis_probe.side_effect = RuntimeError('sentinel-redis-password')
                     self.assertEqual(dependency_status(), {'database': 'down', 'redis': 'down'})
 
+    def test_redis_probe_failure_is_private_and_has_connection_deadlines(self):
+        configuration = {'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': 'redis://unused:6379/1',
+        }}
+        with self.settings(CACHES=configuration):
+            with patch('apps.common.health.connection') as connection, patch('redis.Redis.from_url') as from_url:
+                connection.vendor = 'sqlite'
+                connection.cursor.side_effect = RuntimeError('sentinel-database-password')
+                redis_probe = from_url.return_value.__enter__.return_value
+                redis_probe.ping.side_effect = RuntimeError('sentinel-redis-password')
+                self.assertEqual(dependency_status(), {'database': 'down', 'redis': 'down'})
+        redis_probe.ping.assert_called_once_with()
+        self.assertEqual(from_url.call_args.kwargs['socket_connect_timeout'], 2)
+        self.assertEqual(from_url.call_args.kwargs['socket_timeout'], 2)
+
     def test_status_does_not_publish_tasks(self):
         cache.set(BEAT_HEARTBEAT_CACHE_KEY, '2026-09-09T12:00:00+00:00')
         with patch('apps.common.health.dependency_status', return_value={'database': 'up', 'redis': 'up'}), patch('celery.app.task.Task.apply_async') as publish:
@@ -131,7 +147,7 @@ class HealthTests(SimpleTestCase):
         cache.delete(BEAT_HEARTBEAT_CACHE_KEY)
 
     def test_postgres_probe_has_connection_and_statement_deadlines(self):
-        with patch('apps.common.health.connection') as connection, patch('psycopg.connect') as connect, patch('apps.common.health.cache'):
+        with patch('apps.common.health.connection') as connection, patch('psycopg.connect') as connect, patch('apps.common.health.cache'), patch('redis.Redis.from_url'):
             connection.vendor = 'postgresql'
             connection.get_connection_params.return_value = {'dbname': 'test'}
             dependency_status()
@@ -258,5 +274,5 @@ from django.test import Client
 assert Client().get('/api/hello/').status_code == 200
 shutdown()
 '''
-        result = subprocess.run([sys.executable, '-c', code], cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))) , env={**os.environ, 'OTEL_ENABLED': 'true', 'OTEL_EXPORTER_OTLP_ENDPOINT': 'http://127.0.0.1:1', 'DJANGO_SETTINGS_MODULE': 'core.settings.dev'}, capture_output=True, text=True, timeout=30)
+        result = subprocess.run([sys.executable, '-c', code], cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))) , env={**os.environ, 'ALLOWED_HOSTS': 'testserver', 'OTEL_ENABLED': 'true', 'OTEL_EXPORTER_OTLP_ENDPOINT': 'http://127.0.0.1:1', 'DJANGO_SETTINGS_MODULE': 'core.settings.dev'}, capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

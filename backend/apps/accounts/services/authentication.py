@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.settings import api_settings
-from rest_framework_simplejwt.tokens import AccessToken, Token
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken, Token
 
 from apps.accounts.models import AuthSession, User, UserStatus
 
@@ -141,6 +141,9 @@ def rotate_refresh_token(raw_token: str) -> Dict[str, str]:
 def revoke_refresh_token(raw_token: str) -> None:
     try:
         token = SessionRefreshToken(raw_token)
+        if "sid" not in token:
+            RefreshToken(raw_token).blacklist()
+            return
         session_id = _session_id(token)
     except (TokenError, InvalidToken) as exc:
         raise ValidationError("Invalid refresh token.") from exc

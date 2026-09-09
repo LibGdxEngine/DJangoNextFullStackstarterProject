@@ -1,6 +1,0 @@
-
-- Validated infrastructure pins against actual binaries: Collector Contrib0.160.0, Grafana13.2.1, Loki3.7.7, Tempo2.10.8, Prometheus3.14.0, Caddy2.11.4. Tempo2.10.8 is the current patched2.x line for local monolithic storage.
-- Collector0.160.0 internal exporter counters omit `_total`; application Prometheus-exported counters include it. Prometheus boolean `--web.enable-lifecycle=false` is invalid; omit the disabled-by-default flag.
-- Loki3.7.7 is distroless and has no wget; monitor HTTP endpoints externally instead of a broken shell healthcheck. Caddy2.11 uses global `metrics` (the nested servers form is deprecated).
-- Grafana binds only the dedicated proxy interface; internal Prometheus scrapes its subpath metrics through Caddy's unpublished9091 listener. Its canonical production root URL should derive from NEXTAUTH_URL, since DOMAIN_NAME can already include a scheme.
-- Filelog Docker labels appear under attrs. Actual disposable-container tests passed missing/foreign project rejection,15 records through10KB×3 Docker log rotation, and no duplicate records after collector restart with persisted offsets. Native Next.js error output must be summarized unless it matches the safe structured event envelope.

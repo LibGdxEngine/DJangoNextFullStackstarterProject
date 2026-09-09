@@ -4,6 +4,8 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenRefreshView
+from apps.accounts.api.serializers.auth import SessionTokenRefreshSerializer
 
 from apps.accounts.api.serializers import (
     SignupSerializer,
@@ -26,6 +28,10 @@ from apps.accounts.services import (
     reset_password_with_token,
     change_password,
 )
+
+
+class SessionTokenRefreshView(TokenRefreshView):
+    serializer_class = SessionTokenRefreshSerializer
 
 
 class SignupView(APIView):

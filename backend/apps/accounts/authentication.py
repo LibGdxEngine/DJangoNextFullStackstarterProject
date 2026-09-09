@@ -1,6 +1,9 @@
+from django.core.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
-from apps.accounts.models import UserStatus
+from apps.accounts.models import AuthSession, UserStatus
+from apps.accounts.services.authentication import validate_session
 
 
 class VersionedJWTAuthentication(JWTAuthentication):
@@ -9,6 +12,26 @@ class VersionedJWTAuthentication(JWTAuthentication):
     Whenever user.token_version increments (e.g. password reset, phone change, deletion pending,
     manual session revocation), existing JWT access & refresh tokens become invalid immediately.
     """
+
+    def authenticate(self, request):
+        result = super().authenticate(request)
+        if result is None:
+            return None
+        user, token = result
+        if token.get("scope") == "phone_onboarding":
+            match = request.resolver_match
+            allowed = {
+                "me": {"GET", "HEAD", "OPTIONS"},
+                "phone_change_initiate": {"POST", "OPTIONS"},
+                "phone_change_confirm": {"POST", "OPTIONS"},
+                "verification_confirm": {"POST", "OPTIONS"},
+                "verification_resend": {"POST", "OPTIONS"},
+                "logout": {"POST", "OPTIONS"},
+            }
+            if (match is None or match.namespace not in {"auth", "accounts:api"}
+                    or request.method not in allowed.get(match.url_name, set())):
+                raise PermissionDenied("Phone verification is required for this action.")
+        return user, token
 
     def get_user(self, validated_token):
         user = super().get_user(validated_token)
@@ -19,6 +42,13 @@ class VersionedJWTAuthentication(JWTAuthentication):
 
         if user.status == UserStatus.BLOCKED:
             raise AuthenticationFailed("User account is blocked.")
+
+        if "sid" in validated_token:
+            try:
+                session = AuthSession.objects.get(pk=validated_token["sid"])
+            except (AuthSession.DoesNotExist, ValidationError, ValueError, TypeError) as exc:
+                raise InvalidToken("Session does not exist.") from exc
+            validate_session(validated_token, user, session)
 
         return user
 

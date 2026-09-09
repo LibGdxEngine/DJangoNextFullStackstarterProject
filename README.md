@@ -327,3 +327,7 @@ make logs-worker    # confirm jobs are being executed
 Tasks live in a `tasks/` package per app, and every submodule that defines a task must be re-exported from that package's `__init__.py` — `autodiscover_tasks()` only imports `<app>.tasks`.
 
 `sync_subscriptions` moves a subscription through `ACTIVE`/`TRIALING` → `PAST_DUE` → `CANCELED` using only local period data. `charge_via_provider` in `apps/billing/tasks/subscriptions.py` is the integration point for a real payment processor.
+
+## CI/CD deployment
+
+See [the shared-VPS deployment guide](docs/deployment.md) for GitHub Actions, restricted SSH deployment, migration policy, and recovery.

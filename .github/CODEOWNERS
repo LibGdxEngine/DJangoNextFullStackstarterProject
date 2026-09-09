@@ -1,0 +1,9 @@
+# Maintainer for deployment and migration review.
+/.github/ @LibGdxEngine
+/deploy/ @LibGdxEngine
+/scripts/ci-* @LibGdxEngine
+/backend/Dockerfile.prod @LibGdxEngine
+/frontend/Dockerfile.prod @LibGdxEngine
+/backend/requirements* @LibGdxEngine
+/frontend/package*.json @LibGdxEngine
+**/migrations/ @LibGdxEngine
