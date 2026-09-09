@@ -1,0 +1,13 @@
+{
+  "mode": "team",
+  "active": true,
+  "current_phase": "team-exec",
+  "team_name": "mobser-cicd-vps",
+  "task": "CI/CD and isolated test deployment",
+  "workspace": "/home/ahmed/Documents/Mobser-cicd",
+  "owners": {
+    "runtime": "runtime_executor",
+    "pipeline": "pipeline_executor",
+    "controller_bootstrap": "root"
+  }
+}

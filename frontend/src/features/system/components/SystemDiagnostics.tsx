@@ -16,9 +16,9 @@ export function SystemDiagnostics() {
     statusLoading,
     statusError,
     fetchStatus,
-    triggerCelery,
-    triggeringTask,
-    taskResult,
+    checkBackground,
+    checkingBackground,
+    backgroundResult,
   } = useSystemStatus();
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export function SystemDiagnostics() {
 
   const getBadgeVariant = (val: string | undefined) => {
     if (!val) return "neutral";
-    if (val === "up" || val === "triggered") return "success";
+    if (val === "up") return "success";
     if (val.startsWith("down") || val.startsWith("failed")) return "error";
     return "warning";
   };
@@ -115,20 +115,14 @@ export function SystemDiagnostics() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs uppercase font-semibold text-zinc-400">Celery Worker</span>
                 <Badge
-                  variant={getBadgeVariant(
-                    typeof statusData?.celery === "object"
-                      ? statusData.celery.status
-                      : statusData?.celery
-                  )}
+                  variant={getBadgeVariant(statusData?.celery)}
                   size="sm"
                 >
-                  {typeof statusData?.celery === "object"
-                    ? statusData.celery.status
-                    : statusData?.celery || "READY"}
+                  {statusData?.celery || "WAITING"}
                 </Badge>
               </div>
               <p className="text-xs text-zinc-400">
-                Asynchronous task queue dispatcher via Redis broker.
+                Recent scheduled heartbeat completed by a background worker.
               </p>
             </div>
           </div>
@@ -137,48 +131,42 @@ export function SystemDiagnostics() {
           <div className="p-4 rounded-lg bg-zinc-800/30 border border-zinc-800 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs uppercase font-semibold text-zinc-400">Celery Beat</span>
+                <span className="text-xs uppercase font-semibold text-zinc-400">Background Heartbeat</span>
                 <Badge
-                  variant={getBadgeVariant(
-                    typeof statusData?.beat === "object"
-                      ? statusData.beat.status
-                      : statusData?.beat
-                  )}
+                  variant={getBadgeVariant(statusData?.beat.status)}
                   size="sm"
                 >
-                  {typeof statusData?.beat === "object"
-                    ? statusData.beat.status
-                    : statusData?.beat || "WAITING"}
+                  {statusData?.beat.status || "WAITING"}
                 </Badge>
               </div>
               <p className="text-xs text-zinc-400">
-                Scheduler heartbeat driving recurring maintenance jobs.
+                Checks the scheduler, broker, worker, and cache together.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Celery Task Trigger Button & Feedback */}
+        {/* Background health check and feedback */}
         <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-zinc-800/80">
           <div>
-            <p className="text-sm font-medium text-zinc-300">Asynchronous Job Execution</p>
+            <p className="text-sm font-medium text-zinc-300">Background Job Health</p>
             <p className="text-xs text-zinc-400">
-              Dispatch <code className="text-emerald-400">test_celery_task.delay(4, 5)</code> to Celery worker queue
+              Check when a scheduled heartbeat last completed.
             </p>
           </div>
           <Button
             size="sm"
             variant="primary"
-            onClick={triggerCelery}
-            isLoading={triggeringTask}
+            onClick={checkBackground}
+            isLoading={checkingBackground}
           >
-            Dispatch Celery Task
+            Check Background Health
           </Button>
         </div>
 
-        {taskResult && (
+        {backgroundResult && (
           <div className="p-3 rounded-lg bg-zinc-950/80 border border-zinc-800 font-mono text-xs text-zinc-300">
-            {taskResult}
+            {backgroundResult}
           </div>
         )}
       </div>

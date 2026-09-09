@@ -80,5 +80,5 @@ def send_whatsapp_verification(
         message_log.status = OutboundMessage.Status.FAILED
         message_log.error_message = str(exc)
         message_log.save(update_fields=["status", "error_message", "updated_at"])
-        logger.error("Failed to send WhatsApp verification to %s: %s", to, exc)
+        logger.error("Failed to send WhatsApp verification (%s)", type(exc).__name__)
         raise

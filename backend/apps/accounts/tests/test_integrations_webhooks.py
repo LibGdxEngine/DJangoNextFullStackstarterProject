@@ -22,6 +22,7 @@ class HireAgentsWebhookTests(TestCase):
         url = reverse("hireagents-webhooks:webhook", kwargs={"connection": "nonexistent"})
         res = self.client.post(url, {}, content_type="application/json")
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(res.json()["error"]["code"], "not_found")
 
     def test_invalid_api_key_returns_401(self):
         url = reverse("hireagents-webhooks:webhook", kwargs={"connection": "auth"})
@@ -32,6 +33,7 @@ class HireAgentsWebhookTests(TestCase):
             HTTP_X_API_KEY="wrong-key",
         )
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(res.json()["error"]["code"], "authentication_failed")
 
     @patch("apps.integrations.hireagents.webhooks.process_hireagents_event.delay")
     def test_valid_webhook_persists_event_and_enqueues_worker(self, mock_delay):

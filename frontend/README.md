@@ -2,6 +2,10 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+For a new SaaS, first run `make init` from the repository root. This updates the
+frontend package name, lockfile identity, page branding and telemetry along with
+the backend and deployment configuration. See [the root setup guide](../README.md).
+
 First, run the development server:
 
 ```bash

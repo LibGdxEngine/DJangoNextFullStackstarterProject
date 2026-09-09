@@ -68,10 +68,17 @@ export default function Home() {
                 <div className="py-8 text-center text-xs text-zinc-500">
                   Checking active authentication session...
                 </div>
-              ) : session?.user ? (
+              ) : session?.accessToken ? (
                 <UserSessionCard />
               ) : (
-                <LoginForm />
+                <>
+                  {session?.sessionExpired && (
+                    <p role="alert" className="mb-4 text-sm text-amber-300">
+                      Your session has expired. Please sign in again.
+                    </p>
+                  )}
+                  <LoginForm />
+                </>
               )}
             </Card>
 

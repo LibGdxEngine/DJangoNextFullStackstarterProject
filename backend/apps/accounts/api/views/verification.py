@@ -1,3 +1,4 @@
+from core.api_errors import validation_error_response
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
@@ -60,10 +61,7 @@ class VerificationConfirmView(APIView):
                 status=status.HTTP_200_OK,
             )
         except ValidationError as exc:
-            return Response(
-                {"detail": exc.message if hasattr(exc, "message") else str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return validation_error_response(exc)
 
 
 class VerificationResendView(APIView):
@@ -93,7 +91,4 @@ class VerificationResendView(APIView):
                 status=status.HTTP_200_OK,
             )
         except ValidationError as exc:
-            return Response(
-                {"detail": exc.message if hasattr(exc, "message") else str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return validation_error_response(exc)

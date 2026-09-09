@@ -54,13 +54,12 @@ class BaseTask(_CeleryBaseTask):
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         logger.warning(
-            "Retrying %s [%s] (attempt %s/%s) after %s: %s",
+            "Retrying %s [%s] (attempt %s/%s) after %s",
             self.name,
             task_id,
             self.request.retries + 1,
             self.max_retries,
             type(exc).__name__,
-            exc,
         )
         super().on_retry(exc, task_id, args, kwargs, einfo)
 
@@ -70,7 +69,7 @@ class BaseTask(_CeleryBaseTask):
             self.name,
             task_id,
             self.request.retries,
-            exc,
+            type(exc).__name__,
         )
         self._record_dead_letter(exc, task_id, args, kwargs, einfo)
         super().on_failure(exc, task_id, args, kwargs, einfo)

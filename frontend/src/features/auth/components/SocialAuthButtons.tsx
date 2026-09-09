@@ -52,11 +52,10 @@ export function SocialAuthButtons({ callbackUrl = "/" }: SocialAuthButtonsProps)
     getProviders().then((available) => {
       if (!isActive || !available) return;
       setProviderIds(Object.keys(available).filter((id) => id in PROVIDER_META));
+      if (new URLSearchParams(window.location.search).get("error")) {
+        setErrorMessage("Social sign-in failed. Please try again or use your email and password.");
+      }
     });
-
-    if (new URLSearchParams(window.location.search).get("error")) {
-      setErrorMessage("Social sign-in failed. Please try again or use your email and password.");
-    }
 
     return () => {
       isActive = false;

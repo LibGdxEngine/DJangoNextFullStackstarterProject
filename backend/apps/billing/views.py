@@ -19,5 +19,7 @@ class SubscriptionListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Subscription.objects.none()
         user = self.request.user
         return Subscription.objects.filter(customer__organization__memberships__user=user)

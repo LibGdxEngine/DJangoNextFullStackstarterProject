@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import logging
 import secrets
+from core.api_errors import error_response
 from django.conf import settings
 from django.db import transaction
 from rest_framework import status
@@ -51,8 +52,8 @@ def hireagents_webhook_view(request, connection: str):
 
     if not conn_config:
         logger.warning("HireAgents webhook received for unknown connection: '%s'", connection)
-        return Response(
-            {"error": f"Unknown connection '{connection}'"},
+        return error_response(
+            "not_found", f"Unknown connection '{connection}'",
             status=status.HTTP_404_NOT_FOUND,
         )
 
@@ -62,8 +63,8 @@ def hireagents_webhook_view(request, connection: str):
     if expected_api_key:
         if not received_api_key or not secrets.compare_digest(received_api_key, expected_api_key):
             logger.warning("Invalid or missing X-Api-Key for HireAgents webhook '%s'", connection)
-            return Response(
-                {"error": "Unauthorized: Invalid API key"},
+            return error_response(
+                "authentication_failed", "Unauthorized: Invalid API key",
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
@@ -72,8 +73,8 @@ def hireagents_webhook_view(request, connection: str):
         received_signature = request.headers.get("X-HireAgents-Signature")
         if not verify_signature(request.body, received_signature, signing_secret):
             logger.warning("Invalid X-HireAgents-Signature for HireAgents webhook '%s'", connection)
-            return Response(
-                {"error": "Unauthorized: Invalid payload signature"},
+            return error_response(
+                "authentication_failed", "Unauthorized: Invalid payload signature",
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 

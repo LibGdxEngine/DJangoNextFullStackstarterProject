@@ -8,7 +8,7 @@ class PlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = ['id', 'name', 'slug', 'price_cents', 'price_dollars', 'currency', 'interval', 'features', 'is_active']
 
-    def get_price_dollars(self, obj):
+    def get_price_dollars(self, obj) -> float:
         return obj.price_cents / 100.0
 
 

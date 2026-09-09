@@ -9,6 +9,7 @@ A production-ready platform template structured around decoupled reusable platfo
 *   **Caching & Broker**: [Redis 7](https://redis.io/)
 *   **Task Queue**: [Celery 5.4](https://docs.celeryq.dev/en/stable/)
 *   **Reverse Proxy**: [Caddy 2](https://caddyserver.com/)
+*   **Observability**: OpenTelemetry, Grafana, Loki, Tempo, and Prometheus. See the [operations guide](docs/observability.md) for setup, staff-only access, retention, and validation.
 
 ---
 
@@ -67,7 +68,46 @@ Ensure you have Docker and Docker Compose installed:
 *   [Docker Engine](https://docs.docker.com/engine/install/)
 *   [Docker Compose](https://docs.docker.com/compose/install/)
 
-### 2. Run the Development Server
+### 2. Initialize a New SaaS
+
+In a fresh clone or copy, run `make init` (Python 3.10+ and Make). On systems without
+Make, use `python3 scripts/init_project.py`. The initializer asks for a project name,
+production domain, Python package, and database name, then previews the files it
+will change before applying them.
+
+```text
+Project name: Acme
+Domain: acme.com
+Python package [acme]: acme
+Database name [acme]: acme
+```
+
+For a scripted preview, and then application:
+
+```bash
+python3 scripts/init_project.py --name Acme --domain acme.com --package acme --database acme --dry-run
+python3 scripts/init_project.py --name Acme --domain acme.com --package acme --database acme --yes
+```
+
+Use `--slug acme-tools` to override the derived slug or `--package core` to retain
+the starter's Python package. The command renames project imports, updates branding,
+package metadata and monitoring, and creates ignored root `.env` and `.env.prod`
+files with independent secrets. Review these files and supply any optional integration
+credentials. Development stays on localhost; the supplied domain configures production.
+The command does not install dependencies or start services.
+
+Run it before modifying the template or creating environment files. It refuses
+conflicting target files and existing environment files; it never overwrites deployment
+credentials. Git is optional; without it, only content and collision checks are available.
+A successful run writes a non-secret `.bootstrap.json`. Repeating the command preserves
+the files and secrets; use another fresh copy for a different product.
+
+This initializes a fresh database and Compose project. It does not rename an existing
+database or migrate old volumes. Different project names separate resources, but running
+multiple stacks on one host also requires distinct published ports and observability subnets.
+See [bootstrap recovery and validation](docs/bootstrap.md) for failure recovery and checks.
+
+### 3. Run the Development Server
 From the root of the project, execute:
 ```bash
 make up
@@ -75,6 +115,7 @@ make up
 Or to build and launch from scratch:
 ```bash
 make build && make up
+make migrate
 ```
 This starts PostgreSQL (`db`), Redis (`redis`), Django (`backend`), Celery (`celery_worker`), Next.js (`frontend`), and Caddy (`caddy`) in the background.
 
@@ -83,14 +124,14 @@ To watch all logs:
 make logs
 ```
 
-### 3. Verify
+### 4. Verify
 Open your browser and navigate to:
 *   **Web Dashboard**: [http://localhost](http://localhost)
 *   **Interactive API Docs (Swagger)**: [http://localhost/api/docs/](http://localhost/api/docs/)
 *   **Django API Status**: [http://localhost/api/status/](http://localhost/api/status/)
 *   **Django Admin Console**: [http://localhost/admin/](http://localhost/admin/)
 
-### 4. Create a Superuser
+### 5. Create a Superuser
 To create a superuser for dashboard authentication, run:
 ```bash
 make createsuperuser
@@ -174,6 +215,61 @@ When `.env.prod` is used, deployment-provided environment variables take precede
 
 ---
 
+## API Contracts and Frontend Requests
+
+Django serializers and OpenAPI annotations define the HTTP contract. The exported
+`backend/openapi.json` and `frontend/src/lib/api/generated.ts` are generated artifacts;
+do not edit them by hand. Include both regenerated files when an API contract changes.
+
+```bash
+make api-generate   # validate Django's schema and regenerate TypeScript
+make api-check      # fail if either committed artifact is stale; writes only temporary files
+```
+
+Install frontend dependencies with `cd frontend && npm ci` before generating types.
+Start the backend container for the default commands. For an isolated local Python
+environment with `backend/requirements.txt` installed, use
+`make api-check API_PYTHON=/absolute/path/to/venv/bin/python` (the same override works
+with `api-generate`).
+The commands use fixed schema settings and fail on schema warnings. Frontend builds
+consume the committed types and do not need a running Django server.
+
+Product code calls domain APIs such as `systemApi.status()` and `authApi.login(...)`.
+Domain wrappers own endpoint paths and use generated request/response types. The shared
+client in `frontend/src/lib/api/` owns HTTP methods, query parameters, JSON bodies,
+decoding, bearer tokens, and errors. ESLint prevents components from bypassing this layer.
+Keep NextAuth's own sign-in and session protocol calls in its SDK.
+
+Browser calls use `NEXT_PUBLIC_API_URL` (default `/api`); server calls use
+`BACKEND_API_URL`, falling back to an absolute public URL or `http://localhost/api`.
+Never put internal backend addresses or secrets in browser configuration. Requests time
+out after 10 seconds by default, accept cancellation, and are not retried automatically.
+A 204 returns `undefined`. Protected 401 responses invalidate the affected session and
+show a sign-in message; public login failures and 403 responses do not sign the user out.
+
+API failures use one envelope:
+
+```json
+{
+  "error": {
+    "code": "validation_error",
+    "message": "Invalid input.",
+    "fields": { "email": ["Enter a valid email address."] }
+  }
+}
+```
+
+`fields` maps dotted field paths (including numeric list indexes) to message arrays;
+object-level errors use `non_field_errors`. Non-validation failures have empty fields.
+Existing business codes, including `PHONE_VERIFICATION_REQUIRED`, stay stable. Optional
+`error.context` carries verification email/masked-phone metadata. Successful payloads and
+HTTP status codes are unchanged. `ApiError` exposes the envelope plus HTTP status and
+distinguishes HTTP failures from network, timeout, cancellation, and JSON-decoding errors.
+
+Run `make test-backend` for Django regressions. From `frontend/`, run `npm test`,
+`npm run lint`, `npx tsc --noEmit`, and `npm run build`; also run `make api-check`
+before submitting contract changes.
+
 ## Service Verification Endpoints
 
 ### 1. Hello World API
@@ -231,4 +327,3 @@ make logs-worker    # confirm jobs are being executed
 Tasks live in a `tasks/` package per app, and every submodule that defines a task must be re-exported from that package's `__init__.py` — `autodiscover_tasks()` only imports `<app>.tasks`.
 
 `sync_subscriptions` moves a subscription through `ACTIVE`/`TRIALING` → `PAST_DUE` → `CANCELED` using only local period data. `charge_via_provider` in `apps/billing/tasks/subscriptions.py` is the integration point for a real payment processor.
-

@@ -18,7 +18,7 @@ def ping():
 
 @shared_task(name="apps.common.tasks.beat_heartbeat")
 def beat_heartbeat():
-    """Refresh the marker that proves the beat scheduler is alive."""
+    """Refresh the scheduler → broker → worker → cache health marker."""
     stamp = timezone.now().isoformat()
     cache.set(BEAT_HEARTBEAT_CACHE_KEY, stamp, timeout=BEAT_HEARTBEAT_TTL)
     return stamp

@@ -32,6 +32,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'core.middleware.api_errors.ApiErrorMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # Needs to be at the top
     'django.middleware.security.SecurityMiddleware',
     'core.middleware.request_id.RequestIdMiddleware',  # Trace requests with X-Request-ID
@@ -120,6 +121,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # DRF settings
 REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'core.api_errors.exception_handler',
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
@@ -128,7 +130,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_SCHEMA_CLASS': 'core.schema.ContractAutoSchema',
 }
 
 # OpenAPI / Swagger configuration
@@ -137,6 +139,16 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API documentation for our Next.js + Django starter project.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'POSTPROCESSING_HOOKS': [
+        'drf_spectacular.hooks.postprocess_schema_enums',
+        'core.schema.add_error_responses',
+    ],
+    'ENUM_NAME_OVERRIDES': {
+        'UserStatusEnum': 'apps.accounts.models.UserStatus.choices',
+        'VerificationPurposeEnum': 'apps.accounts.models.VerificationPurpose.choices',
+        'SubscriptionStatusEnum': 'apps.billing.models.Subscription.Status',
+    },
 }
 
 # SimpleJWT configuration
@@ -309,6 +321,7 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': os.environ.get('CACHE_URL', 'redis://redis:6379/1'),
         'KEY_PREFIX': 'mobser',
+        'OPTIONS': {'socket_connect_timeout': 2, 'socket_timeout': 2},
     }
 }
 
@@ -327,17 +340,13 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        # Adds task_name/task_id to records emitted from inside a Celery task.
-        'task_aware': {
-            '()': 'celery.app.log.TaskFormatter',
-            'fmt': '[%(asctime)s] %(levelname)s %(name)s %(task_name)s[%(task_id)s] %(message)s',
-            'use_color': False,
-        },
+        'json': {'()': 'core.logging.JsonFormatter'},
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'formatter': 'task_aware',
+            'stream': 'ext://sys.stdout',
+            'formatter': 'json',
         },
     },
     'root': {
@@ -345,6 +354,8 @@ LOGGING = {
         'level': LOG_LEVEL,
     },
     'loggers': {
+        'django': {'handlers': ['console'], 'level': LOG_LEVEL, 'propagate': False},
+        'django.server': {'handlers': ['console'], 'level': LOG_LEVEL, 'propagate': False},
         'django.db.backends': {
             'handlers': ['console'],
             'level': 'WARNING',

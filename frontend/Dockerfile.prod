@@ -14,6 +14,7 @@ COPY . .
 
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV OTEL_ENABLED=false
 
 # Accept API URL build argument to embed it in the build output
 ARG NEXT_PUBLIC_API_URL

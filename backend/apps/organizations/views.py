@@ -11,6 +11,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Organization.objects.none()
         user = self.request.user
         if user.is_staff:
             return Organization.objects.all()

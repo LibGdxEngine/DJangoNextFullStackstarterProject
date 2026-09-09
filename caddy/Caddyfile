@@ -1,23 +1,79 @@
+{
+	admin localhost:2019
+	metrics
+	log default {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>headers delete
+				request>uri regexp \?.* ""
+				request>remote_ip delete
+				request>client_ip delete
+				resp_headers delete
+			}
+		}
+	}
+}
+
+# Only reachable within Docker; no host-published management port.
+:9091 {
+	handle /metrics {
+		metrics
+	}
+	handle /grafana-metrics {
+		rewrite * /observability/metrics
+		reverse_proxy {$GRAFANA_PROXY_IP}:3000
+	}
+	respond 404
+}
+
 {$DOMAIN_NAME:http://localhost} {
-    # Compress responses
-    encode gzip zstd
+	encode gzip zstd
 
-    # Route NextAuth endpoints to Next.js frontend
+	# Route includes the prefix itself and every asset, API, and WebSocket path.
+	@observability path /observability /observability/*
+	handle @observability {
+		route {
+			request_header -X-WEBAUTH-*
+			request_header -X-Grafana-*
+			forward_auth backend:8000 {
+				uri /internal/observability/auth/
+				copy_headers X-WEBAUTH-USER
+				transport http {
+					dial_timeout 2s
+					response_header_timeout 5s
+				}
+			}
+			reverse_proxy {$GRAFANA_PROXY_IP}:3000 {
+				header_up -Authorization
+				header_up -Cookie
+				stream_timeout 5m
+			}
+		}
+	}
+
+	respond /internal/observability/auth/ 404
+
     reverse_proxy /api/auth/* frontend:3000
+    reverse_proxy /api/bff/* frontend:3000
+	reverse_proxy /api/* backend:8000
+	reverse_proxy /admin/* backend:8000
+	reverse_proxy /static/* backend:8000
+	reverse_proxy /media/* backend:8000
+	reverse_proxy /* frontend:3000
 
-    # Reverse proxy backend endpoints
-    reverse_proxy /api/* backend:8000
-    reverse_proxy /admin/* backend:8000
-    reverse_proxy /static/* backend:8000
-    reverse_proxy /media/* backend:8000
-
-    # Reverse proxy all other requests to Next.js standalone server
-    reverse_proxy /* frontend:3000
-
-    log {
-        output file /var/log/caddy/access.log {
-            roll_size 10mb
-            roll_keep 5
-        }
-    }
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>headers delete
+				request>uri regexp \?.* ""
+				request>remote_ip delete
+				request>client_ip delete
+				resp_headers delete
+			}
+		}
+	}
 }

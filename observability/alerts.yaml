@@ -1,0 +1,48 @@
+groups:
+  - name: mobser-observability
+    rules:
+      - alert: ObservabilityServiceUnavailable
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Telemetry scrape failed for {{ $labels.job }}'
+          description: 'Check the service container, its memory limit, and internal networking.'
+      - alert: TelemetryExportFailing
+        expr: (sum(rate(otelcol_exporter_send_failed_spans[5m])) or vector(0)) + (sum(rate(otelcol_exporter_send_failed_log_records[5m])) or vector(0)) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Telemetry export failures'
+          description: 'Check collector and storage logs, disk capacity, and exporter queue size.'
+      - alert: HostDiskSpaceLow
+        expr: system_filesystem_usage_bytes{state="free"} / ignoring(state) group_left sum without(state) (system_filesystem_usage_bytes) < 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Host filesystem has less than 15% free space'
+          description: 'Inspect Docker volume usage and shorten retention or increase disk capacity.'
+      - alert: BackendErrors
+        expr: sum(rate(mobser_http_requests_total{http_response_status_code=~"5.."}[5m])) / clamp_min(sum(rate(mobser_http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Backend error rate exceeds 5%'
+      - alert: BackgroundTaskFailure
+        expr: sum(increase(mobser_task_executions_total{task_state="FAILURE"}[10m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A background task failed'
+      - alert: TelemetryQueueFilling
+        expr: otelcol_exporter_queue_size / otelcol_exporter_queue_capacity > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Telemetry export queue is more than 80% full'
+          description: 'Check storage health before bounded collector queues discard telemetry.'

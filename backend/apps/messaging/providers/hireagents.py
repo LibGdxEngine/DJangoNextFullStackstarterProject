@@ -47,10 +47,7 @@ class HireAgentsWhatsAppProvider:
         # If running in environment without live credentials configured, log and return mock response
         if not self.api_key or not self.channel_id:
             logger.warning(
-                "HireAgents credentials missing (channel_id=%s, api_key set=%s). Mocking dispatch to %s.",
-                self.channel_id,
-                bool(self.api_key),
-                to,
+                "HireAgents credentials missing; using development mock dispatch.",
             )
             return {
                 "status": "mock_sent",
@@ -59,7 +56,7 @@ class HireAgentsWhatsAppProvider:
                 "variables": variables,
             }
 
-        logger.info("Sending HireAgents WhatsApp template %s to %s", template_name, to)
+        logger.info("Sending HireAgents WhatsApp template")
         with httpx.Client(timeout=10.0) as client:
             response = client.post(url, json=payload, headers=headers)
             response.raise_for_status()

@@ -1,8 +1,13 @@
-from .base import *
+import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-# Load dev environment file if available
-load_dotenv(os.path.join(BASE_DIR, '.env.dev'))
+# Load the root development environment before base settings read its values.
+# Explicit process/container environment values remain authoritative.
+load_dotenv(Path(__file__).resolve().parents[3] / '.env', override=False)
+
+from .base import *
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-secret-key-template-project-1234')
 

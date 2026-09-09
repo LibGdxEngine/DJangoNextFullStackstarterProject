@@ -1,0 +1,35 @@
+{
+  "containers": [
+    "shaarawy_prod_frontend|f6a294833128|Up 5 days",
+    "shaarawy_prod_backend|1cfa0763e2d0|Up 5 days",
+    "shaarawy_prod_celery_worker|331cee61713d|Up 5 days",
+    "shaarawy_prod_celery_beat|4e9dfff77a66|Up 5 days",
+    "shaarawy_tmp_meili|7cc372fb5bcf|Up 6 days",
+    "shaarawy_tmp_redis|a5ee0d4bef53|Up 6 days",
+    "shaarawy_tmp_testdb|9369a0868bbd|Up 6 days",
+    "search_frontend|077ee6015b80|Up 6 days",
+    "search_agent|30e070d7406a|Up 6 days",
+    "search_celery_worker|a7fd8eb45a74|Up 6 days",
+    "search_backend|336c347dc09b|Up 6 days",
+    "search_db|372c7f15589b|Up 6 days (healthy)",
+    "search_es|b9c2fadc74a5|Up 6 days (healthy)",
+    "search_minio|df0bfb14fa5b|Up 6 days (healthy)",
+    "search_ocr_tesseract|1b36ee5d9bb7|Up 6 days (healthy)",
+    "shaarawy_prod_db|c51a829424bd|Up 2 weeks (healthy)",
+    "shaarawy_prod_redis|21173cc5c19c|Up 2 weeks (healthy)",
+    "shaarawy_prod_meilisearch|1d40f6484fb4|Up 2 weeks (healthy)",
+    "search_redis|b576b7e230f5|Up 2 months (healthy)",
+    "search_ocr_docling|e6ae9b4466d9|Up 2 months (healthy)",
+    "search_caddy|74264d0e0b0a|Up 8 weeks"
+  ],
+  "sites": {
+    "ilmshamela.com": {
+      "status": 200,
+      "url": "https://ilmshamela.com/ar"
+    },
+    "athar-shaarawy.com": {
+      "status": 200,
+      "url": "https://athar-shaarawy.com"
+    }
+  }
+}
