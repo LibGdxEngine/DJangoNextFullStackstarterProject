@@ -1,0 +1,160 @@
+name: ${COMPOSE_PROJECT_NAME:-mobser-test}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend: &backend
+  image: ${BACKEND_IMAGE:?Set the backend image digest}
+  env_file: runtime.env
+  environment: &backend-environment
+    DJANGO_SETTINGS_MODULE: core.settings.prod
+    DB_HOST: db
+    DB_PORT: "5432"
+    CELERY_BROKER_URL: redis://redis:6379/0
+    CELERY_RESULT_BACKEND: redis://redis:6379/0
+    CACHE_URL: redis://redis:6379/1
+    OTEL_ENABLED: "false"
+    RUN_MIGRATIONS: "false"
+    RUN_COLLECTSTATIC: "false"
+    SECURE_SSL_REDIRECT: "False"
+  restart: unless-stopped
+  logging: *logging
+  mem_limit: 384m
+  cpus: 0.75
+  pids_limit: 128
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  networks: [default]
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:?Set DB_NAME}
+      POSTGRES_USER: ${DB_USER:?Set DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --maxmemory, 64mb, --maxmemory-policy, noeviction, --appendonly, "yes"]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 128m
+    cpus: 0.25
+    pids_limit: 64
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    <<: *backend
+    volumes:
+      - media_data:/app/media
+    command: [gunicorn, --config, gunicorn.conf.py, --bind, "0.0.0.0:8000", --workers, "1", --threads, "2", --access-logfile, "-", core.wsgi:application]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen(urllib.request.Request('http://localhost:8000/api/health/ready/', headers={'Host': 'localhost'}), timeout=5)"]
+      interval: 15s
+      timeout: 7s
+      retries: 8
+      start_period: 30s
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?Set the frontend image digest}
+    environment:
+      NODE_ENV: production
+      OTEL_ENABLED: "false"
+      NEXT_TELEMETRY_DISABLED: "1"
+      BACKEND_API_URL: http://backend:8000/api
+      NEXT_PUBLIC_API_URL: /api
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?Set NEXTAUTH_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    healthcheck:
+      test: [CMD, node, -e, "require('http').get('http://127.0.0.1:3000/',r=>{r.resume();process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 7s
+      retries: 8
+      start_period: 30s
+
+  celery_worker:
+    <<: *backend
+    volumes:
+      - media_data:/app/media
+    command: [celery, -A, core, worker, -l, info, -Q, "celery,maintenance", --concurrency=1]
+    mem_limit: 256m
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  celery_beat:
+    <<: *backend
+    command: [celery, -A, core, beat, -l, info]
+    mem_limit: 128m
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  gateway:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 64m
+    cpus: 0.25
+    pids_limit: 64
+    ports:
+      - "127.0.0.1:${GATEWAY_PORT:-18080}:8080"
+    volumes:
+      - ./gateway.Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      default:
+      edge:
+        aliases:
+          - ${EDGE_ALIAS:-mobser-test-gateway}
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/healthz]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:
+
+networks:
+  default:
+  edge:
+    external: true
+    name: ${EDGE_NETWORK:-mobser_test_edge}

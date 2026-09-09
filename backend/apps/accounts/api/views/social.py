@@ -1,3 +1,4 @@
+from core.api_errors import error_response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -33,12 +34,12 @@ class SocialAuthView(APIView):
             )
             return Response(tokens, status=status.HTTP_200_OK)
         except ProviderNotConfiguredError as exc:
-            return Response(
-                {"code": "PROVIDER_NOT_CONFIGURED", "detail": str(exc)},
+            return error_response(
+                "PROVIDER_NOT_CONFIGURED", str(exc),
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except SocialAuthError as exc:
-            return Response(
-                {"code": "SOCIAL_AUTH_FAILED", "detail": str(exc)},
+            return error_response(
+                "SOCIAL_AUTH_FAILED", str(exc),
                 status=status.HTTP_401_UNAUTHORIZED,
             )

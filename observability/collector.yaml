@@ -1,0 +1,151 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage:
+    directory: /var/lib/otelcol
+    create_directory: true
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        max_request_body_size: 4194304
+  filelog/docker:
+    include: [/var/lib/docker/containers/*/*-json.log]
+    include_file_path: true
+    start_at: beginning
+    storage: file_storage
+    max_log_size: 256KiB
+    operators:
+      - type: json_parser
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.999999999Z07:00'
+        on_error: drop
+      - type: filter
+        expr: 'attributes.attrs == nil or attributes.attrs["com.docker.compose.project"] == nil or attributes.attrs["com.docker.compose.project"] != "${env:COMPOSE_PROJECT_NAME}" or attributes.attrs["com.docker.compose.service"] == nil or attributes.attrs["com.docker.compose.service"] == "otel-collector"'
+      - type: move
+        from: attributes.attrs["com.docker.compose.service"]
+        to: resource["service.name"]
+      - type: move
+        from: attributes.log
+        to: body
+      - type: remove
+        field: attributes.attrs
+      - type: remove
+        field: attributes.time
+  hostmetrics:
+    root_path: /hostfs
+    collection_interval: 30s
+    scrapers:
+      filesystem:
+        exclude_fs_types:
+          fs_types: [autofs, binfmt_misc, bpf, cgroup, cgroup2, configfs, debugfs, devpts, devtmpfs, fusectl, hugetlbfs, mqueue, nsfs, overlay, proc, procfs, pstore, rpc_pipefs, securityfs, sysfs, tracefs]
+          match_type: strict
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 384
+    spike_limit_mib: 96
+  resource:
+    attributes:
+      - key: deployment.environment.name
+        value: ${env:DEPLOYMENT_ENVIRONMENT}
+        action: upsert
+      - key: service.namespace
+        value: ${env:COMPOSE_PROJECT_NAME}
+        action: upsert
+  transform/logs:
+    error_mode: silent
+    log_statements:
+      - context: log
+        statements:
+          - 'set(cache["record"], ParseJSON(body)) where IsString(body) and IsMatch(body, "^\\s*\\{")'
+          - 'set(resource.attributes["service.name"], cache["record"]["service"]) where cache["record"]["service"] != nil'
+          - 'set(resource.attributes["service.instance.id"], cache["record"]["service_instance_id"]) where cache["record"]["service_instance_id"] != nil'
+          - 'set(resource.attributes["service.version"], cache["record"]["release"]) where cache["record"]["release"] != nil'
+          - 'set(attributes["request_id"], cache["record"]["request_id"]) where cache["record"]["request_id"] != nil'
+          - 'set(attributes["trace_id"], cache["record"]["trace_id"]) where cache["record"]["trace_id"] != nil'
+          - 'set(attributes["span_id"], cache["record"]["span_id"]) where cache["record"]["span_id"] != nil'
+          - 'set(attributes["task_id"], cache["record"]["task_id"]) where cache["record"]["task_id"] != nil'
+          - 'set(attributes["task_name"], cache["record"]["task_name"]) where cache["record"]["task_name"] != nil'
+          - 'set(severity_text, cache["record"]["severity"]) where cache["record"]["severity"] != nil'
+          - 'set(severity_text, cache["record"]["level"]) where cache["record"]["level"] != nil'
+          - 'keep_keys(cache["record"], ["timestamp", "severity", "level", "message", "msg", "logger", "service", "environment", "release", "request_id", "trace_id", "span_id", "task_id", "task_name", "exception_type", "exception_frames", "status", "duration", "size", "request", "ts", "service_instance_id", "http_method", "http_route", "http_status", "duration_seconds"]) where cache["record"] != nil'
+          - 'keep_keys(cache["record"]["request"], ["method", "uri", "host", "proto"]) where IsMap(cache["record"]["request"])'
+          - 'replace_pattern(cache["record"]["message"], "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "[redacted]") where IsString(cache["record"]["message"])'
+          - 'replace_pattern(cache["record"]["message"], "(?i)(password|token|secret|authorization|cookie|otp)[=: ]+[^\\s,;]+", "[redacted]") where IsString(cache["record"]["message"])'
+          - 'replace_pattern(cache["record"]["message"], "\\+?[0-9][0-9 ()-]{8,}[0-9]", "[redacted]") where IsString(cache["record"]["message"])'
+          - 'replace_pattern(cache["record"]["msg"], "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "[redacted]") where IsString(cache["record"]["msg"])'
+          - 'replace_pattern(cache["record"]["msg"], "(?i)(password|token|secret|authorization|cookie|otp)[=: ]+[^\\s,;]+", "[redacted]") where IsString(cache["record"]["msg"])'
+          - 'replace_pattern(cache["record"]["msg"], "\\+?[0-9][0-9 ()-]{8,}[0-9]", "[redacted]") where IsString(cache["record"]["msg"])'
+          - 'set(body, cache["record"]) where cache["record"] != nil'
+          - 'set(body, "PostgreSQL error (details retained only in rotated local container logs)") where resource.attributes["service.name"] == "db" and IsString(body) and IsMatch(body, "(?i)(ERROR|FATAL|DETAIL|STATEMENT|CONTEXT):")'
+          - 'replace_pattern(body, "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "[redacted-email]") where IsString(body)'
+          - 'replace_pattern(body, "(?i)(password|token|secret|authorization|cookie|otp)[=: ]+[^\\s,;]+", "[redacted]") where IsString(body)'
+  transform/traces:
+    error_mode: silent
+    trace_statements:
+      - context: span
+        statements:
+          - 'delete_matching_keys(attributes, "(?i).*(password|token|secret|authorization|cookie|body|query|statement|parameter|command_line|args|kwargs).*")'
+          - 'replace_pattern(attributes["http.url"], "\\?.*", "") where attributes["http.url"] != nil'
+          - 'replace_pattern(attributes["url.full"], "\\?.*", "") where attributes["url.full"] != nil'
+          - 'replace_pattern(attributes["http.target"], "\\?.*", "") where attributes["http.target"] != nil'
+      - context: spanevent
+        statements:
+          - 'delete_key(attributes, "exception.message")'
+          - 'delete_key(attributes, "exception.stacktrace")'
+  batch:
+    send_batch_size: 512
+    send_batch_max_size: 1024
+    timeout: 5s
+exporters:
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    sending_queue:
+      queue_size: 1000
+      num_consumers: 2
+    retry_on_failure:
+      max_elapsed_time: 60s
+    timeout: 5s
+  otlphttp/tempo:
+    endpoint: http://tempo:4318
+    sending_queue:
+      queue_size: 1000
+      num_consumers: 2
+    retry_on_failure:
+      max_elapsed_time: 60s
+    timeout: 5s
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+    metric_expiration: 5m
+service:
+  extensions: [health_check, file_storage]
+  telemetry:
+    logs:
+      level: info
+      encoding: json
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, transform/traces, batch]
+      exporters: [otlphttp/tempo]
+    logs:
+      receivers: [filelog/docker]
+      processors: [memory_limiter, resource, transform/logs, batch]
+      exporters: [otlphttp/loki]
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheus]

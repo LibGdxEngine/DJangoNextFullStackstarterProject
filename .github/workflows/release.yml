@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobser-test-release
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/master'
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build and verify release
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      packages: write
+    env:
+      BACKEND_REPOSITORY: ghcr.io/libgdxengine/djangonextfullstackstarterproject-backend
+      FRONTEND_REPOSITORY: ghcr.io/libgdxengine/djangonextfullstackstarterproject-frontend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish backend once
+        id: backend
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.BACKEND_REPOSITORY }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+      - name: Publish frontend once
+        id: frontend
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.FRONTEND_REPOSITORY }}:${{ github.sha }}
+          build-args: NEXT_PUBLIC_API_URL=/api
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+      - name: Smoke test published production digests
+        env:
+          BACKEND_IMAGE: ${{ env.BACKEND_REPOSITORY }}@${{ steps.backend.outputs.digest }}
+          FRONTEND_IMAGE: ${{ env.FRONTEND_REPOSITORY }}@${{ steps.frontend.outputs.digest }}
+        run: bash scripts/ci-smoke.sh
+      - name: Write verified release identity
+        env:
+          BACKEND_IMAGE: ${{ env.BACKEND_REPOSITORY }}@${{ steps.backend.outputs.digest }}
+          FRONTEND_IMAGE: ${{ env.FRONTEND_REPOSITORY }}@${{ steps.frontend.outputs.digest }}
+        run: python3 scripts/ci-release.py
+      - name: Preserve immutable release manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release.json
+          if-no-files-found: error
+          retention-days: 30
+
+  deploy:
+    name: Deploy staging
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment:
+      name: staging
+      url: ${{ vars.TEST_URL }}
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+    steps:
+      - name: Request fixed deployment command
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_PORT: ${{ vars.VPS_PORT || '22' }}
+          VPS_USER: ${{ vars.VPS_USER || 'mobser-deploy' }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [[ "$VPS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ "$VPS_PORT" =~ ^[0-9]{1,5}$ ]]
+          [[ "$VPS_USER" == mobser-deploy ]]
+          [[ -n "$VPS_SSH_KEY" && -n "$VPS_KNOWN_HOSTS" ]]
+          credential_dir=$(mktemp -d)
+          trap 'rm -rf "$credential_dir"' EXIT
+          chmod 700 "$credential_dir"
+          printf '%s\n' "$VPS_SSH_KEY" > "$credential_dir/key"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$credential_dir/known_hosts"
+          chmod 600 "$credential_dir/key" "$credential_dir/known_hosts"
+          printf '%s\n' "$GH_TOKEN" | ssh -T -i "$credential_dir/key" -p "$VPS_PORT" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$credential_dir/known_hosts" \
+            -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            "$VPS_USER@$VPS_HOST" "deploy $GITHUB_RUN_ID $GITHUB_RUN_ATTEMPT"

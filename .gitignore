@@ -3,3 +3,21 @@
 .env.*
 !.env.example
 !.env.prod.example
+
+# Local runtime data and agent artifacts do not belong in releases.
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+.venv/
+venv/
+.omc/
+node_modules/
+.next/
+coverage/
+playwright-report/
+test-results/
+*.pem
+*.key
+deploy/runtime.env
+deploy/config.json

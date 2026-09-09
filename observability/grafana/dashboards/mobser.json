@@ -1,0 +1,319 @@
+{
+  "uid": "mobser-overview",
+  "title": "Mobser observability",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "tags": [
+    "mobser"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "query": "label_values(service_name)",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 1,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Telemetry service availability",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "up",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Host free disk fraction",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "system_filesystem_usage_bytes{state=\"free\"} / ignoring(state) group_left sum without(state) (system_filesystem_usage_bytes)",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Backend request rate",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "targets": [
+        {
+          "expr": "sum by (http_route) (rate(mobser_http_requests_total[5m]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Backend latency p95 (seconds)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(mobser_http_duration_seconds_bucket[5m])))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Background task outcomes",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "targets": [
+        {
+          "expr": "sum by (task_name, task_state) (rate(mobser_task_executions_total[5m]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Background task retries",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "targets": [
+        {
+          "expr": "sum by (task_name) (rate(mobser_task_retries_total[5m]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Service logs",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
+      "targets": [
+        {
+          "expr": "{service_name=~\"$service\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "Recent traces",
+      "type": "table",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 27
+      },
+      "targets": [
+        {
+          "query": "{ resource.service.name =~ \".*\" }",
+          "queryType": "traceql",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "Active alerts",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "targets": [
+        {
+          "expr": "ALERTS{alertstate=\"firing\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "Collector export queue",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "targets": [
+        {
+          "expr": "otelcol_exporter_queue_size",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    }
+  ]
+}

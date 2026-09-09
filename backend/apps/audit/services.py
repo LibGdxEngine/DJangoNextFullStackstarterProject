@@ -25,5 +25,5 @@ def record_audit_log(
         )
         return log
     except Exception as e:
-        logger.error(f"Failed to record audit log [{action}]: {e}")
+        logger.error("Failed to record audit log (%s)", type(e).__name__)
         return None

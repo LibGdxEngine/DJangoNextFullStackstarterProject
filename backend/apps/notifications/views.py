@@ -12,6 +12,8 @@ class NotificationListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Notification.objects.none()
         return Notification.objects.filter(recipient=self.request.user)
 
 
@@ -23,6 +25,8 @@ class NotificationMarkReadView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Notification.objects.none()
         return Notification.objects.filter(recipient=self.request.user)
 
     def patch(self, request, *args, **kwargs):

@@ -1,7 +1,14 @@
-version: '3.8'
+x-service-logging: &service-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+    labels: "com.docker.compose.project,com.docker.compose.service"
 
 services:
   db:
+    logging: *service-logging
+    command: [postgres, -c, log_min_error_statement=panic, -c, log_parameter_max_length=0, -c, log_parameter_max_length_on_error=0, -c, log_error_verbosity=terse]
     image: postgres:16-alpine
     container_name: starter_prod_db
     restart: always
@@ -18,6 +25,7 @@ services:
       retries: 5
 
   redis:
+    logging: *service-logging
     image: redis:7-alpine
     container_name: starter_prod_redis
     restart: always
@@ -30,6 +38,8 @@ services:
       retries: 5
 
   backend:
+    logging: *service-logging
+    networks: [default, telemetry-ingest]
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
@@ -38,6 +48,17 @@ services:
     volumes:
       - django_prod_media:/app/media
     environment:
+      - OTEL_ENABLED=${OTEL_ENABLED:-true}
+      - OTEL_SERVICE_NAME=mobser-backend
+      - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-0.1}
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=production
+      - DEPLOYMENT_ENVIRONMENT=production
+      - OTEL_METRIC_EXPORT_INTERVAL=30000
+      - OTEL_EXPORTER_OTLP_TIMEOUT=5
       - DJANGO_SETTINGS_MODULE=core.settings.prod
       - SECRET_KEY=${SECRET_KEY}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
@@ -60,6 +81,8 @@ services:
         condition: service_healthy
 
   celery_worker:
+    logging: *service-logging
+    networks: [default, telemetry-ingest]
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
@@ -69,6 +92,17 @@ services:
     volumes:
       - django_prod_media:/app/media
     environment:
+      - OTEL_ENABLED=${OTEL_ENABLED:-true}
+      - OTEL_SERVICE_NAME=mobser-worker
+      - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-0.1}
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=production
+      - DEPLOYMENT_ENVIRONMENT=production
+      - OTEL_METRIC_EXPORT_INTERVAL=30000
+      - OTEL_EXPORTER_OTLP_TIMEOUT=5
       - DJANGO_SETTINGS_MODULE=core.settings.prod
       - SECRET_KEY=${SECRET_KEY}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
@@ -87,6 +121,8 @@ services:
         condition: service_healthy
 
   celery_beat:
+    logging: *service-logging
+    networks: [default, telemetry-ingest]
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
@@ -94,6 +130,17 @@ services:
     command: celery -A core beat -l info
     restart: always
     environment:
+      - OTEL_ENABLED=${OTEL_ENABLED:-true}
+      - OTEL_SERVICE_NAME=mobser-beat
+      - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-0.1}
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=production
+      - DEPLOYMENT_ENVIRONMENT=production
+      - OTEL_METRIC_EXPORT_INTERVAL=30000
+      - OTEL_EXPORTER_OTLP_TIMEOUT=5
       - DJANGO_SETTINGS_MODULE=core.settings.prod
       - SECRET_KEY=${SECRET_KEY}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
@@ -114,6 +161,8 @@ services:
         condition: service_started
 
   frontend:
+    logging: *service-logging
+    networks: [default, telemetry-ingest]
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
@@ -122,6 +171,17 @@ services:
     container_name: starter_prod_frontend
     restart: always
     environment:
+      - OTEL_ENABLED=${OTEL_ENABLED:-true}
+      - OTEL_SERVICE_NAME=mobser-frontend
+      - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-0.1}
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=production
+      - DEPLOYMENT_ENVIRONMENT=production
+      - OTEL_METRIC_EXPORT_INTERVAL=30000
+      - OTEL_EXPORTER_OTLP_TIMEOUT=5
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_TELEMETRY_DISABLED=1
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
@@ -133,13 +193,20 @@ services:
       - backend
 
   caddy:
-    image: caddy:2-alpine
+    logging: *service-logging
+    networks:
+      default:
+      telemetry-storage:
+      telemetry-proxy:
+        ipv4_address: ${OBSERVABILITY_CADDY_IP:-172.30.241.2}
+    image: caddy:2.11.4-alpine
     container_name: starter_prod_caddy
     restart: always
     ports:
       - "80:80"
       - "443:443"
     environment:
+      - GRAFANA_PROXY_IP=${OBSERVABILITY_GRAFANA_IP:-172.30.241.3}
       - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile
@@ -149,9 +216,181 @@ services:
       - backend
       - frontend
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    restart: unless-stopped
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+        labels: com.docker.compose.project,com.docker.compose.service
+    networks:
+    - telemetry-ingest
+    - telemetry-storage
+    user: 0:0
+    command:
+    - --config=/etc/otelcol/config.yaml
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
+      DEPLOYMENT_ENVIRONMENT: production
+    volumes:
+    - ./observability/collector.yaml:/etc/otelcol/config.yaml:ro
+    - ${DOCKER_LOG_ROOT:-/var/lib/docker/containers}:/var/lib/docker/containers:ro
+    - /:/hostfs:ro
+    - otel_offsets:/var/lib/otelcol
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+  loki:
+    image: grafana/loki:3.7.7
+    restart: unless-stopped
+    mem_limit: 768m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+        labels: com.docker.compose.project,com.docker.compose.service
+    networks:
+    - telemetry-storage
+    command:
+    - -config.file=/etc/loki/config.yaml
+    volumes:
+    - ./observability/loki.yaml:/etc/loki/config.yaml:ro
+    - loki_data:/loki
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -q
+      - --spider
+      - http://localhost:3100/ready
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  tempo:
+    image: grafana/tempo:2.10.8
+    restart: unless-stopped
+    mem_limit: 768m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+        labels: com.docker.compose.project,com.docker.compose.service
+    networks:
+    - telemetry-storage
+    command:
+    - -config.file=/etc/tempo/config.yaml
+    volumes:
+    - ./observability/tempo.yaml:/etc/tempo/config.yaml:ro
+    - tempo_data:/var/tempo
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    restart: unless-stopped
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+        labels: com.docker.compose.project,com.docker.compose.service
+    networks:
+    - telemetry-storage
+    command:
+    - --config.file=/etc/prometheus/prometheus.yaml
+    - --storage.tsdb.path=/prometheus
+    - --storage.tsdb.retention.time=15d
+    - --storage.tsdb.retention.size=2GB
+    - --web.enable-lifecycle=false
+    - --log.format=json
+    volumes:
+    - ./observability/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+    - ./observability/alerts.yaml:/etc/prometheus/alerts.yaml:ro
+    - prometheus_data:/prometheus
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -q
+      - --spider
+      - http://localhost:9090/-/ready
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  grafana:
+    image: grafana/grafana:13.2.1
+    restart: unless-stopped
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+        labels: com.docker.compose.project,com.docker.compose.service
+    networks:
+      telemetry-storage: null
+      telemetry-proxy:
+        ipv4_address: ${OBSERVABILITY_GRAFANA_IP:-172.30.241.3}
+    environment:
+      GF_SERVER_ROOT_URL: ${OBSERVABILITY_ROOT_URL:-${NEXTAUTH_URL:-https://localhost}/observability/}
+      GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
+      GF_SERVER_HTTP_ADDR: ${OBSERVABILITY_GRAFANA_IP:-172.30.241.3}
+      GF_AUTH_PROXY_ENABLED: 'true'
+      GF_AUTH_PROXY_HEADER_NAME: X-WEBAUTH-USER
+      GF_AUTH_PROXY_HEADER_PROPERTY: username
+      GF_AUTH_PROXY_AUTO_SIGN_UP: 'true'
+      GF_AUTH_PROXY_WHITELIST: ${OBSERVABILITY_CADDY_IP:-172.30.241.2}
+      GF_AUTH_PROXY_ENABLE_LOGIN_TOKEN: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_AUTH_BASIC_ENABLED: 'false'
+      GF_AUTH_DISABLE_LOGIN_FORM: 'true'
+      GF_AUTH_DISABLE_SIGNOUT_MENU: 'true'
+      GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION: 'true'
+      GF_SECURITY_COOKIE_SECURE: 'true'
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_USERS_AUTO_ASSIGN_ORG: 'true'
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Viewer
+      GF_USERS_VIEWERS_CAN_EDIT: 'false'
+      GF_EXPLORE_ENABLED: 'true'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: 'false'
+      GF_LOG_MODE: console
+      GF_LOG_CONSOLE_FORMAT: json
+      GF_METRICS_ENABLED: 'true'
+      GF_LIVE_ALLOWED_ORIGINS: ${OBSERVABILITY_ROOT_ORIGIN:-${NEXTAUTH_URL:-https://localhost}}
+    volumes:
+    - grafana_data:/var/lib/grafana
+    - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
 volumes:
   postgres_prod_data:
   redis_prod_data:
   django_prod_media:
   caddy_prod_data:
   caddy_prod_config:
+  otel_offsets:
+  loki_data:
+  tempo_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+  telemetry-ingest:
+    internal: true
+  telemetry-storage:
+    internal: true
+  telemetry-proxy:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${OBSERVABILITY_PROXY_SUBNET:-172.30.241.0/29}

@@ -1,0 +1,25 @@
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	encode gzip zstd
+	route {
+		respond /healthz 200
+		@private path /internal /internal/* /observability* /media /media/*
+		respond @private 404
+
+		@auth path /api/auth /api/auth/*
+		reverse_proxy @auth frontend:3000 {
+			header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+		}
+		@backend path /api /api/* /admin /admin/* /static /static/*
+		reverse_proxy @backend backend:8000 {
+			header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+		}
+		reverse_proxy frontend:3000 {
+			header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+		}
+	}
+}

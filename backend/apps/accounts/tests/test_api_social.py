@@ -104,7 +104,7 @@ class GoogleSignInAPITests(APITestCase):
         res = self.sign_in(email_verified=False)
 
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(res.data["code"], "SOCIAL_AUTH_FAILED")
+        self.assertEqual(res.data["error"]["code"], "SOCIAL_AUTH_FAILED")
         self.assertFalse(User.objects.exists())
 
     def test_invalid_token_is_rejected(self):
@@ -112,7 +112,7 @@ class GoogleSignInAPITests(APITestCase):
             res = self.client.post(self.url, {"token": "tampered"}, format="json")
 
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(res.data["code"], "SOCIAL_AUTH_FAILED")
+        self.assertEqual(res.data["error"]["code"], "SOCIAL_AUTH_FAILED")
         self.assertFalse(User.objects.exists())
 
     def test_missing_token_is_rejected(self):
@@ -131,7 +131,7 @@ class GoogleSignInAPITests(APITestCase):
         res = self.sign_in()
 
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(res.data["code"], "SOCIAL_AUTH_FAILED")
+        self.assertEqual(res.data["error"]["code"], "SOCIAL_AUTH_FAILED")
         self.assertFalse(SocialAccount.objects.exists())
 
     def test_several_social_users_can_coexist_without_a_phone(self):
@@ -148,14 +148,14 @@ class GoogleSignInAPITests(APITestCase):
         )
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(res.data["code"], "PROVIDER_NOT_CONFIGURED")
+        self.assertEqual(res.data["error"]["code"], "PROVIDER_NOT_CONFIGURED")
 
     @override_settings(SOCIAL_AUTH_PROVIDERS=GOOGLE_DISABLED)
     def test_provider_without_credentials_is_rejected(self):
         res = self.sign_in()
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(res.data["code"], "PROVIDER_NOT_CONFIGURED")
+        self.assertEqual(res.data["error"]["code"], "PROVIDER_NOT_CONFIGURED")
 
 
 class SocialProvidersAPITests(APITestCase):

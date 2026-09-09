@@ -1,0 +1,9 @@
+# Deployment and migration changes require the repository owner's review.
+/.github/ @LibGdxEngine
+/deploy/ @LibGdxEngine
+/scripts/ci-* @LibGdxEngine
+/backend/Dockerfile.prod @LibGdxEngine
+/frontend/Dockerfile.prod @LibGdxEngine
+/backend/requirements* @LibGdxEngine
+/frontend/package*.json @LibGdxEngine
+**/migrations/ @LibGdxEngine

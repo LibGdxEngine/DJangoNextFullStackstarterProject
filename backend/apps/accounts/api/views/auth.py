@@ -1,3 +1,4 @@
+from core.api_errors import validation_error_response, error_response
 from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -44,7 +45,7 @@ class SignupView(APIView):
             )
             return Response(result, status=status.HTTP_201_CREATED)
         except ValidationError as exc:
-            return Response({"detail": exc.message if hasattr(exc, "message") else str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            return validation_error_response(exc)
 
 
 class LoginView(APIView):
@@ -62,18 +63,14 @@ class LoginView(APIView):
             tokens = issue_tokens_for_user(user)
             return Response(tokens, status=status.HTTP_200_OK)
         except PhoneVerificationRequiredError as exc:
-            return Response(
-                {
-                    "code": "PHONE_VERIFICATION_REQUIRED",
-                    "detail": exc.message,
-                    "email": exc.user.email,
-                    "phone": mask_phone(exc.user.phone),
-                },
+            return error_response(
+                "PHONE_VERIFICATION_REQUIRED", exc.message,
+                context={"email": exc.user.email, "phone": mask_phone(exc.user.phone)},
                 status=status.HTTP_403_FORBIDDEN,
             )
         except ValidationError as exc:
-            return Response(
-                {"code": "INVALID_CREDENTIALS", "detail": exc.message if hasattr(exc, "message") else str(exc)},
+            return error_response(
+                "INVALID_CREDENTIALS", exc.message if hasattr(exc, "message") else str(exc),
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
@@ -89,7 +86,7 @@ class LogoutView(APIView):
             revoke_refresh_token(serializer.validated_data["refresh"])
             return Response({"message": "Logged out successfully."}, status=status.HTTP_200_OK)
         except ValidationError as exc:
-            return Response({"detail": exc.message if hasattr(exc, "message") else str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            return validation_error_response(exc)
 
 
 class PasswordForgotView(APIView):
@@ -120,7 +117,7 @@ class PasswordResetVerifyView(APIView):
                 status=status.HTTP_200_OK,
             )
         except ValidationError as exc:
-            return Response({"detail": exc.message if hasattr(exc, "message") else str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            return validation_error_response(exc)
 
 
 class PasswordResetConfirmView(APIView):
@@ -140,7 +137,7 @@ class PasswordResetConfirmView(APIView):
                 status=status.HTTP_200_OK,
             )
         except ValidationError as exc:
-            return Response({"detail": exc.message if hasattr(exc, "message") else str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            return validation_error_response(exc)
 
 
 class PasswordChangeView(APIView):
@@ -158,4 +155,4 @@ class PasswordChangeView(APIView):
             )
             return Response({"message": "Password changed successfully."}, status=status.HTTP_200_OK)
         except ValidationError as exc:
-            return Response({"detail": exc.message if hasattr(exc, "message") else str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            return validation_error_response(exc)

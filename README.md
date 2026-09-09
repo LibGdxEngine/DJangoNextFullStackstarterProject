@@ -9,6 +9,7 @@ A production-ready platform template structured around decoupled reusable platfo
 *   **Caching & Broker**: [Redis 7](https://redis.io/)
 *   **Task Queue**: [Celery 5.4](https://docs.celeryq.dev/en/stable/)
 *   **Reverse Proxy**: [Caddy 2](https://caddyserver.com/)
+*   **Observability**: OpenTelemetry, Grafana, Loki, Tempo, and Prometheus. See the [operations guide](docs/observability.md) for setup, staff-only access, retention, and validation.
 
 ---
 
@@ -174,6 +175,61 @@ When `.env.prod` is used, deployment-provided environment variables take precede
 
 ---
 
+## API Contracts and Frontend Requests
+
+Django serializers and OpenAPI annotations define the HTTP contract. The exported
+`backend/openapi.json` and `frontend/src/lib/api/generated.ts` are generated artifacts;
+do not edit them by hand. Include both regenerated files when an API contract changes.
+
+```bash
+make api-generate   # validate Django's schema and regenerate TypeScript
+make api-check      # fail if either committed artifact is stale; writes only temporary files
+```
+
+Install frontend dependencies with `cd frontend && npm ci` before generating types.
+Start the backend container for the default commands. For an isolated local Python
+environment with `backend/requirements.txt` installed, use
+`make api-check API_PYTHON=/absolute/path/to/venv/bin/python` (the same override works
+with `api-generate`).
+The commands use fixed schema settings and fail on schema warnings. Frontend builds
+consume the committed types and do not need a running Django server.
+
+Product code calls domain APIs such as `systemApi.status()` and `authApi.login(...)`.
+Domain wrappers own endpoint paths and use generated request/response types. The shared
+client in `frontend/src/lib/api/` owns HTTP methods, query parameters, JSON bodies,
+decoding, bearer tokens, and errors. ESLint prevents components from bypassing this layer.
+Keep NextAuth's own sign-in and session protocol calls in its SDK.
+
+Browser calls use `NEXT_PUBLIC_API_URL` (default `/api`); server calls use
+`BACKEND_API_URL`, falling back to an absolute public URL or `http://localhost/api`.
+Never put internal backend addresses or secrets in browser configuration. Requests time
+out after 10 seconds by default, accept cancellation, and are not retried automatically.
+A 204 returns `undefined`. Protected 401 responses invalidate the affected session and
+show a sign-in message; public login failures and 403 responses do not sign the user out.
+
+API failures use one envelope:
+
+```json
+{
+  "error": {
+    "code": "validation_error",
+    "message": "Invalid input.",
+    "fields": { "email": ["Enter a valid email address."] }
+  }
+}
+```
+
+`fields` maps dotted field paths (including numeric list indexes) to message arrays;
+object-level errors use `non_field_errors`. Non-validation failures have empty fields.
+Existing business codes, including `PHONE_VERIFICATION_REQUIRED`, stay stable. Optional
+`error.context` carries verification email/masked-phone metadata. Successful payloads and
+HTTP status codes are unchanged. `ApiError` exposes the envelope plus HTTP status and
+distinguishes HTTP failures from network, timeout, cancellation, and JSON-decoding errors.
+
+Run `make test-backend` for Django regressions. From `frontend/`, run `npm test`,
+`npm run lint`, `npx tsc --noEmit`, and `npm run build`; also run `make api-check`
+before submitting contract changes.
+
 ## Service Verification Endpoints
 
 ### 1. Hello World API
@@ -232,3 +288,6 @@ Tasks live in a `tasks/` package per app, and every submodule that defines a tas
 
 `sync_subscriptions` moves a subscription through `ACTIVE`/`TRIALING` → `PAST_DUE` → `CANCELED` using only local period data. `charge_via_provider` in `apps/billing/tasks/subscriptions.py` is the integration point for a real payment processor.
 
+## CI/CD deployment
+
+See [the shared-VPS deployment guide](docs/deployment.md) for GitHub Actions, restricted SSH deployment, migration policy, and recovery.

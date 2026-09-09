@@ -104,7 +104,7 @@ def confirm_phone_change(user: User, challenge_id: str, code: str) -> User:
     user.token_version += 1
     user.save(update_fields=["phone", "phone_verified_at", "token_version", "updated_at"])
 
-    logger.info("Phone number successfully updated for user %s to %s", user.id, new_phone)
+    logger.info("Phone number successfully updated for user %s", user.id)
     return user
 
 
@@ -129,5 +129,5 @@ def change_email(user: User, new_email: str, password: str) -> User:
     user.token_version += 1
     user.save(update_fields=["email", "email_verified_at", "token_version", "updated_at"])
 
-    logger.info("Email updated for user %s to %s", user.id, clean_email)
+    logger.info("Email updated for user %s", user.id)
     return user

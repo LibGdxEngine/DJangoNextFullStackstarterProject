@@ -11,8 +11,16 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 from apps.common.views import hello_world, system_status
+from apps.common.observability import health_live, health_ready, observability_auth
+
+from core.schema import annotate_views
+
+annotate_views()
 
 urlpatterns = [
+    path('internal/observability/auth/', observability_auth, name='observability_auth'),
+    path('api/health/live/', health_live, name='health_live'),
+    path('api/health/ready/', health_ready, name='health_ready'),
     # Django Admin
     path('admin/', admin.site.urls),
 

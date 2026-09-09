@@ -1,3 +1,4 @@
+from core.api_errors import validation_error_response
 from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -54,10 +55,7 @@ class UserProfileView(APIView):
             )
             return Response(result, status=status.HTTP_200_OK)
         except ValidationError as exc:
-            return Response(
-                {"detail": exc.message if hasattr(exc, "message") else str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return validation_error_response(exc)
 
 
 class PhoneChangeInitiateView(APIView):
@@ -77,10 +75,7 @@ class PhoneChangeInitiateView(APIView):
             )
             return Response(result, status=status.HTTP_200_OK)
         except ValidationError as exc:
-            return Response(
-                {"detail": exc.message if hasattr(exc, "message") else str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return validation_error_response(exc)
 
 
 class PhoneChangeConfirmView(APIView):
@@ -101,10 +96,7 @@ class PhoneChangeConfirmView(APIView):
             )
             return Response({"message": "Phone number updated successfully."}, status=status.HTTP_200_OK)
         except ValidationError as exc:
-            return Response(
-                {"detail": exc.message if hasattr(exc, "message") else str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return validation_error_response(exc)
 
 
 class EmailChangeView(APIView):
@@ -128,7 +120,4 @@ class EmailChangeView(APIView):
                 status=status.HTTP_200_OK,
             )
         except ValidationError as exc:
-            return Response(
-                {"detail": exc.message if hasattr(exc, "message") else str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return validation_error_response(exc)

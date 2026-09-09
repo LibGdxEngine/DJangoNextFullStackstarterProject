@@ -1,55 +1,75 @@
 #!/bin/sh
-
-# Exit immediately if a command exits with a non-zero status
 set -e
 
-if [ "$DB_HOST" ]
-then
-    echo "Waiting for database at $DB_HOST:$DB_PORT..."
-    # A simple Python command to check if database port is open
-    python -c "
+# Defaults preserve local development; deployment runs migrations explicitly.
+RUN_MIGRATIONS=${RUN_MIGRATIONS:-true}
+RUN_COLLECTSTATIC=${RUN_COLLECTSTATIC:-true}
+
+if [ -n "${DB_HOST:-}" ]; then
+    echo "Waiting for database..."
+    python - <<'PY'
+import os
 import socket
 import time
-import sys
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.settimeout(2)
+host = os.environ['DB_HOST']
+port = int(os.environ.get('DB_PORT', '5432'))
+timeout = float(os.environ.get('DB_WAIT_TIMEOUT', '60'))
+deadline = time.monotonic() + timeout
 while True:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise SystemExit('Database readiness timed out')
     try:
-        s.connect(('$DB_HOST', int('$DB_PORT')))
-        s.close()
-        break
-    except (socket.timeout, ConnectionRefusedError):
-        time.sleep(0.5)
-"
-    echo "Database is ready!"
+        with socket.create_connection((host, port), timeout=min(2, remaining)):
+            break
+    except OSError:
+        time.sleep(min(0.5, max(0, deadline - time.monotonic())))
+PY
 fi
 
-# Apply database migrations
-if [ "$1" != "celery" ]
-then
+if [ "$RUN_MIGRATIONS" = "true" ] && [ "${1:-}" != "celery" ]; then
     echo "Applying database migrations..."
     python manage.py migrate --noinput
 fi
 
-# Collect static files for production
-if [ "$DJANGO_SETTINGS_MODULE" = "core.settings.prod" ] && [ "$1" != "celery" ]
-then
+if [ "$RUN_COLLECTSTATIC" = "true" ] && [ "${DJANGO_SETTINGS_MODULE:-}" = "core.settings.prod" ] && [ "${1:-}" != "celery" ]; then
     echo "Collecting static files..."
     python manage.py collectstatic --noinput
 fi
 
-# Beat's DatabaseScheduler reads django_celery_beat tables, but the backend
-# container owns migrations, so wait for it rather than racing it.
-case " $* " in
-    *" beat "*)
-        echo "Waiting for migrations to be applied..."
-        until python manage.py migrate --check >/dev/null 2>&1
-        do
-            sleep 2
-        done
-        echo "Migrations are applied!"
-        ;;
-esac
+# Beat's DatabaseScheduler requires the schema created by the migration job.
+if [ "${1:-}" = "celery" ]; then
+    case " $* " in
+        *" beat "*)
+            echo "Waiting for migrations to be applied..."
+            python - <<'PY'
+import os
+import subprocess
+import sys
+import time
+
+deadline = time.monotonic() + float(os.environ.get('MIGRATION_WAIT_TIMEOUT', '120'))
+while True:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise SystemExit('Migration readiness timed out')
+    try:
+        result = subprocess.run(
+            [sys.executable, 'manage.py', 'migrate', '--check'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=min(10, remaining),
+            check=False,
+        )
+        if result.returncode == 0:
+            break
+    except subprocess.TimeoutExpired:
+        pass
+    time.sleep(min(2, max(0, deadline - time.monotonic())))
+PY
+            ;;
+    esac
+fi
 
 exec "$@"

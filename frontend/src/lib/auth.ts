@@ -1,12 +1,10 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import {
-  exchangeSocialToken,
-  formatUserName,
-  resolveBackendUrl,
-  BackendAuthResponse,
-} from "@/lib/backend-auth";
+import { formatUserName } from "@/lib/backend-auth";
+import { authApi } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
+import { logServerEvent } from "@/lib/telemetry/logger";
 
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
@@ -19,34 +17,23 @@ const providers: NextAuthOptions["providers"] = [
       if (!credentials?.identifier || !credentials?.password) return null;
 
       try {
-        const res = await fetch(`${resolveBackendUrl()}/v1/auth/login/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            identifier: credentials.identifier,
-            password: credentials.password,
-          }),
+        const data = await authApi.login({
+          identifier: credentials.identifier,
+          password: credentials.password,
         });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          if (data?.code === "PHONE_VERIFICATION_REQUIRED") {
-            throw new Error("PHONE_VERIFICATION_REQUIRED");
-          }
-          throw new Error(data?.detail || "Authentication failed. Check credentials.");
-        }
 
         return {
           id: data.user?.id || credentials.identifier,
           name: formatUserName(data.user, credentials.identifier),
           email: data.user?.email,
-          phone: data.user?.phone,
+          phone: data.user?.phone ?? undefined,
           accessToken: data.access,
           refreshToken: data.refresh,
         };
       } catch (error: unknown) {
-        console.error("Auth authorize error:", error);
+        if (error instanceof ApiError && error.code === "PHONE_VERIFICATION_REQUIRED") {
+          throw new Error("PHONE_VERIFICATION_REQUIRED");
+        }
         const msg = error instanceof Error ? error.message : "Authentication failed.";
         throw new Error(msg);
       }
@@ -69,17 +56,25 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 export const authOptions: NextAuthOptions = {
   providers,
+  logger: {
+    error() { logServerEvent("ERROR", "auth.error"); },
+    warn() { logServerEvent("WARN", "auth.warning"); },
+    debug() {},
+  },
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
+      // Updates carry the failed token; a late 401 cannot clear a different login.
+      if (trigger === "update" && typeof session?.invalidateAccessToken === "string"
+        && session.invalidateAccessToken === token.accessToken) {
+        return { ...token, accessToken: undefined, refreshToken: undefined, sessionExpired: true };
+      }
       if (account && account.provider !== "credentials") {
         if (!account.id_token) {
           throw new Error(`${account.provider} did not return an ID token.`);
         }
         // Throwing aborts sign-in rather than leaving a session without backend tokens.
-        const backend: BackendAuthResponse = await exchangeSocialToken(
-          account.provider,
-          account.id_token
-        );
+        const backend = await authApi.exchangeSocialToken(account.provider, { token: account.id_token });
+        token.sessionExpired = false;
         token.accessToken = backend.access;
         token.refreshToken = backend.refresh;
         token.username = formatUserName(backend.user, user?.email ?? account.provider);
@@ -90,6 +85,7 @@ export const authOptions: NextAuthOptions = {
       }
 
       if (user) {
+        token.sessionExpired = false;
         token.accessToken = user.accessToken;
         token.refreshToken = user.refreshToken;
         token.username = user.name ?? undefined;
@@ -100,6 +96,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
+      session.sessionExpired = token.sessionExpired;
       session.accessToken = token.accessToken;
       session.refreshToken = token.refreshToken;
       session.username = token.username;

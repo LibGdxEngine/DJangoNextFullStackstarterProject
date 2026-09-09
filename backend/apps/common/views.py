@@ -1,11 +1,7 @@
-import logging
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from django.db import connection
 from django.core.cache import cache
-
-logger = logging.getLogger(__name__)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -21,56 +17,20 @@ def hello_world(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def system_status(request):
-    """
-    Checks the health of Database, Redis (via cache backend), and Celery task execution.
-    """
-    status = {
-        "database": "down",
-        "redis": "down",
-        "celery": "unknown",
-        "beat": "unknown"
-    }
+    """Read-only status; heartbeat covers scheduler → broker → worker → cache."""
+    from apps.common.health import dependency_status
+    from apps.common.tasks import BEAT_HEARTBEAT_CACHE_KEY
 
-    # 1. Check Database connection
-    try:
-        connection.ensure_connection()
-        status["database"] = "up"
-    except Exception as e:
-        logger.error(f"Database health check failed: {e}")
-        status["database"] = f"down: {str(e)}"
-
-    # 2. Check Redis connection
-    try:
-        cache.set("health_check_key", "ok", timeout=5)
-        val = cache.get("health_check_key")
-        if val == "ok":
-            status["redis"] = "up"
-    except Exception as e:
-        logger.error(f"Redis health check failed: {e}")
-        status["redis"] = f"down: {str(e)}"
-
-    # 3. Trigger async Celery task
-    try:
-        from apps.notifications.tasks import test_celery_task
-        task = test_celery_task.delay(4, 5)
-        status["celery"] = {
-            "status": "triggered",
-            "task_id": task.id
-        }
-    except Exception as e:
-        logger.error(f"Celery task trigger failed: {e}")
-        status["celery"] = f"failed to trigger: {str(e)}"
-
-    # 4. Read the Celery Beat heartbeat; a missing key means beat stopped scheduling.
-    try:
-        from apps.common.tasks import BEAT_HEARTBEAT_CACHE_KEY
-        last_seen = cache.get(BEAT_HEARTBEAT_CACHE_KEY)
-        status["beat"] = {
-            "status": "up" if last_seen else "down",
-            "last_seen": last_seen
-        }
-    except Exception as e:
-        logger.error(f"Celery beat health check failed: {e}")
-        status["beat"] = f"down: {str(e)}"
-
-    return Response(status)
+    status = dependency_status()
+    last_seen = None
+    if status['redis'] == 'up':
+        try:
+            last_seen = cache.get(BEAT_HEARTBEAT_CACHE_KEY)
+        except Exception:
+            status['redis'] = 'down'
+    background = 'up' if last_seen else 'down'
+    status['celery'] = background
+    status['beat'] = {'status': background, 'last_seen': last_seen}
+    response = Response(status, status=200 if status['database'] == status['redis'] == 'up' else 503)
+    response['Cache-Control'] = 'no-store'
+    return response

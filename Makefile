@@ -1,4 +1,4 @@
-.PHONY: help up down build restart ps logs logs-backend logs-frontend logs-worker logs-beat shell backend-shell frontend-shell beat-shell makemigrations migrate createsuperuser seed check test-backend test-frontend clean prod-up prod-down prod-build
+.PHONY: help up down build restart ps logs logs-backend logs-frontend logs-worker logs-beat shell backend-shell frontend-shell beat-shell makemigrations migrate createsuperuser seed check test-backend test-frontend api-generate api-check clean prod-up prod-down prod-build
 
 PROD_ENV_FILE ?= .env.prod
 PROD_COMPOSE = docker compose $(if $(strip $(PROD_ENV_FILE)),--env-file $(PROD_ENV_FILE)) -f docker-compose.prod.yml
@@ -39,7 +39,9 @@ help:
 	@echo ""
 	@echo "Testing & Quality:"
 	@echo "  test-backend      - Run Django unit tests"
-	@echo "  test-frontend     - Run Next.js linting and type checks"
+	@echo "  test-frontend     - Run frontend ESLint checks"
+	@echo "  api-generate      - Export OpenAPI and regenerate frontend API types"
+	@echo "  api-check         - Fail if generated API artifacts have drifted"
 	@echo ""
 	@echo "Production Stack:"
 	@echo "  prod-up           - Start production containers in background (.env.prod by default)"
@@ -117,6 +119,12 @@ test-backend:
 
 test-frontend:
 	docker compose exec frontend npm run lint
+
+api-generate:
+	bash scripts/api-contract.sh generate
+
+api-check:
+	bash scripts/api-contract.sh check
 
 # Production Commands
 prod-up:

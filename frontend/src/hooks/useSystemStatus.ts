@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { apiClient } from "@/lib/api";
+import { systemApi } from "@/lib/api/system";
 import { SystemStatus, HelloResponse } from "@/types";
 
 export function useSystemStatus() {
@@ -11,14 +11,14 @@ export function useSystemStatus() {
   const [statusLoading, setStatusLoading] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
 
-  const [triggeringTask, setTriggeringTask] = useState(false);
-  const [taskResult, setTaskResult] = useState<string | null>(null);
+  const [checkingBackground, setCheckingBackground] = useState(false);
+  const [backgroundResult, setBackgroundResult] = useState<string | null>(null);
 
   const fetchHello = useCallback(async () => {
     setHelloLoading(true);
     setHelloError(null);
     try {
-      const data = await apiClient<HelloResponse>("/hello/");
+      const data = await systemApi.hello();
       setHelloData(data);
     } catch (err: unknown) {
       setHelloError(err instanceof Error ? err.message : "Failed to reach backend API");
@@ -31,7 +31,7 @@ export function useSystemStatus() {
     setStatusLoading(true);
     setStatusError(null);
     try {
-      const data = await apiClient<SystemStatus>("/status/");
+      const data = await systemApi.status();
       setStatusData(data);
     } catch (err: unknown) {
       setStatusError(err instanceof Error ? err.message : "Failed to fetch system status");
@@ -40,23 +40,20 @@ export function useSystemStatus() {
     }
   }, []);
 
-  const triggerCelery = useCallback(async () => {
-    setTriggeringTask(true);
-    setTaskResult(null);
+  const checkBackground = useCallback(async () => {
+    setCheckingBackground(true);
+    setBackgroundResult(null);
     try {
-      const data = await apiClient<SystemStatus>("/status/");
+      const data = await systemApi.status();
       setStatusData(data);
-      if (typeof data.celery === "object" && data.celery.task_id) {
-        setTaskResult(
-          `Task triggered! Task ID: ${data.celery.task_id}. Worker processes task asynchronously.`
-        );
-      } else {
-        setTaskResult("Failed to trigger Celery task.");
-      }
+      const status = data.celery;
+      setBackgroundResult(status === "up"
+        ? "Recent scheduled heartbeat completed successfully."
+        : "No recent background heartbeat. Check the scheduler, broker, worker, and cache.");
     } catch (err: unknown) {
-      setTaskResult(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      setBackgroundResult(err instanceof Error ? err.message : "Unable to check background health.");
     } finally {
-      setTriggeringTask(false);
+      setCheckingBackground(false);
     }
   }, []);
 
@@ -69,8 +66,8 @@ export function useSystemStatus() {
     statusLoading,
     statusError,
     fetchStatus,
-    triggerCelery,
-    triggeringTask,
-    taskResult,
+    checkBackground,
+    checkingBackground,
+    backgroundResult,
   };
 }

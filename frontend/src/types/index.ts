@@ -1,58 +1,8 @@
-export interface SystemStatus {
-  database: string;
-  redis: string;
-  celery: {
-    status: string;
-    task_id: string;
-  } | string;
-  beat: {
-    status: string;
-    last_seen: string | null;
-  } | string;
-}
+import type { components } from "@/lib/api/generated";
 
-export interface HelloResponse {
-  message: string;
-  status: string;
-}
-
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  avatar_url?: string;
-  bio?: string;
-  created_at: string;
-}
-
-export interface Organization {
-  id: string;
-  name: string;
-  slug: string;
-  is_active: boolean;
-  member_count?: number;
-  created_at: string;
-}
-
-export interface Plan {
-  id: string;
-  name: string;
-  slug: string;
-  price_cents: number;
-  price_dollars: number;
-  currency: string;
-  interval: "month" | "year";
-  features: string[];
-}
-
-export interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  notification_type: "INFO" | "SUCCESS" | "WARNING" | "ALERT";
-  link?: string;
-  is_read: boolean;
-  created_at: string;
-}
+export type SystemStatus = components["schemas"]["SystemStatus"];
+export type HelloResponse = components["schemas"]["HelloResponse"];
+export type User = components["schemas"]["UserProfile"];
+export type Organization = components["schemas"]["Organization"];
+export type Plan = components["schemas"]["Plan"];
+export type Notification = components["schemas"]["Notification"];

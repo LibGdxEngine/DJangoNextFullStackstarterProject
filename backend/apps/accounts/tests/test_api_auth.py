@@ -40,7 +40,10 @@ class AuthAPITests(APITestCase):
             format="json",
         )
         self.assertEqual(login_res.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(login_res.data.get("code"), "PHONE_VERIFICATION_REQUIRED")
+        self.assertEqual(login_res.data["error"]["code"], "PHONE_VERIFICATION_REQUIRED")
+        self.assertEqual(login_res.data["error"]["context"]["email"], "newuser@example.com")
+        self.assertNotEqual(login_res.data["error"]["context"]["phone"], user.phone)
+        self.assertEqual(login_res.data["error"]["fields"], {})
 
         # 3. Confirm verification
         # For testing, compute digest for known code "123456"

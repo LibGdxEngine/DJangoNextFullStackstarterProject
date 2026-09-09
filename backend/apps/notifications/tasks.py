@@ -12,10 +12,10 @@ def test_celery_task(x, y):
     """
     Simulates an asynchronous background task.
     """
-    logger.info(f"Celery task started with params: {x}, {y}")
+    logger.info("Test task started")
     time.sleep(2)
     result = x + y
-    logger.info(f"Celery task completed. Result: {result}")
+    logger.info("Test task completed")
     return result
 
 
@@ -37,10 +37,10 @@ def send_notification_task(recipient_id, title, message, notification_type='INFO
             notification_type=notification_type,
             link=link
         )
-        logger.info(f"Notification {notification.id} created for user {user.email}")
+        logger.info("Notification created")
         return str(notification.id)
     except Exception as e:
-        logger.error(f"Failed to create notification: {e}")
+        logger.error("Failed to create notification (%s)", type(e).__name__)
         return None
 
 
@@ -59,7 +59,7 @@ def send_scheduled_reports():
         try:
             title, message = build_organization_digest(organization, since)
         except Exception as e:
-            logger.error(f"Failed to build digest for organization {organization.pk}: {e}")
+            logger.error("Failed to build organization digest (%s)", type(e).__name__)
             continue
 
         recipient_ids = organization.memberships.filter(
@@ -70,7 +70,7 @@ def send_scheduled_reports():
             send_notification_task.delay(str(recipient_id), title, message, 'INFO')
             dispatched += 1
 
-    logger.info(f"send_scheduled_reports dispatched {dispatched} digest notification(s).")
+    logger.info("Dispatched %s digest notifications", dispatched)
     return dispatched
 
 
