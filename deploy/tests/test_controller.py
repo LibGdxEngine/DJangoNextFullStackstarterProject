@@ -49,17 +49,36 @@ class ParserTests(unittest.TestCase):
                                     env={'SSH_ORIGINAL_COMMAND': command}, capture_output=True)
             self.assertEqual(result.returncode, 64, command)
 
-    def test_token_bounded_and_not_logged(self):
-        for token in (b'ghs_example\n', b'x' * 4097, b'has space', b''):
+    def test_bearer_token_formats_and_transport_newline(self):
+        for token in (b'ghs_example', b'header.payload.signature', b'token-with-dashes',
+                      b'AZaz09._~+/-==', b'x' * 4096):
             reader, writer = os.pipe()
             os.write(writer, token)
             os.close(writer)
             with os.fdopen(reader, 'rb') as source:
-                if token == b'ghs_example\n':
-                    self.assertEqual(c.read_token(source), 'ghs_example')
-                else:
-                    with self.assertRaises(c.DeployError):
-                        c.read_token(source)
+                self.assertEqual(c.read_token(source), token.decode('ascii'))
+        reader, writer = os.pipe()
+        os.write(writer, b'header.payload.signature\n')
+        os.close(writer)
+        with os.fdopen(reader, 'rb') as source:
+            self.assertEqual(c.read_token(source), 'header.payload.signature')
+
+    def test_token_bounded_and_injection_rejected_without_logging(self):
+        for token in (b'x' * 4097, b'has space', b'', b' leading', b'trailing ',
+                      b'has\ttab', b'trailing\t', b'token\r', b'token\n\n',
+                      b'token\r\nX-Injected: yes', b'token\nX-Injected: yes',
+                      b'token\x00', b'token\x7f', b'token\xff', b'==', b'ab=cd'):
+            reader, writer = os.pipe()
+            os.write(writer, token)
+            os.close(writer)
+            with os.fdopen(reader, 'rb') as source, \
+                    patch('sys.stdout', new_callable=io.StringIO) as stdout, \
+                    patch('sys.stderr', new_callable=io.StringIO) as stderr:
+                with self.assertRaises(c.DeployError) as raised:
+                    c.read_token(source)
+                self.assertIn(str(raised.exception), ('invalid token', 'token input too large'))
+                self.assertEqual(stdout.getvalue(), '')
+                self.assertEqual(stderr.getvalue(), '')
 
     def test_token_timeout(self):
         reader, writer = os.pipe()

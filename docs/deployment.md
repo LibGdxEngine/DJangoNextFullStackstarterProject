@@ -27,6 +27,15 @@ ports and includes the optional full observability stack.
    updates this application's services, and checks HTTPS readiness. The current
    release is recorded only after checks succeed.
 
+To retry a failed release, select **Re-run all jobs** in GitHub Actions. Each
+attempt needs its own successful build job and immutable manifest. A deployment
+job retried alone cannot reuse an earlier attempt's artifact. A quarantined
+deployment still needs administrator inspection and resolution before retrying.
+
+For a repeatability check, **Run workflow** on `Release` with `master` selected
+creates a new verified release through the same gates. It does not bypass CI,
+migration checks, capacity checks, or the deployment lock.
+
 Fork pull requests receive no deployment secrets. Image publication and deployment
 are restricted to the trusted `master` release workflow. The SSH credential does
 not grant an interactive shell, forwarding, general sudo, or Docker access.
@@ -55,6 +64,12 @@ administrators. Pull requests are required; no self-approval is required for
 this single-maintainer repository. `CODEOWNERS`
 identifies the maintainer for workflow, deployment, and migration changes.
 An agent must not bypass failed checks or remove tests to obtain a green result.
+
+Dependabot groups weekly version updates and limits each ecosystem/directory to
+one open version-update PR. npm/Python major upgrades and Docker runtime-line
+upgrades need deliberate maintenance; GitHub Actions upgrades remain grouped.
+GitHub applies separate limits to security-update PRs. Updates still need the
+same CI gate and maintainer review before merging.
 
 ## Host ownership and runtime
 
