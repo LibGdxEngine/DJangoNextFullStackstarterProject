@@ -25,5 +25,5 @@ opentelemetry-instrumentation-celery==0.59b0
 opentelemetry-instrumentation-psycopg==0.59b0
 opentelemetry-instrumentation-redis==0.59b0
 opentelemetry-instrumentation-requests==0.59b0
-opentelemetry-instrumentation-httpx==0.59b0
+opentelemetry-instrumentation-httpx==0.65b0
 opentelemetry-instrumentation-system-metrics==0.59b0
