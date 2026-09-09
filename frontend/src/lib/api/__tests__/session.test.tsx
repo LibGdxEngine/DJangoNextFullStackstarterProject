@@ -25,7 +25,7 @@ it("connects protected failures to token-specific NextAuth updates", async () =>
   await waitFor(() => expect(registerSessionExpiry).toHaveBeenCalled());
   const expire = vi.mocked(registerSessionExpiry).mock.calls[0][0];
   await expire("expired-token");
-  expect(update).toHaveBeenCalledExactlyOnceWith({ invalidateAccessToken: "expired-token" });
+  expect(update).toHaveBeenCalledExactlyOnceWith();
 });
 
 it("shows sign-in after expiry and removes the expiry message after a new login", () => {
@@ -39,10 +39,17 @@ it("shows sign-in after expiry and removes the expiry message after a new login"
   expect(screen.getByText("Sign in form")).toBeDefined();
   expect(screen.queryByText("Active account")).toBeNull();
   vi.mocked(useSession).mockReturnValue({
-    data: { expires: "2099-01-01", accessToken: "new", sessionExpired: false, user: { name: "New" } },
+    data: { expires: "2099-01-01", sessionGeneration: "new", backendAuthenticated: true, sessionExpired: false, user: { name: "New" } },
     status: "authenticated", update,
   });
   view.rerender(<Home />);
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.getByText("Active account")).toBeDefined();
+});
+
+it("keeps the session card visible during a transient authentication outage", () => {
+  vi.mocked(useSession).mockReturnValue({ data: { expires: "2099-01-01", sessionUnavailable: true, backendAuthenticated: false, sessionExpired: false, user: { name: "A" } }, status: "authenticated", update: vi.fn() });
+  render(<Home />);
+  expect(screen.getByText("Active account")).toBeDefined();
+  expect(screen.queryByText("Sign in form")).toBeNull();
 });

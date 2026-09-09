@@ -5,7 +5,8 @@ from django.core.exceptions import ValidationError
 from apps.accounts.models import User, UserStatus, VerificationPurpose, VerificationChannel
 from apps.accounts.phone import normalize_phone, mask_phone
 from apps.accounts.selectors import is_email_available, is_phone_available
-from apps.accounts.services.verification import create_verification_challenge
+from apps.accounts.services.verification import _create_verification_challenge
+from apps.common.rate_limits import reserve_send
 from apps.messaging.tasks import send_verification_message
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ def signup_user(
     if not is_phone_available(canonical_phone):
         raise ValidationError("An account with this phone number already exists.")
 
+    reserve_send(canonical_phone, VerificationChannel.WHATSAPP)
     with transaction.atomic():
         user = User.objects.create_user(
             email=clean_email,
@@ -49,7 +51,7 @@ def signup_user(
             status=UserStatus.PENDING,
         )
 
-        challenge, plain_code = create_verification_challenge(
+        challenge, plain_code = _create_verification_challenge(
             user=user,
             purpose=VerificationPurpose.SIGNUP,
             destination=canonical_phone,

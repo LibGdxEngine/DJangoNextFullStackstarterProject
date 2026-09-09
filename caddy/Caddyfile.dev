@@ -1,6 +1,12 @@
 {
 	admin localhost:2019
 	metrics
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 5m
+		}
+	}
 	log default {
 		output stdout
 		format filter {
@@ -31,6 +37,10 @@
 :80 {
 	encode gzip zstd
 
+	request_body /api/v1/ocr/* {
+		max_size 151000000
+	}
+
 	# Route includes the prefix itself and every asset, API, and WebSocket path.
 	@observability path /observability /observability/*
 	handle @observability {
@@ -55,13 +65,41 @@
 
 	respond /internal/observability/auth/ 404
 
-    reverse_proxy /api/auth/* frontend:3000
-    reverse_proxy /api/bff/* frontend:3000
-	reverse_proxy /api/* backend:8000
-	reverse_proxy /admin/* backend:8000
-	reverse_proxy /static/* backend:8000
-	reverse_proxy /media/* backend:8000
-	reverse_proxy /* frontend:3000
+	reverse_proxy /api/auth/* frontend:3000 {
+		header_up X-Mobser-Client-IP {remote_host}
+		header_up X-Mobser-Proxy-Token {$RATE_LIMIT_PROXY_TOKEN}
+	}
+	reverse_proxy /api/bff/* frontend:3000 {
+		header_up X-Mobser-Client-IP {remote_host}
+		header_up X-Mobser-Proxy-Token {$RATE_LIMIT_PROXY_TOKEN}
+	}
+	reverse_proxy /api/v1/ocr/jobs/ {$OCR_UPLOAD_UPSTREAM:backend:8000} {
+		header_up X-Mobser-Client-IP {remote_host}
+		header_up X-Mobser-Proxy-Token {$RATE_LIMIT_PROXY_TOKEN}
+		transport http {
+			response_header_timeout 330s
+		}
+	}
+	reverse_proxy /api/* backend:8000 {
+		header_up X-Mobser-Client-IP {remote_host}
+		header_up X-Mobser-Proxy-Token {$RATE_LIMIT_PROXY_TOKEN}
+	}
+	reverse_proxy /admin/* backend:8000 {
+		header_up X-Mobser-Client-IP {remote_host}
+		header_up X-Mobser-Proxy-Token {$RATE_LIMIT_PROXY_TOKEN}
+	}
+	reverse_proxy /static/* backend:8000 {
+		header_up X-Mobser-Client-IP {remote_host}
+		header_up X-Mobser-Proxy-Token {$RATE_LIMIT_PROXY_TOKEN}
+	}
+	reverse_proxy /media/* backend:8000 {
+		header_up X-Mobser-Client-IP {remote_host}
+		header_up X-Mobser-Proxy-Token {$RATE_LIMIT_PROXY_TOKEN}
+	}
+	reverse_proxy /* frontend:3000 {
+		header_up X-Mobser-Client-IP {remote_host}
+		header_up X-Mobser-Proxy-Token {$RATE_LIMIT_PROXY_TOKEN}
+	}
 
 	log {
 		output stdout

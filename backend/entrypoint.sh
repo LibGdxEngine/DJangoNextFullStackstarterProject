@@ -26,23 +26,23 @@ while True:
 fi
 
 # Apply database migrations
-if [ "$1" != "celery" ]
+if [ "$1" != "celery" ] && [ "${SKIP_DATABASE_SETUP:-false}" != "true" ]
 then
     echo "Applying database migrations..."
     python manage.py migrate --noinput
 fi
 
 # Collect static files for production
-if [ "$DJANGO_SETTINGS_MODULE" = "core.settings.prod" ] && [ "$1" != "celery" ]
+if [ "$DJANGO_SETTINGS_MODULE" = "core.settings.prod" ] && [ "$1" != "celery" ] && [ "${SKIP_DATABASE_SETUP:-false}" != "true" ]
 then
     echo "Collecting static files..."
     python manage.py collectstatic --noinput
 fi
 
-# Beat's DatabaseScheduler reads django_celery_beat tables, but the backend
-# container owns migrations, so wait for it rather than racing it.
-case " $* " in
-    *" beat "*)
+# The primary backend owns migrations. Beat and the upload-only server wait
+# for that owner instead of racing concurrent schema changes at startup.
+case " ${SKIP_DATABASE_SETUP:-false} $* " in
+    " true "*|*" beat "*)
         echo "Waiting for migrations to be applied..."
         until python manage.py migrate --check >/dev/null 2>&1
         do

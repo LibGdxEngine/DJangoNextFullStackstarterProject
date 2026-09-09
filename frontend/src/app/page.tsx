@@ -68,7 +68,7 @@ export default function Home() {
                 <div className="py-8 text-center text-xs text-zinc-500">
                   Checking active authentication session...
                 </div>
-              ) : session?.accessToken ? (
+              ) : session?.backendAuthenticated || session?.sessionUnavailable ? (
                 <UserSessionCard />
               ) : (
                 <>

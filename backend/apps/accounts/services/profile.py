@@ -49,7 +49,7 @@ def initiate_phone_change(user: User, new_phone: str) -> Dict[str, Any]:
     """
     canonical_new_phone = normalize_phone(new_phone)
 
-    if canonical_new_phone == user.phone:
+    if canonical_new_phone == user.phone and user.phone_verified_at:
         raise ValidationError("New phone number must be different from current phone number.")
 
     if not is_phone_available(canonical_new_phone, exclude_user_id=user.id):
@@ -82,38 +82,40 @@ def confirm_phone_change(user: User, challenge_id: str, code: str) -> User:
     Verifies code against candidate phone, checks uniqueness again, and updates User.phone.
     Bumps token_version to invalidate prior sessions.
     """
+    def apply_phone(challenge):
+        locked_user = challenge.user
+        if locked_user.token_version != user.token_version:
+            raise ValidationError("This session has been invalidated. Sign in again.")
+        new_phone = challenge.metadata.get("new_phone")
+        if not new_phone:
+            raise ValidationError("Missing candidate phone number in challenge metadata.")
+        if not is_phone_available(new_phone, exclude_user_id=locked_user.id):
+            raise ValidationError("This phone number has already been claimed by another account.")
+        locked_user.phone = new_phone
+        locked_user.phone_verified_at = timezone.now()
+        locked_user.token_version += 1
+        locked_user.save(update_fields=["phone", "phone_verified_at", "token_version", "updated_at"])
+
     challenge = verify_challenge_code(
-        challenge_id=challenge_id,
-        code=code,
+        challenge_id=challenge_id, code=code,
         expected_purpose=VerificationPurpose.CHANGE_PHONE,
+        expected_user_id=user.id, on_verified=apply_phone,
     )
-
-    if challenge.user_id != user.id:
-        raise ValidationError("Challenge does not belong to the authenticated user.")
-
-    new_phone = challenge.metadata.get("new_phone")
-    if not new_phone:
-        raise ValidationError("Missing candidate phone number in challenge metadata.")
-
-    # Prevent race condition before applying update
-    if not is_phone_available(new_phone, exclude_user_id=user.id):
-        raise ValidationError("This phone number has already been claimed by another account.")
-
-    user.phone = new_phone
-    user.phone_verified_at = timezone.now()
-    user.token_version += 1
-    user.save(update_fields=["phone", "phone_verified_at", "token_version", "updated_at"])
-
     logger.info("Phone number successfully updated for user %s", user.id)
-    return user
+    return challenge.user
 
 
+@transaction.atomic
 def change_email(user: User, new_email: str, password: str) -> User:
     """
     Updates user email after verifying password.
     Resets email_verified_at to None since email ownership is not yet independently verified.
     Bumps token_version.
     """
+    request_version = user.token_version
+    user = User.objects.select_for_update().get(pk=user.pk)
+    if user.token_version != request_version:
+        raise ValidationError("This session has been invalidated. Sign in again.")
     if not user.check_password(password):
         raise ValidationError("Current password is required to change email.")
 

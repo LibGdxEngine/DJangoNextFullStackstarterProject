@@ -110,7 +110,7 @@ def annotate_views():
     from apps.integrations.hireagents.webhooks import hireagents_webhook_view
     from apps.notifications.views import NotificationMarkReadView
     from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
-    from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenVerifySerializer
+    from apps.accounts.api.serializers.auth import SessionTokenRefreshSerializer, SessionTokenVerifySerializer
 
     post_contracts = [
         (auth.SignupView, accounts.SignupSerializer, accounts.VerificationChallengeResponseSerializer, 201),
@@ -126,8 +126,8 @@ def annotate_views():
         (auth.EmailChangeView, accounts.EmailChangeSerializer, MessageResponseSerializer, 200),
         (auth.SocialAuthView, accounts.SocialAuthSerializer, SocialAuthResponseSerializer, 200),
         (TokenObtainPairView, accounts.LoginSerializer, TokenPairSerializer, 200),
-        (TokenRefreshView, TokenRefreshSerializer, TokenPairSerializer, 200),
-        (TokenVerifyView, TokenVerifySerializer, {'type': 'object', 'additionalProperties': False}, 200),
+        (TokenRefreshView, SessionTokenRefreshSerializer, TokenPairSerializer, 200),
+        (TokenVerifyView, SessionTokenVerifySerializer, {'type': 'object', 'additionalProperties': False}, 200),
     ]
     for view, request, response, status in post_contracts:
         extend_schema_view(post=extend_schema(request=request, responses={status: response}))(view)
@@ -219,4 +219,11 @@ def add_error_responses(result, generator, request, public):
                         '$ref': '#/components/schemas/ApiErrorEnvelope',
                     }}},
                 }
+                if status in ('429', '503'):
+                    operation['responses'][status]['headers'] = {
+                        'Retry-After': {
+                            'description': 'Seconds to wait before manually retrying, when available.',
+                            'schema': {'type': 'string'},
+                        },
+                    }
     return result

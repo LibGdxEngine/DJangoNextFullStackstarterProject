@@ -5,7 +5,7 @@ from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.exceptions import ExpiredTokenError, InvalidToken, TokenError
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import AccessToken, Token
 
@@ -57,8 +57,11 @@ def _issue_pair(user: User, session: AuthSession) -> Dict[str, str]:
 
 
 def issue_tokens_for_user(user: User, *, allow_phone_onboarding=False) -> Dict[str, Any]:
+    request_version = user.token_version
     with transaction.atomic():
         user = User.objects.select_for_update().get(pk=user.pk)
+        if user.token_version != request_version:
+            raise ValidationError("Credentials changed during sign-in. Please sign in again.")
         assert_account_eligible(user, allow_phone_onboarding=allow_phone_onboarding)
         session = AuthSession.objects.create(
             user=user,
@@ -118,7 +121,7 @@ def rotate_refresh_token(raw_token: str) -> Dict[str, str]:
     with transaction.atomic():
         try:
             session = AuthSession.objects.select_for_update().get(pk=session_id)
-            user = User.objects.get(pk=session.user_id)
+            user = User.objects.select_for_update().get(pk=session.user_id)
         except (AuthSession.DoesNotExist, User.DoesNotExist) as exc:
             raise InvalidToken("Session does not exist.") from exc
         if token.get(api_settings.USER_ID_CLAIM) != str(user.pk):
@@ -142,6 +145,9 @@ def revoke_refresh_token(raw_token: str) -> None:
     try:
         token = SessionRefreshToken(raw_token)
         session_id = _session_id(token)
+    except ExpiredTokenError:
+        # Signature was verified; an expired family already rejects all access.
+        return
     except (TokenError, InvalidToken) as exc:
         raise ValidationError("Invalid refresh token.") from exc
     # A previously consumed, authentic refresh credential may revoke its family.

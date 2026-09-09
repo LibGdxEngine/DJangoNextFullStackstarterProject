@@ -1,3 +1,4 @@
+import "server-only";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -6,6 +7,13 @@ import { authApi } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { logServerEvent } from "@/lib/telemetry/logger";
 
+import { trustedClientIdentity } from "@/lib/api/client-identity";
+import { createVaultSession, revokeVaultSession, vaultSessionActive, SESSION_MAX_AGE } from "@/lib/auth-vault";
+import { encodeAuthRetry } from "@/lib/api/retry";
+
+export function createAuthOptions(incoming?: Pick<Headers, "get">, onSignOutFailure?: () => void): NextAuthOptions {
+const identity = () => trustedClientIdentity(incoming ?? new Headers());
+let socialBackend: Awaited<ReturnType<typeof authApi.exchangeSocialToken>> | undefined;
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
     name: "Mobser Credentials",
@@ -20,19 +28,22 @@ const providers: NextAuthOptions["providers"] = [
         const data = await authApi.login({
           identifier: credentials.identifier,
           password: credentials.password,
-        });
+        }, identity());
 
         return {
           id: data.user?.id || credentials.identifier,
           name: formatUserName(data.user, credentials.identifier),
           email: data.user?.email,
           phone: data.user?.phone ?? undefined,
-          accessToken: data.access,
-          refreshToken: data.refresh,
+          ...await createVaultSession(data, identity()),
         };
       } catch (error: unknown) {
         if (error instanceof ApiError && error.code === "PHONE_VERIFICATION_REQUIRED") {
           throw new Error("PHONE_VERIFICATION_REQUIRED");
+        }
+        if (error instanceof ApiError) {
+          const retry = encodeAuthRetry(error.status, error.retryAfterSeconds);
+          if (retry) throw new Error(retry);
         }
         const msg = error instanceof Error ? error.message : "Authentication failed.";
         throw new Error(msg);
@@ -54,7 +65,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   );
 }
 
-export const authOptions: NextAuthOptions = {
+return {
   providers,
   logger: {
     error() { logServerEvent("ERROR", "auth.error"); },
@@ -62,48 +73,69 @@ export const authOptions: NextAuthOptions = {
     debug() {},
   },
   callbacks: {
-    async jwt({ token, user, account, trigger, session }) {
-      // Updates carry the failed token; a late 401 cannot clear a different login.
-      if (trigger === "update" && typeof session?.invalidateAccessToken === "string"
-        && session.invalidateAccessToken === token.accessToken) {
-        return { ...token, accessToken: undefined, refreshToken: undefined, sessionExpired: true };
-      }
-      if (account && account.provider !== "credentials") {
-        if (!account.id_token) {
-          throw new Error(`${account.provider} did not return an ID token.`);
+    async signIn({ account }) {
+      if (!account || account.provider === "credentials") return true;
+      if (!account.id_token) return false;
+      try {
+        socialBackend = await authApi.exchangeSocialToken(account.provider, { token: account.id_token }, identity());
+        return true;
+      } catch (error) {
+        if (error instanceof ApiError) {
+          const retry = encodeAuthRetry(error.status, error.retryAfterSeconds);
+          if (retry) return `/?error=${retry}`;
         }
-        // Throwing aborts sign-in rather than leaving a session without backend tokens.
-        const backend = await authApi.exchangeSocialToken(account.provider, { token: account.id_token });
-        token.sessionExpired = false;
-        token.accessToken = backend.access;
-        token.refreshToken = backend.refresh;
-        token.username = formatUserName(backend.user, user?.email ?? account.provider);
-        token.email = backend.user?.email;
-        token.phone = backend.user?.phone ?? undefined;
-        token.requiresPhone = backend.requires_phone ?? false;
-        return token;
+        return false;
       }
-
+    },
+    async jwt({ token, user, account }) {
+      if (account && account.provider !== "credentials") {
+        const backend = socialBackend;
+        if (!backend) throw new Error("Social sign-in was not completed.");
+        return {
+          ...await createVaultSession(backend, identity()),
+          sub: backend.user?.id,
+          name: formatUserName(backend.user, user?.email ?? account.provider),
+          email: backend.user?.email,
+          phone: backend.user?.phone ?? undefined,
+          requiresPhone: backend.requires_phone ?? false,
+        };
+      }
       if (user) {
-        token.sessionExpired = false;
-        token.accessToken = user.accessToken;
-        token.refreshToken = user.refreshToken;
-        token.username = user.name ?? undefined;
-        token.email = user.email ?? undefined;
-        token.phone = user.phone;
-        token.requiresPhone = false;
+        return { sub: user.id, name: user.name, email: user.email ?? undefined, phone: user.phone,
+          sessionId: user.sessionId, sessionGeneration: user.sessionGeneration,
+          sessionExpiresAt: user.sessionExpiresAt, requiresPhone: false };
       }
-      return token;
+      // Reissue only explicitly permitted cookie fields, dropping legacy Django JWTs.
+      return { sub: token.sub, name: token.name, email: token.email, phone: token.phone,
+        sessionId: token.sessionId, sessionGeneration: token.sessionGeneration,
+        sessionExpiresAt: token.sessionExpiresAt, requiresPhone: token.requiresPhone };
     },
     async session({ session, token }) {
-      session.sessionExpired = token.sessionExpired;
-      session.accessToken = token.accessToken;
-      session.refreshToken = token.refreshToken;
-      session.username = token.username;
-      session.email = token.email ?? session.user?.email ?? undefined;
-      session.phone = token.phone;
-      session.requiresPhone = token.requiresPhone;
-      return session;
+      let active = false;
+      let unavailable = false;
+      try {
+        active = !!token.sessionExpiresAt && token.sessionExpiresAt > Date.now()
+          && await vaultSessionActive(token.sessionId);
+      } catch {
+        unavailable = true;
+        logServerEvent("ERROR", "auth.session.unavailable");
+      }
+      // Construct a fresh browser response; never spread credentials or the vault ID.
+      return {
+        user: { name: token.name, email: token.email },
+        expires: token.sessionExpiresAt ? new Date(token.sessionExpiresAt).toISOString() : session.expires,
+        username: token.name ?? undefined, email: token.email ?? undefined, phone: token.phone,
+        requiresPhone: token.requiresPhone, sessionGeneration: token.sessionGeneration,
+        backendAuthenticated: active, sessionExpired: !active && !unavailable, sessionUnavailable: unavailable,
+      };
+    },
+  },
+  events: {
+    async signOut(message) {
+      if ("token" in message && message.token?.sessionId) {
+        try { await revokeVaultSession(message.token.sessionId); }
+        catch (error) { onSignOutFailure?.(); throw error; }
+      }
     },
   },
   pages: {
@@ -111,6 +143,12 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
+    maxAge: SESSION_MAX_AGE,
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
+
+}
+
+// Session-only consumers have no login request; route handlers create fresh options.
+export const authOptions = createAuthOptions();

@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { SocialAuthButtons } from "@/features/auth/components/SocialAuthButtons";
+import { decodeAuthRetry } from "@/lib/api/retry";
+import { useRetryCountdown } from "@/hooks/useRetryCountdown";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -15,9 +17,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isVerificationRequired, setIsVerificationRequired] = useState(false);
+  const { remaining, wait } = useRetryCountdown();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (remaining || isLoading) return;
     setIsLoading(true);
     setErrorMessage(null);
     setIsVerificationRequired(false);
@@ -30,13 +34,17 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       });
 
       if (res?.error) {
-        if (res.error.includes("PHONE_VERIFICATION_REQUIRED")) {
+        const retry = decodeAuthRetry(res.error);
+        if (retry) {
+          wait(retry.seconds);
+          setErrorMessage(retry.status === 429 ? "Too many attempts. Please wait before trying again." : "Sign-in is temporarily unavailable. Please try again shortly.");
+        } else if (res.error.includes("PHONE_VERIFICATION_REQUIRED")) {
           setIsVerificationRequired(true);
           setErrorMessage("WhatsApp phone verification is required before logging in.");
         } else {
           setErrorMessage(res.error || "Authentication failed. Check credentials.");
         }
-      } else {
+      } else if (res?.ok) {
         setIdentifier("");
         setPassword("");
         if (onSuccess) onSuccess();
@@ -94,8 +102,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           />
         </div>
 
-        <Button type="submit" variant="primary" className="w-full" isLoading={isLoading}>
-          Sign In with Email or Phone
+        <Button type="submit" variant="primary" className="w-full" isLoading={isLoading} disabled={remaining > 0}>
+          {remaining > 0 ? `Try again in ${remaining}s` : "Sign In with Email or Phone"}
         </Button>
 
         <p className="text-xs text-zinc-500 text-center">

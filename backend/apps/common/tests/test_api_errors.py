@@ -142,6 +142,15 @@ class ApiErrorContractTests(SimpleTestCase):
         self.assertEqual(response.status_code, 429)
         self.assertEqual(response.json()["error"]["code"], "throttled")
         self.assertEqual(response["Retry-After"], "12")
+        self.assertEqual(response.json()["error"]["context"]["retry_after_seconds"], 12)
+
+    def test_limiter_outage_preserves_retry_contract(self):
+        from apps.common.rate_limits import RateLimitUnavailable
+
+        response = exception_handler(RateLimitUnavailable(), {})
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.data["error"]["code"], "rate_limit_unavailable")
+        self.assertEqual(response.data["error"]["context"]["retry_after_seconds"], int(response["Retry-After"]))
 
     def test_headers_and_cookies_preserved(self):
         response = self.client.get("/api/headers/")

@@ -1,7 +1,9 @@
+from apps.common.throttling import BaselineThrottle, OperationThrottle
 from core.api_errors import validation_error_response
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.utils import timezone
+from django.utils.decorators import method_decorator
+from apps.accounts.services.verification import confirm_signup
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -11,16 +13,19 @@ from apps.accounts.api.serializers import (
     VerificationConfirmSerializer,
     VerificationResendSerializer,
 )
-from apps.accounts.models import UserStatus, VerificationPurpose
+from apps.accounts.models import User, UserStatus, VerificationPurpose
 from apps.accounts.services import (
-    verify_challenge_code,
     resend_verification_challenge,
     issue_tokens_for_user,
 )
 from apps.messaging.tasks import send_verification_message
 
 
+@method_decorator(transaction.non_atomic_requests, name="dispatch")
 class VerificationConfirmView(APIView):
+    throttle_classes = [BaselineThrottle, OperationThrottle]
+    rate_limit_operation = 'confirm'
+
     """
     Confirms an OTP verification challenge.
     For signup verification: marks user ACTIVE, sets phone_verified_at, and issues JWT tokens directly.
@@ -35,29 +40,10 @@ class VerificationConfirmView(APIView):
         code = serializer.validated_data["code"]
 
         try:
-            challenge = verify_challenge_code(challenge_id=challenge_id, code=code)
-            user = challenge.user
-
-            if challenge.purpose == VerificationPurpose.SIGNUP:
-                user.phone_verified_at = timezone.now()
-                user.status = UserStatus.ACTIVE
-                user.save(update_fields=["phone_verified_at", "status", "updated_at"])
-
-                # Issue JWT tokens immediately so the user doesn't have to log in again
-                token_data = issue_tokens_for_user(user)
-                return Response(
-                    {
-                        "message": "Phone verified successfully. Welcome!",
-                        **token_data,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-
+            challenge = confirm_signup(challenge_id=challenge_id, code=code)
+            token_data = issue_tokens_for_user(challenge.user)
             return Response(
-                {
-                    "message": "Verification confirmed successfully.",
-                    "purpose": challenge.purpose,
-                },
+                {"message": "Phone verified successfully. Welcome!", **token_data},
                 status=status.HTTP_200_OK,
             )
         except ValidationError as exc:
@@ -65,6 +51,9 @@ class VerificationConfirmView(APIView):
 
 
 class VerificationResendView(APIView):
+    throttle_classes = [BaselineThrottle, OperationThrottle]
+    rate_limit_operation = 'resend'
+
     """
     Resends OTP challenge respecting cooldown and maximum resend limits.
     """

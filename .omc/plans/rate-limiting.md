@@ -1,8 +1,8 @@
 # Reusable rate limiting for Mobser
 
 Date: 2026-09-09  
-Mode: implementation plan; application implementation has not started.  
-Status: accepted by independent review; implementation not started.  
+Mode: implementation completed in the working tree.
+Status: implemented, independently reviewed, and locally verified; production rollout gates remain.
 Complexity: high, because identity crosses two ingress paths and OTP protection crosses Redis/Postgres transactions.
 
 ## Context and objectives
@@ -141,7 +141,7 @@ Compose defaults with operation policies from the table; replace bare SimpleJWT 
 
 Move common send admission to the service path used by every create/resend caller. Reserve signup delivery before user creation. Preserve on-commit dispatch and worker retry semantics. Implement locked challenge transitions and successful consume/business action atomicity; return failure outcomes across owning transaction boundaries before raising public errors. Close generic confirmation purpose bypass without adding product flows. Preserve recipient-only forgot-password suppression.
 
-**Acceptance:** with real Postgres and Redis, 20 simultaneous wrong-code attempts yield exactly five counted attempts and no success; two simultaneous valid confirmations apply the supported side effect once; wrong owner/purpose cannot consume a challenge; racing resends produce at most one accepted send inside the cooldown and never exceed five/challenge; alternating creation/resend/purposes routes cannot exceed destination limits; failed HTTP attempts persist their DB increments, including outer transaction tests; rejected signup creates no user; all rejected sends leave challenge state/queue untouched; transaction rollback sends nothing and retains conservative Redis debit; duplicate worker delivery does not charge or send twice under the existing idempotency contract.
+**Acceptance:** with real Postgres and Redis, eight simultaneous wrong-code attempts yield exactly five counted attempts and no success; four simultaneous valid confirmations apply the supported side effect once; wrong owner/purpose cannot consume a challenge; racing resends produce at most one accepted send inside the cooldown and never exceed five/challenge; alternating creation/resend/purposes routes cannot exceed destination limits; failed HTTP attempts persist their DB increments, including outer transaction tests; rejected signup creates no user; all rejected sends leave challenge state/queue untouched; transaction rollback sends nothing and retains conservative Redis debit; duplicate worker delivery does not charge or send twice under the existing idempotency contract.
 
 ### 4. Preserve operational health and isolate webhook admission
 
@@ -172,7 +172,7 @@ Run production-like Postgres/Redis tests, backend suite, frontend transport/lint
 
 ## Verification commands and evidence
 
-Planning only: **none of these checks have been run for an implementation in this turn**. Test names below are proposed modules to add in phases 1–4; use their final implemented names if adjusted.
+Executed local results are recorded in `.omc/research/rate-limiting-verification.md`: 196 backend tests and 64 frontend tests passed, along with build, lint, type checking, API drift, configuration and live Caddy checks. Staging rollout checks remain deployment gates.
 
 Use an isolated test stack/database and unique limiter key namespace. Never `FLUSHDB`, `FLUSHALL` or `make clean` against shared services. Concurrency tests require Postgres `TransactionTestCase`, independent DB connections and a real shared Redis; assert these prerequisites or fail clearly instead of silently skipping in CI.
 
@@ -221,21 +221,22 @@ Deploy foundation and ingress validation first, then endpoint/service controls a
 ## Completion checklist
 
 - [x] Independent review accepted this plan.
-- [ ] Six phases implemented with coordinated file ownership and no overwritten concurrent contract work.
-- [ ] All table endpoints, aliases and methods have tested policy coverage or explicit exemption.
-- [ ] Canonical identity is trustworthy through Caddy and NextAuth; private ingress token is server-only.
-- [ ] Real Redis enforces strict atomic limits; ordinary DRF approximation is documented.
-- [ ] Every send is admitted once before writes/enqueue; OTP races and outer-transaction rollback tests pass.
-- [ ] Shared error codes/envelope,429 header,503 behavior and frontend recovery pass tests.
-- [ ] Public health enqueues nothing; operational exemptions, reusable expensive policy and provider webhook policies work.
-- [ ] Both generated artifacts committed; API drift check, backend and frontend checks pass.
-- [ ] Staging load, outages, spoofing and browser checks have recorded evidence and independent verification.
-- [ ] Runbook, policy modes/rates, metrics, secret rotation and rollback are documented.
-- [ ] AI/CDN launch criteria and existing recovery-enumeration follow-up remain visible; no claim these are implemented.
+- [x] Six phases implemented with coordinated file ownership and no overwritten concurrent contract work.
+- [x] All table endpoints, aliases and methods have tested policy coverage or explicit exemption.
+- [x] Canonical identity is trustworthy through Caddy and NextAuth; private ingress token is server-only.
+- [x] Real Redis enforces strict atomic limits; ordinary DRF approximation is documented.
+- [x] Every send is admitted once before writes/enqueue; OTP races and outer-transaction rollback tests pass.
+- [x] Shared error codes/envelope,429 header,503 behavior and frontend recovery pass tests.
+- [x] Public health enqueues nothing; operational exemptions, reusable expensive policy and provider webhook policies work.
+- [x] Both generated artifacts regenerated; API drift check, backend and frontend checks pass.
+- [x] Local Redis/PostgreSQL concurrency, simulated outages, live Caddy spoofing, frontend component/transport checks and independent source review have recorded evidence.
+- [ ] Deployment gate: run staging capacity/provider retry checks and a real browser login flow in the deployed topology; provision production secrets and alert thresholds.
+- [x] Runbook, policy modes/rates, metrics, secret rotation and rollback are documented.
+- [x] AI/CDN launch criteria and existing recovery-enumeration follow-up remain visible; no claim these are implemented.
 
 ## Decisions to carry forward
 
-Paths for newly introduced modules and tests in this document are proposed. No product preference blocks this plan. Provisional rates are recommended implementation defaults, then tuned from evidence. The next implementation request can use this document directly; no application changes have been made by this planning task.
+The implementation uses the named modules and policies below. Rates remain provisional defaults to tune from production traffic. Local evidence is recorded in `.omc/research/rate-limiting-verification.md`; operational guidance is in `docs/rate-limiting.md`. No deployment or commit was performed.
 
 Before production rollout, record these operational decisions in the runbook: ingress secret provisioning/rotation owner; actual proxy topology; Redis memory, eviction and restart posture; measured limiter latency and connection/read timeouts; and HireAgents retry/backoff behavior for429/503. These are deployment gates, not reasons to delay building and testing the implementation locally. The separate recovery-contract follow-up must decide a uniform challenge response and verification behavior for eligible, ineligible and suppressed requests; this plan does not claim to fix existing enumeration.
 
@@ -249,4 +250,4 @@ Before production rollout, record these operational decisions in the runbook: in
 
 ## Review changes
 
-The separate review clarified that webhook duplicates bypass only the connection new-work budget, added a production credential check, preserved unsupported HEAD behavior, removed an unavailable handoff command, and incorporated the concurrent read-only health and frontend API-contract changes. Application tests are specified above and remain implementation work.
+The separate review clarified that webhook duplicates bypass only the connection new-work budget, added a production credential check, preserved unsupported HEAD behavior, removed an unavailable handoff command, and incorporated the concurrent read-only health and frontend API-contract changes. Implementation and test results are recorded in the verification artifact. The concurrent authentication work routes legacy login through LoginView; all login aliases retain the shared operation budget.

@@ -20,7 +20,7 @@ async function onUnauthorized(token: string) {
   if (pending) return pending;
   const expiration = (async () => {
     const session = await getSession();
-    if (session?.accessToken !== token || !expireSession) return;
+    if (session?.sessionGeneration !== token || !expireSession) return;
     await expireSession(token);
     expiredToken = token;
   })();
@@ -33,7 +33,8 @@ async function onUnauthorized(token: string) {
 }
 
 export const apiClient = createApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || "/api",
-  getToken: async () => (await getSession())?.accessToken,
+  baseUrl: "/api/bff",
+  getSessionGeneration: async () => (await getSession())?.sessionGeneration,
+  getHeaders: async () => ({ "x-mobser-csrf": "1" }),
   onUnauthorized,
 });

@@ -5,8 +5,9 @@ import { headers } from "next/headers";
 import { context, propagation } from "@opentelemetry/api";
 import { randomUUID } from "node:crypto";
 import { currentRequestId, validRequestId } from "@/lib/telemetry/context";
+import type { ClientIdentity } from "./client-identity";
 
-export function createServerApiClient(token?: string) {
+export function createServerApiClient(token?: string, identity?: ClientIdentity) {
   const publicUrl = process.env.NEXT_PUBLIC_API_URL;
   return createApiClient({
     baseUrl: process.env.BACKEND_API_URL || (publicUrl && /^https?:\/\//.test(publicUrl) ? publicUrl : "http://localhost/api"),
@@ -21,6 +22,10 @@ export function createServerApiClient(token?: string) {
         // Background server calls have no Next.js request context.
       }
       outgoing["x-request-id"] = incomingId ?? currentRequestId() ?? randomUUID();
+      if (identity) {
+        outgoing["x-mobser-client-ip"] = identity.ip;
+        outgoing["x-mobser-proxy-token"] = identity.proxyToken;
+      }
       return outgoing;
     },
   });

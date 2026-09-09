@@ -39,6 +39,20 @@ services:
       timeout: 5s
       retries: 5
 
+  auth_sessions:
+    logging: *service-logging
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, "yes", --appendfsync, always]
+    volumes:
+      - auth_session_data:/data
+    ports:
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     logging: *service-logging
     networks: [default, telemetry-ingest]
@@ -46,9 +60,31 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     volumes:
+      - ocr_private:/app/private/ocr
       - ./backend:/app
       - ./scripts:/app/scripts:ro
     environment:
+      - OCR_ENABLED=${OCR_ENABLED:-false}
+      - OCR_PRIVATE_ROOT=/app/private/ocr
+      - OCR_WEBHOOK_SIGNING_KEY=${OCR_WEBHOOK_SIGNING_KEY:-}
+      - OCR_MAX_PENDING_PER_ORG=${OCR_MAX_PENDING_PER_ORG:-5}
+      - OCR_MAX_DAILY_BYTES=${OCR_MAX_DAILY_BYTES:-1500000000}
+      - OCR_MAX_STORED_BYTES=${OCR_MAX_STORED_BYTES:-1500000000}
+      - OCR_MAX_GLOBAL_PENDING=${OCR_MAX_GLOBAL_PENDING:-50}
+      - OCR_MAX_GLOBAL_STORED_BYTES=${OCR_MAX_GLOBAL_STORED_BYTES:-7500000000}
+      - OCR_RESULT_RETENTION_HOURS=${OCR_RESULT_RETENTION_HOURS:-24}
+      - RATE_LIMIT_PROXY_TOKEN=${RATE_LIMIT_PROXY_TOKEN:-dev-rate-proxy-token-not-for-production}
+      - RATE_LIMIT_KEY_SECRET=${RATE_LIMIT_KEY_SECRET:-dev-rate-limit-key-not-for-production}
+      - RATE_LIMIT_REDIS_URL=redis://redis:6379/1
+      - RATE_LIMIT_MODE=${RATE_LIMIT_MODE:-enforce}
+      - RATE_LIMIT_BASELINE_MODE=${RATE_LIMIT_BASELINE_MODE:-enforce}
+      - RATE_LIMIT_POLICIES=${RATE_LIMIT_POLICIES:-}
+      - RATE_LIMIT_ANONYMOUS=${RATE_LIMIT_ANONYMOUS:-60/min}
+      - RATE_LIMIT_USER=${RATE_LIMIT_USER:-300/min}
+      - RATE_LIMIT_STATUS=${RATE_LIMIT_STATUS:-30/min}
+      - RATE_LIMIT_REDIS_TIMEOUT=${RATE_LIMIT_REDIS_TIMEOUT:-0.3}
+      - RATE_LIMIT_TRUST_PROXY=true
+      - RATE_LIMIT_ALLOW_DIRECT=false
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
       - OTEL_SERVICE_NAME=mobser-backend
       - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
@@ -90,8 +126,30 @@ services:
       dockerfile: Dockerfile
     command: celery -A core worker -l info -Q celery,maintenance
     volumes:
+      - ocr_private:/app/private/ocr
       - ./backend:/app
     environment:
+      - OCR_ENABLED=${OCR_ENABLED:-false}
+      - OCR_PRIVATE_ROOT=/app/private/ocr
+      - OCR_WEBHOOK_SIGNING_KEY=${OCR_WEBHOOK_SIGNING_KEY:-}
+      - OCR_MAX_PENDING_PER_ORG=${OCR_MAX_PENDING_PER_ORG:-5}
+      - OCR_MAX_DAILY_BYTES=${OCR_MAX_DAILY_BYTES:-1500000000}
+      - OCR_MAX_STORED_BYTES=${OCR_MAX_STORED_BYTES:-1500000000}
+      - OCR_MAX_GLOBAL_PENDING=${OCR_MAX_GLOBAL_PENDING:-50}
+      - OCR_MAX_GLOBAL_STORED_BYTES=${OCR_MAX_GLOBAL_STORED_BYTES:-7500000000}
+      - OCR_RESULT_RETENTION_HOURS=${OCR_RESULT_RETENTION_HOURS:-24}
+      - RATE_LIMIT_PROXY_TOKEN=${RATE_LIMIT_PROXY_TOKEN:-dev-rate-proxy-token-not-for-production}
+      - RATE_LIMIT_KEY_SECRET=${RATE_LIMIT_KEY_SECRET:-dev-rate-limit-key-not-for-production}
+      - RATE_LIMIT_REDIS_URL=redis://redis:6379/1
+      - RATE_LIMIT_MODE=${RATE_LIMIT_MODE:-enforce}
+      - RATE_LIMIT_BASELINE_MODE=${RATE_LIMIT_BASELINE_MODE:-enforce}
+      - RATE_LIMIT_POLICIES=${RATE_LIMIT_POLICIES:-}
+      - RATE_LIMIT_ANONYMOUS=${RATE_LIMIT_ANONYMOUS:-60/min}
+      - RATE_LIMIT_USER=${RATE_LIMIT_USER:-300/min}
+      - RATE_LIMIT_STATUS=${RATE_LIMIT_STATUS:-30/min}
+      - RATE_LIMIT_REDIS_TIMEOUT=${RATE_LIMIT_REDIS_TIMEOUT:-0.3}
+      - RATE_LIMIT_TRUST_PROXY=true
+      - RATE_LIMIT_ALLOW_DIRECT=false
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
       - OTEL_SERVICE_NAME=mobser-worker
       - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
@@ -122,6 +180,74 @@ services:
       redis:
         condition: service_healthy
 
+  # Enable with --profile ocr after configuring the GPU endpoint and signing key.
+  ocr_upload:
+    extends:
+      service: backend
+    profiles: [ocr]
+    command: [gunicorn, --config, gunicorn.conf.py, --bind, '0.0.0.0:8000', --workers, '2', --worker-class, gthread, --threads, '4', --timeout, '330', core.wsgi:application]
+    environment:
+      - OTEL_SERVICE_NAME=mobser-ocr-upload
+      - SKIP_DATABASE_SETUP=true
+    mem_limit: 768m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 6m
+    ports: !reset []
+
+  ocr_worker:
+    extends:
+      service: celery_worker
+    profiles: [ocr]
+    command: [celery, -A, core, worker, -l, info, -Q, ocr, "--concurrency=${OCR_WORKER_CONCURRENCY:-1}", --max-tasks-per-child=20]
+    networks: [default, telemetry-ingest, ocr-scan]
+    environment:
+      - OCR_MODEL_URL=${OCR_MODEL_URL:-}
+      - OCR_MODEL_TOKEN=${OCR_MODEL_TOKEN:-}
+      - OCR_MODEL_FILE_FIELD=${OCR_MODEL_FILE_FIELD:-file}
+      - OCR_CLAMAV_HOST=clamav
+      - OTEL_SERVICE_NAME=mobser-ocr-worker
+    depends_on:
+      clamav:
+        condition: service_healthy
+    mem_limit: 1536m
+    cpus: 2.0
+    read_only: true
+    tmpfs: [/tmp:size=192m,mode=1777]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 20m
+
+  ocr_webhooks:
+    extends:
+      service: celery_worker
+    profiles: [ocr]
+    command: [celery, -A, core, worker, -l, info, -Q, ocr-webhooks, --concurrency=2]
+    environment:
+      - OTEL_SERVICE_NAME=mobser-ocr-webhooks
+    mem_limit: 512m
+    read_only: true
+    tmpfs: [/tmp:size=32m,mode=1777]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  clamav:
+    image: clamav/clamav:1.4
+    profiles: [ocr]
+    restart: unless-stopped
+    networks: [ocr-scan, ocr-scanner-updates]
+    mem_limit: 4g
+    volumes:
+      - clamav_signatures:/var/lib/clamav
+      - ./security/clamd.conf:/etc/clamav/clamd.conf:ro
+    healthcheck:
+      test: [CMD, clamdscan, --ping, "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    logging: *service-logging
+
   celery_beat:
     logging: *service-logging
     networks: [default, telemetry-ingest]
@@ -132,6 +258,18 @@ services:
     volumes:
       - ./backend:/app
     environment:
+      - RATE_LIMIT_PROXY_TOKEN=${RATE_LIMIT_PROXY_TOKEN:-dev-rate-proxy-token-not-for-production}
+      - RATE_LIMIT_KEY_SECRET=${RATE_LIMIT_KEY_SECRET:-dev-rate-limit-key-not-for-production}
+      - RATE_LIMIT_REDIS_URL=redis://redis:6379/1
+      - RATE_LIMIT_MODE=${RATE_LIMIT_MODE:-enforce}
+      - RATE_LIMIT_BASELINE_MODE=${RATE_LIMIT_BASELINE_MODE:-enforce}
+      - RATE_LIMIT_POLICIES=${RATE_LIMIT_POLICIES:-}
+      - RATE_LIMIT_ANONYMOUS=${RATE_LIMIT_ANONYMOUS:-60/min}
+      - RATE_LIMIT_USER=${RATE_LIMIT_USER:-300/min}
+      - RATE_LIMIT_STATUS=${RATE_LIMIT_STATUS:-30/min}
+      - RATE_LIMIT_REDIS_TIMEOUT=${RATE_LIMIT_REDIS_TIMEOUT:-0.3}
+      - RATE_LIMIT_TRUST_PROXY=true
+      - RATE_LIMIT_ALLOW_DIRECT=false
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
       - OTEL_SERVICE_NAME=mobser-beat
       - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
@@ -175,6 +313,9 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
+      - RATE_LIMIT_PROXY_TOKEN=${RATE_LIMIT_PROXY_TOKEN:-dev-rate-proxy-token-not-for-production}
+      - RATE_LIMIT_TRUST_PROXY=true
+      - RATE_LIMIT_ALLOW_DIRECT=false
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
       - OTEL_SERVICE_NAME=mobser-frontend
       - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
@@ -191,7 +332,7 @@ services:
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-a-secure-nextauth-secret-key-change-this-in-dev}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost}
       - BACKEND_API_URL=${BACKEND_API_URL:-http://backend:8000/api}
-      - AUTH_SESSION_REDIS_URL=redis://redis:6379/2
+      - AUTH_SESSION_REDIS_URL=${AUTH_SESSION_REDIS_URL:-redis://auth_sessions:6379/0}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
     ports:
@@ -199,7 +340,7 @@ services:
     depends_on:
       backend:
         condition: service_started
-      redis:
+      auth_sessions:
         condition: service_healthy
 
   caddy:
@@ -212,6 +353,8 @@ services:
     image: caddy:2.11.4-alpine
     restart: unless-stopped
     environment:
+      - RATE_LIMIT_PROXY_TOKEN=${RATE_LIMIT_PROXY_TOKEN:-dev-rate-proxy-token-not-for-production}
+      - OCR_UPLOAD_UPSTREAM=${OCR_UPLOAD_UPSTREAM:-backend:8000}
       - GRAFANA_PROXY_IP=${OBSERVABILITY_GRAFANA_IP:-172.30.240.3}
     ports:
       - "80:80"
@@ -367,8 +510,11 @@ services:
     - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
 
 volumes:
+  ocr_private:
+  clamav_signatures:
   postgres_data:
   redis_data:
+  auth_session_data:
   caddy_data:
   caddy_config:
   otel_offsets:
@@ -378,6 +524,9 @@ volumes:
   grafana_data:
 
 networks:
+  ocr-scan:
+    internal: true
+  ocr-scanner-updates:
   default:
   telemetry-ingest:
     internal: true

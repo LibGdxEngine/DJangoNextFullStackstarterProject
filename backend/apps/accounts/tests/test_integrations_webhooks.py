@@ -110,3 +110,66 @@ class HireAgentsWebhookTests(TestCase):
 
         self.assertEqual(WebhookEvent.objects.filter(provider_event_id="msg_evt_dupe").count(), 1)
         mock_delay.assert_called_once()
+
+
+class WebhookCredentialCheckTests(TestCase):
+    @override_settings(RATE_LIMIT_PRODUCTION=True)
+    def test_missing_or_development_credentials_are_rejected(self):
+        from apps.integrations.hireagents.webhooks import check_webhook_credentials
+        for credentials in ({}, {'webhook_api_key': 'dev-hireagents-auth-webhook-key'}, {'webhook_signing_secret': ' '}):
+            with self.subTest(credentials=credentials), override_settings(HIREAGENTS_CONNECTIONS={'auth': credentials}):
+                self.assertEqual(check_webhook_credentials()[0].id, 'rate_limits.E010')
+
+    @override_settings(RATE_LIMIT_PRODUCTION=True, HIREAGENTS_CONNECTIONS={'auth': {'webhook_signing_secret': 'test-random-secret'}})
+    def test_configured_signing_credential_passes(self):
+        from apps.integrations.hireagents.webhooks import check_webhook_credentials
+        self.assertEqual(check_webhook_credentials(), [])
+
+    @override_settings(HIREAGENTS_CONNECTIONS={'disabled': {'enabled': False}})
+    def test_disabled_connection_cannot_receive_unauthenticated_events(self):
+        response = self.client.post('/api/v1/webhooks/hireagents/disabled/', {}, content_type='application/json')
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(WebhookEvent.objects.exists())
+
+
+@override_settings(HIREAGENTS_CONNECTIONS=TEST_CONNECTIONS)
+class WebhookAdmissionTests(TestCase):
+    def post(self, event_id='test-event', key='test-auth-webhook-secret-key'):
+        return self.client.post('/api/v1/webhooks/hireagents/auth/',
+                                {'id': event_id, 'event': 'message.sent'},
+                                content_type='application/json', HTTP_X_API_KEY=key)
+
+    @patch('apps.integrations.hireagents.webhooks.enforce_limits')
+    def test_invalid_credentials_cannot_debit_connection(self, enforce):
+        self.assertEqual(self.post(key='invalid').status_code, 401)
+        enforce.assert_not_called()
+
+    @patch('apps.integrations.hireagents.webhooks.process_hireagents_event.delay')
+    @patch('apps.integrations.hireagents.webhooks.enforce_limits')
+    def test_duplicate_bypasses_connection_quota_and_task(self, enforce, task):
+        with self.captureOnCommitCallbacks(execute=True):
+            first = self.post()
+            second = self.post()
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.data, first.data)
+        enforce.assert_called_once_with([('webhook_connection', 'auth')])
+        task.assert_called_once()
+
+    @patch('apps.integrations.hireagents.webhooks.process_hireagents_event.delay')
+    def test_connection_denial_creates_no_row_or_task(self, task):
+        from rest_framework.exceptions import Throttled
+        with patch('apps.integrations.hireagents.webhooks.enforce_limits', side_effect=Throttled(wait=10)):
+            response = self.post()
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response['Retry-After'], '10')
+        self.assertFalse(WebhookEvent.objects.exists())
+        task.assert_not_called()
+
+    def test_duplicate_still_requires_ingress_and_outage_fails_closed(self):
+        from apps.common.rate_limits import RateLimitUnavailable
+        from rest_framework.exceptions import Throttled
+        WebhookEvent.objects.create(provider='hireagents', connection='auth', provider_event_id='test-event', event_type='message.sent')
+        for failure, status_code in ((RateLimitUnavailable(), 503), (Throttled(wait=5), 429)):
+            with patch('apps.common.throttling.WebhookIngressThrottle.allow_request', side_effect=failure):
+                self.assertEqual(self.post().status_code, status_code)
+        self.assertEqual(self.post().status_code, 200)

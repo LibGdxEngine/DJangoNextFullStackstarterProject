@@ -2,8 +2,9 @@ import { DefaultUser } from "next-auth";
 
 declare module "next-auth" {
   interface Session {
-    accessToken?: string;
-    refreshToken?: string;
+    backendAuthenticated?: boolean;
+    sessionUnavailable?: boolean;
+    sessionGeneration?: string;
     username?: string;
     email?: string;
     phone?: string;
@@ -11,16 +12,18 @@ declare module "next-auth" {
     sessionExpired?: boolean;
   }
   interface User extends DefaultUser {
-    accessToken?: string;
-    refreshToken?: string;
+    sessionId?: string;
+    sessionGeneration?: string;
+    sessionExpiresAt?: number;
     phone?: string;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    accessToken?: string;
-    refreshToken?: string;
+    sessionId?: string;
+    sessionGeneration?: string;
+    sessionExpiresAt?: number;
     username?: string;
     email?: string;
     phone?: string;

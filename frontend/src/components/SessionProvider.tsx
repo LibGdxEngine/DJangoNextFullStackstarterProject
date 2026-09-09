@@ -7,8 +7,8 @@ import { registerSessionExpiry } from "@/lib/api/browser";
 function SessionExpiry({ children }: { children: React.ReactNode }) {
   const { update } = useSession();
   useEffect(() => registerSessionExpiry(async (token) => {
-    const session = await update({ invalidateAccessToken: token });
-    if (!session || session.accessToken === token) {
+    const session = await update();
+    if (!session || session.backendAuthenticated && session.sessionGeneration === token) {
       throw new Error("Session expiry was not confirmed.");
     }
   }), [update]);

@@ -9,7 +9,6 @@
         "/api/accounts/email/change/": {
             "post": {
                 "operationId": "accounts_email_change_create",
-                "description": "Update email address requiring password verification.",
                 "tags": [
                     "accounts"
                 ],
@@ -36,12 +35,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -133,6 +126,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -151,6 +152,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -187,12 +196,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -285,6 +288,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -303,6 +314,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -337,15 +356,6 @@
                     "required": true
                 },
                 "security": [
-                    {
-                        "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
-                    },
                     {}
                 ],
                 "responses": {
@@ -437,6 +447,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -457,6 +475,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -465,19 +491,12 @@
         "/api/accounts/me/": {
             "get": {
                 "operationId": "accounts_me_retrieve",
-                "description": "Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion.",
                 "tags": [
                     "accounts"
                 ],
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -569,6 +588,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -589,13 +616,20 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
             },
             "patch": {
                 "operationId": "accounts_me_partial_update",
-                "description": "Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion.",
                 "tags": [
                     "accounts"
                 ],
@@ -621,12 +655,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -718,6 +746,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -738,13 +774,20 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
             },
             "delete": {
                 "operationId": "accounts_me_destroy",
-                "description": "Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion.",
                 "tags": [
                     "accounts"
                 ],
@@ -771,12 +814,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -868,6 +905,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -886,6 +931,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -922,12 +975,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -1019,6 +1066,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -1037,6 +1092,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -1073,12 +1136,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -1171,6 +1228,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -1189,6 +1254,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -1225,12 +1298,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -1323,6 +1390,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -1341,6 +1416,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -1377,12 +1460,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -1475,6 +1552,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -1495,6 +1580,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -1503,7 +1596,6 @@
         "/api/accounts/phone/change/": {
             "post": {
                 "operationId": "accounts_phone_change_create",
-                "description": "Phase 1: Validate new phone number and issue OTP challenge to the NEW number.",
                 "tags": [
                     "accounts"
                 ],
@@ -1530,12 +1622,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -1627,6 +1713,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -1647,6 +1741,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -1655,7 +1757,6 @@
         "/api/accounts/phone/change/confirm/": {
             "post": {
                 "operationId": "accounts_phone_change_confirm_create",
-                "description": "Phase 2: Confirm OTP received on the new phone, update user phone number, and rotate sessions.",
                 "tags": [
                     "accounts"
                 ],
@@ -1682,12 +1783,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -1779,6 +1874,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -1797,6 +1900,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -1833,12 +1944,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -1931,6 +2036,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -1949,6 +2062,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -1995,12 +2116,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -2093,6 +2208,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -2113,6 +2236,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -2127,12 +2258,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -2225,6 +2350,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -2245,6 +2378,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -2261,17 +2402,17 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenRefreshRequest"
+                                "$ref": "#/components/schemas/SessionTokenRefreshRequest"
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenRefreshRequest"
+                                "$ref": "#/components/schemas/SessionTokenRefreshRequest"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenRefreshRequest"
+                                "$ref": "#/components/schemas/SessionTokenRefreshRequest"
                             }
                         }
                     },
@@ -2366,6 +2507,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -2386,6 +2535,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -2394,7 +2551,6 @@
         "/api/accounts/verification/confirm/": {
             "post": {
                 "operationId": "accounts_verification_confirm_create",
-                "description": "Confirms an OTP verification challenge.\nFor signup verification: marks user ACTIVE, sets phone_verified_at, and issues JWT tokens directly.",
                 "tags": [
                     "accounts"
                 ],
@@ -2421,12 +2577,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -2519,6 +2669,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -2539,6 +2697,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -2547,7 +2713,6 @@
         "/api/accounts/verification/resend/": {
             "post": {
                 "operationId": "accounts_verification_resend_create",
-                "description": "Resends OTP challenge respecting cooldown and maximum resend limits.",
                 "tags": [
                     "accounts"
                 ],
@@ -2574,12 +2739,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -2672,6 +2831,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -2692,6 +2859,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -2707,12 +2882,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -2807,6 +2976,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -2827,6 +3004,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -2842,12 +3027,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -2943,6 +3122,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -2963,6 +3150,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -2978,12 +3173,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -3078,6 +3267,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -3098,6 +3295,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -3113,12 +3318,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -3211,6 +3410,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -3231,6 +3438,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -3246,12 +3461,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -3344,6 +3553,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -3364,6 +3581,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -3379,12 +3604,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -3477,6 +3696,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -3497,6 +3724,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -3512,12 +3747,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -3612,6 +3841,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -3630,6 +3867,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -3678,12 +3923,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -3775,6 +4014,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -3793,6 +4040,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -3819,12 +4074,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -3916,6 +4165,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -3936,6 +4193,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -3951,12 +4216,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -4051,6 +4310,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -4069,6 +4336,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -4104,12 +4379,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -4201,6 +4470,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -4219,6 +4496,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -4248,12 +4533,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -4345,6 +4624,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -4363,6 +4650,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -4410,12 +4705,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -4507,6 +4796,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -4525,6 +4822,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -4571,12 +4876,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -4668,6 +4967,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -4686,6 +4993,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -4713,12 +5028,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -4803,6 +5112,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -4823,6 +5140,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -4838,12 +5163,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -4936,6 +5255,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -4956,6 +5283,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -4964,7 +5299,6 @@
         "/api/token/": {
             "post": {
                 "operationId": "token_create",
-                "description": "Takes a set of user credentials and returns an access and refresh JSON web\ntoken pair to prove the authentication of those credentials.",
                 "tags": [
                     "token"
                 ],
@@ -4988,12 +5322,18 @@
                     },
                     "required": true
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {}
+                ],
                 "responses": {
                     "200": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/TokenPair"
+                                    "$ref": "#/components/schemas/AuthTokens"
                                 }
                             }
                         },
@@ -5077,6 +5417,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -5095,6 +5443,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -5113,17 +5469,17 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenRefreshRequest"
+                                "$ref": "#/components/schemas/SessionTokenRefreshRequest"
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenRefreshRequest"
+                                "$ref": "#/components/schemas/SessionTokenRefreshRequest"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenRefreshRequest"
+                                "$ref": "#/components/schemas/SessionTokenRefreshRequest"
                             }
                         }
                     },
@@ -5218,6 +5574,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -5238,6 +5602,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -5254,17 +5626,17 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenVerifyRequest"
+                                "$ref": "#/components/schemas/SessionTokenVerifyRequest"
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenVerifyRequest"
+                                "$ref": "#/components/schemas/SessionTokenVerifyRequest"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenVerifyRequest"
+                                "$ref": "#/components/schemas/SessionTokenVerifyRequest"
                             }
                         }
                     },
@@ -5360,6 +5732,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -5380,6 +5760,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -5388,7 +5776,6 @@
         "/api/v1/auth/email/change/": {
             "post": {
                 "operationId": "v1_auth_email_change_create",
-                "description": "Update email address requiring password verification.",
                 "tags": [
                     "v1"
                 ],
@@ -5415,12 +5802,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -5512,6 +5893,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -5530,6 +5919,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -5566,12 +5963,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -5664,6 +6055,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -5682,6 +6081,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -5716,15 +6123,6 @@
                     "required": true
                 },
                 "security": [
-                    {
-                        "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
-                    },
                     {}
                 ],
                 "responses": {
@@ -5816,6 +6214,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -5836,6 +6242,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -5844,19 +6258,12 @@
         "/api/v1/auth/me/": {
             "get": {
                 "operationId": "v1_auth_me_retrieve",
-                "description": "Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion.",
                 "tags": [
                     "v1"
                 ],
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -5948,6 +6355,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -5968,13 +6383,20 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
             },
             "patch": {
                 "operationId": "v1_auth_me_partial_update",
-                "description": "Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion.",
                 "tags": [
                     "v1"
                 ],
@@ -6000,12 +6422,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -6097,6 +6513,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -6117,13 +6541,20 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
             },
             "delete": {
                 "operationId": "v1_auth_me_destroy",
-                "description": "Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion.",
                 "tags": [
                     "v1"
                 ],
@@ -6150,12 +6581,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -6247,6 +6672,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -6265,6 +6698,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -6301,12 +6742,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -6398,6 +6833,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -6416,6 +6859,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -6452,12 +6903,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -6550,6 +6995,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -6568,6 +7021,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -6604,12 +7065,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -6702,6 +7157,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -6720,6 +7183,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -6756,12 +7227,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -6854,6 +7319,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -6874,6 +7347,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -6882,7 +7363,6 @@
         "/api/v1/auth/phone/change/": {
             "post": {
                 "operationId": "v1_auth_phone_change_create",
-                "description": "Phase 1: Validate new phone number and issue OTP challenge to the NEW number.",
                 "tags": [
                     "v1"
                 ],
@@ -6909,12 +7389,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -7006,6 +7480,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -7026,6 +7508,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -7034,7 +7524,6 @@
         "/api/v1/auth/phone/change/confirm/": {
             "post": {
                 "operationId": "v1_auth_phone_change_confirm_create",
-                "description": "Phase 2: Confirm OTP received on the new phone, update user phone number, and rotate sessions.",
                 "tags": [
                     "v1"
                 ],
@@ -7061,12 +7550,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     }
                 ],
                 "responses": {
@@ -7158,6 +7641,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -7176,6 +7667,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -7212,12 +7711,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -7310,6 +7803,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -7328,6 +7829,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -7374,12 +7883,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -7472,6 +7975,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -7492,6 +8003,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -7506,12 +8025,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -7604,6 +8117,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -7624,6 +8145,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -7640,17 +8169,17 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenRefreshRequest"
+                                "$ref": "#/components/schemas/SessionTokenRefreshRequest"
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenRefreshRequest"
+                                "$ref": "#/components/schemas/SessionTokenRefreshRequest"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/TokenRefreshRequest"
+                                "$ref": "#/components/schemas/SessionTokenRefreshRequest"
                             }
                         }
                     },
@@ -7745,6 +8274,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -7765,6 +8302,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -7773,7 +8318,6 @@
         "/api/v1/auth/verification/confirm/": {
             "post": {
                 "operationId": "v1_auth_verification_confirm_create",
-                "description": "Confirms an OTP verification challenge.\nFor signup verification: marks user ACTIVE, sets phone_verified_at, and issues JWT tokens directly.",
                 "tags": [
                     "v1"
                 ],
@@ -7800,12 +8344,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -7898,6 +8436,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -7918,6 +8464,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -7926,7 +8480,6 @@
         "/api/v1/auth/verification/resend/": {
             "post": {
                 "operationId": "v1_auth_verification_resend_create",
-                "description": "Resends OTP challenge respecting cooldown and maximum resend limits.",
                 "tags": [
                     "v1"
                 ],
@@ -7953,12 +8506,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -8051,6 +8598,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -8069,6 +8624,967 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ocr/jobs/": {
+            "post": {
+                "operationId": "v1_ocr_jobs_create",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OCRSubmitRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "ocrApiKey": []
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OCRJob"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "413": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or session expired.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied or required verification.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "406": {
+                        "description": "Response format not acceptable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported media type.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request throttled.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected internal error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "A required service is unavailable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ocr/jobs/{job_id}/": {
+            "get": {
+                "operationId": "v1_ocr_jobs_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "job_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "security": [
+                    {
+                        "ocrApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OCRJob"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or session expired.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied or required verification.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "406": {
+                        "description": "Response format not acceptable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported media type.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request throttled.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected internal error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "A required service is unavailable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ocr/jobs/{job_id}/result/": {
+            "get": {
+                "operationId": "v1_ocr_jobs_result_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "job_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "security": [
+                    {
+                        "ocrApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OCRResult"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "410": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or session expired.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied or required verification.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "406": {
+                        "description": "Response format not acceptable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported media type.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request throttled.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected internal error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "A required service is unavailable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ocr/keys/": {
+            "get": {
+                "operationId": "v1_ocr_keys_list",
+                "tags": [
+                    "v1"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/OCRKey"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or session expired.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied or required verification.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "406": {
+                        "description": "Response format not acceptable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported media type.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request throttled.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected internal error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "A required service is unavailable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1_ocr_keys_create",
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OCRKeyCreateRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OCRKeyCreateRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OCRKeyCreateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OCRKeyCreated"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or session expired.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied or required verification.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "406": {
+                        "description": "Response format not acceptable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported media type.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request throttled.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected internal error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "A required service is unavailable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ocr/keys/{key_id}/": {
+            "delete": {
+                "operationId": "v1_ocr_keys_destroy",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "key_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or session expired.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied or required verification.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "406": {
+                        "description": "Response format not acceptable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported media type.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request throttled.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected internal error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "A required service is unavailable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -8141,12 +9657,6 @@
                 "security": [
                     {
                         "jwtAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    },
-                    {
-                        "basicAuth": []
                     },
                     {}
                 ],
@@ -8239,6 +9749,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -8257,6 +9775,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -8359,6 +9885,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -8377,6 +9911,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -8479,6 +10021,14 @@
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
                                 }
                             }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -8497,6 +10047,14 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before manually retrying, when available.",
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -8798,6 +10356,222 @@
                 ],
                 "type": "string",
                 "description": "* `INFO` - Information\n* `SUCCESS` - Success\n* `WARNING` - Warning\n* `ALERT` - Alert"
+            },
+            "OCRJob": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OCRJobStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "finished_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "result_expires_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "error_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "result_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "webhook_status": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "error_code",
+                    "finished_at",
+                    "id",
+                    "result_expires_at",
+                    "result_url",
+                    "status",
+                    "webhook_status"
+                ]
+            },
+            "OCRJobStatusEnum": {
+                "enum": [
+                    "queued",
+                    "processing",
+                    "succeeded",
+                    "failed",
+                    "expired"
+                ],
+                "type": "string",
+                "description": "* `queued` - Queued\n* `processing` - Processing\n* `succeeded` - Succeeded\n* `failed` - Failed\n* `expired` - Expired"
+            },
+            "OCRKey": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "organization_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "revoked_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "expires_at",
+                    "id",
+                    "name",
+                    "organization_id",
+                    "revoked_at"
+                ]
+            },
+            "OCRKeyCreateRequest": {
+                "type": "object",
+                "properties": {
+                    "organization_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "name",
+                    "organization_id"
+                ]
+            },
+            "OCRKeyCreated": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "organization_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "revoked_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "api_key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "webhook_signing_secret": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "api_key",
+                    "created_at",
+                    "expires_at",
+                    "id",
+                    "name",
+                    "organization_id",
+                    "revoked_at",
+                    "webhook_signing_secret"
+                ]
+            },
+            "OCRResult": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "result": {}
+                },
+                "required": [
+                    "id",
+                    "result"
+                ]
+            },
+            "OCRSubmitRequest": {
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                        "writeOnly": true
+                    },
+                    "webhook_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "minLength": 1,
+                        "maxLength": 2048
+                    }
+                },
+                "required": [
+                    "file",
+                    "webhook_url"
+                ]
             },
             "Organization": {
                 "type": "object",
@@ -9105,6 +10879,31 @@
                     "purpose"
                 ]
             },
+            "SessionTokenRefreshRequest": {
+                "type": "object",
+                "properties": {
+                    "refresh": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "refresh"
+                ]
+            },
+            "SessionTokenVerifyRequest": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "token"
+                ]
+            },
             "SignupRequest": {
                 "type": "object",
                 "properties": {
@@ -9304,18 +11103,6 @@
                     "refresh"
                 ]
             },
-            "TokenRefreshRequest": {
-                "type": "object",
-                "properties": {
-                    "refresh": {
-                        "type": "string",
-                        "minLength": 1
-                    }
-                },
-                "required": [
-                    "refresh"
-                ]
-            },
             "TokenUser": {
                 "type": "object",
                 "properties": {
@@ -9348,19 +11135,6 @@
                     "last_name",
                     "phone",
                     "status"
-                ]
-            },
-            "TokenVerifyRequest": {
-                "type": "object",
-                "properties": {
-                    "token": {
-                        "type": "string",
-                        "writeOnly": true,
-                        "minLength": 1
-                    }
-                },
-                "required": [
-                    "token"
                 ]
             },
             "UserProfile": {
@@ -9630,19 +11404,15 @@
             }
         },
         "securitySchemes": {
-            "basicAuth": {
-                "type": "http",
-                "scheme": "basic"
-            },
-            "cookieAuth": {
-                "type": "apiKey",
-                "in": "cookie",
-                "name": "sessionid"
-            },
             "jwtAuth": {
                 "type": "http",
                 "scheme": "bearer",
                 "bearerFormat": "JWT"
+            },
+            "ocrApiKey": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "ocr_<key-id>.<secret>"
             }
         }
     }

@@ -1,4 +1,5 @@
 from .user import User, UserStatus
+from .session import AuthSession
 from .verification import (
     VerificationChallenge,
     VerificationPurpose,
@@ -8,6 +9,7 @@ from .social import SocialAccount, SocialProvider
 
 __all__ = [
     "User",
+    "AuthSession",
     "UserStatus",
     "VerificationChallenge",
     "VerificationPurpose",

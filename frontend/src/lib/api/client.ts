@@ -1,3 +1,5 @@
+import { retrySeconds } from "./retry";
+
 export type ErrorFields = Record<string, string[]>;
 
 export class ApiError extends Error {
@@ -7,6 +9,7 @@ export class ApiError extends Error {
     public readonly code: string,
     public readonly fields: ErrorFields = {},
     public readonly context?: Record<string, unknown>,
+    public readonly retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = "ApiError";
@@ -25,6 +28,7 @@ interface ClientOptions {
   baseUrl: string;
   token?: string;
   getToken?: () => Promise<string | undefined>;
+  getSessionGeneration?: () => Promise<string | undefined>;
   getHeaders?: () => Promise<HeadersInit>;
   onUnauthorized?: (token: string) => Promise<void>;
   timeoutMs?: number;
@@ -47,7 +51,8 @@ function requestUrl(baseUrl: string, endpoint: string, query?: RequestOptions["q
   return `${base}${path}${suffix ? `${path.includes("?") ? "&" : "?"}${suffix}` : ""}`;
 }
 
-function httpError(data: unknown, status: number): ApiError {
+function httpError(data: unknown, status: number, headers: Headers): ApiError {
+  const retry = retrySeconds(headers.get("Retry-After"));
   const envelope = data && typeof data === "object" && "error" in data ? data.error : null;
   if (envelope && typeof envelope === "object") {
     const error = envelope as Record<string, unknown>;
@@ -64,9 +69,10 @@ function httpError(data: unknown, status: number): ApiError {
       fields,
       error.context && typeof error.context === "object" && !Array.isArray(error.context)
         ? error.context as Record<string, unknown> : undefined,
+      retry,
     );
   }
-  return new ApiError(`Request failed (HTTP ${status}).`, status, "http_error");
+  return new ApiError(`Request failed (HTTP ${status}).`, status, "http_error", {}, undefined, retry);
 }
 
 export function createApiClient(config: ClientOptions) {
@@ -82,6 +88,7 @@ export function createApiClient(config: ClientOptions) {
     }, options.timeoutMs ?? config.timeoutMs ?? 10_000);
     let response: Response | undefined;
     let token: string | undefined;
+    let sessionGeneration: string | undefined;
     try {
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
       const aborted = new Promise<never>((_, reject) => {
@@ -90,6 +97,7 @@ export function createApiClient(config: ClientOptions) {
       void aborted.catch(() => undefined);
       token = options.auth === false ? undefined : config.token ?? await Promise.race([config.getToken?.(), aborted]);
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
+      sessionGeneration = options.auth === false ? undefined : await config.getSessionGeneration?.();
       const headers = new Headers(options.headers);
       new Headers(await config.getHeaders?.()).forEach((value, key) => headers.set(key, value));
       headers.set("Accept", "application/json");
@@ -101,6 +109,7 @@ export function createApiClient(config: ClientOptions) {
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
         signal: controller.signal,
         cache: "no-store",
+        redirect: "error",
       });
       if (response.status === 204) return undefined as T;
       const text = await response.text();
@@ -110,7 +119,7 @@ export function createApiClient(config: ClientOptions) {
       } catch {
         if (response.ok) throw new ApiError("The server returned invalid JSON.", response.status, "invalid_json");
       }
-      if (!response.ok) throw httpError(data, response.status);
+      if (!response.ok) throw httpError(data, response.status, response.headers);
       return data as T;
     } catch (error) {
       if (controller.signal.aborted) {
@@ -121,9 +130,9 @@ export function createApiClient(config: ClientOptions) {
     } finally {
       clearTimeout(timer);
       options.signal?.removeEventListener("abort", cancel);
-      if (response?.status === 401 && token && options.auth !== false) {
+      if (response?.status === 401 && (token || sessionGeneration) && options.auth !== false) {
         // Session cleanup must never replace the original API failure.
-        void config.onUnauthorized?.(token).catch(() => undefined);
+        void config.onUnauthorized?.((sessionGeneration ?? token)!).catch(() => undefined);
       }
     }
   }

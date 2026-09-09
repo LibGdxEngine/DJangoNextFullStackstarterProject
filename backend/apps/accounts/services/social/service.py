@@ -1,12 +1,14 @@
 from typing import Any, Dict, Tuple
 
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.accounts.models import SocialAccount, User, UserStatus
+from apps.common.rate_limits import enforce_limits
 from apps.accounts.selectors import get_social_account
 
-from ..authentication import issue_tokens_for_user
+from ..authentication import assert_account_eligible, issue_tokens_for_user
 from .base import SocialAuthError, SocialIdentity
 from .registry import get_verifier
 
@@ -17,6 +19,7 @@ def authenticate_with_social_provider(*, provider: str, token: str) -> Dict[str,
     access/refresh pair so social sign-in returns the same envelope as password login.
     """
     identity = get_verifier(provider)(token)
+    enforce_limits([("social_subject", f"{identity.provider}:{identity.provider_user_id}")])
 
     try:
         with transaction.atomic():
@@ -26,9 +29,12 @@ def authenticate_with_social_provider(*, provider: str, token: str) -> Dict[str,
         with transaction.atomic():
             user, created = _resolve_user(identity)
 
-    tokens = issue_tokens_for_user(user)
+    try:
+        tokens = issue_tokens_for_user(user, allow_phone_onboarding=True)
+    except ValidationError as exc:
+        raise SocialAuthError(exc.message) from exc
     tokens["created"] = created
-    tokens["requires_phone"] = not user.phone
+    tokens["requires_phone"] = not user.phone_verified_at
     return tokens
 
 
@@ -70,10 +76,10 @@ def _resolve_user(identity: SocialIdentity) -> Tuple[User, bool]:
 
 
 def _assert_can_sign_in(user: User) -> None:
-    if user.status == UserStatus.BLOCKED:
-        raise SocialAuthError("This account is blocked. Please contact support.")
-    if user.status == UserStatus.DELETION_PENDING:
-        raise SocialAuthError("This account is currently scheduled for deletion.")
+    try:
+        assert_account_eligible(user, allow_phone_onboarding=True)
+    except ValidationError as exc:
+        raise SocialAuthError(exc.message) from exc
 
 
 def _mark_email_verified(user: User) -> None:

@@ -10,6 +10,7 @@ A production-ready platform template structured around decoupled reusable platfo
 *   **Task Queue**: [Celery 5.4](https://docs.celeryq.dev/en/stable/)
 *   **Reverse Proxy**: [Caddy 2](https://caddyserver.com/)
 *   **Observability**: OpenTelemetry, Grafana, Loki, Tempo, and Prometheus. See the [operations guide](docs/observability.md) for setup, staff-only access, retention, and validation.
+*   **Developer OCR API**: Private PDF/image uploads, asynchronous GPU processing, scoped API keys, and signed completion webhooks. See the [OCR API and deployment guide](docs/ocr-api.md).
 
 ---
 
@@ -55,7 +56,7 @@ Mobser/
 ├── docker-compose.prod.yml         # Production Docker Compose
 ├── Makefile                        # Central developer operations CLI
 ├── .env.example                    # Complete environment variables template
-├── .env.dev                        # Development environment variables
+├── .env                            # Development environment variables
 └── .env.prod                       # Production environment variables
 ```
 
@@ -166,6 +167,11 @@ against Google's public keys, requires a verified email, resolves or creates the
 returns the same access/refresh pair as password login — so the backend remains the only
 issuer of application tokens.
 
+Next.js keeps those credentials in an encrypted server-side Redis vault. The browser
+receives only an HttpOnly session cookie and safe user metadata. See
+[Authentication and session lifecycle](docs/authentication.md) for expiry, refresh,
+logout, reuse detection, deployment requirements, and migration behavior.
+
 Google accounts have no phone number, so users created this way are activated on their
 verified email and the login response carries `requires_phone: true`. An account that already
 signed up with a password is linked to the same user when the Google email matches.
@@ -179,13 +185,17 @@ and adding one entry to `PROVIDER_META` in `SocialAuthButtons.tsx`.
 
 To spin up the production environment:
 
-1.  **Create and configure the production environment file**:
+1.  **Review and configure the production environment file**:
+
+    `make init` creates `.env.prod` with fresh secrets and the selected domain.
+    Keep that file and review its values before deployment. For manual setup only,
+    copy the example if `.env.prod` does not already exist:
     ```bash
-    cp .env.prod.example .env.prod
+    test -e .env.prod || cp .env.prod.example .env.prod
     ```
     In PowerShell:
     ```powershell
-    Copy-Item .env.prod.example .env.prod
+    if (-not (Test-Path .env.prod)) { Copy-Item .env.prod.example .env.prod }
     ```
     Replace every placeholder in `.env.prod` with production values. This file is ignored by Git and must not be committed.
 2.  **Run the production stack**:
@@ -217,6 +227,10 @@ When `.env.prod` is used, deployment-provided environment variables take precede
 
 ## API Contracts and Frontend Requests
 
+Authentication and message endpoints use shared Redis rate limits. See the
+[rate-limiting runbook](docs/rate-limiting.md) for required production secrets,
+policy configuration, retry behavior, and integration checks.
+
 Django serializers and OpenAPI annotations define the HTTP contract. The exported
 `backend/openapi.json` and `frontend/src/lib/api/generated.ts` are generated artifacts;
 do not edit them by hand. Include both regenerated files when an API contract changes.
@@ -240,8 +254,9 @@ client in `frontend/src/lib/api/` owns HTTP methods, query parameters, JSON bodi
 decoding, bearer tokens, and errors. ESLint prevents components from bypassing this layer.
 Keep NextAuth's own sign-in and session protocol calls in its SDK.
 
-Browser calls use `NEXT_PUBLIC_API_URL` (default `/api`); server calls use
-`BACKEND_API_URL`, falling back to an absolute public URL or `http://localhost/api`.
+Browser calls use the same-origin `/api/bff/` gateway; server calls use
+`BACKEND_API_URL`. Configure the shared private `AUTH_SESSION_REDIS_URL` vault
+on every Next.js instance; Django JWTs never enter browser session JSON.
 Never put internal backend addresses or secrets in browser configuration. Requests time
 out after 10 seconds by default, accept cancellation, and are not retried automatically.
 A 204 returns `undefined`. Protected 401 responses invalidate the affected session and

@@ -30,6 +30,7 @@ SAFE_ATTRIBUTES = frozenset({
     'celery.action', 'celery.task_name', 'messaging.system',
     'messaging.operation', 'messaging.operation.type', 'messaging.message.id',
     'request.id', 'task.name', 'task.state', 'type', 'state', 'generation',
+    'rate_limit.policy', 'rate_limit.outcome',
 })
 
 

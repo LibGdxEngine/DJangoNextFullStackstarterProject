@@ -13,7 +13,7 @@ can contain spaces, apostrophes and ampersands. Use `--help` for the full interf
 
 Root `.env` is the development configuration used by Compose and direct Django runs.
 Root `.env.prod` is selected by production Make targets. Each file receives separate
-random Django, NextAuth, OTP and database secrets and should stay out of Git. Example
+random Django, NextAuth, OTP, database and rate-limit secrets and should stay out of Git. Example
 files contain placeholders, and `.bootstrap.json` contains only the selected identity.
 
 Compose explicitly passes the configured values to each service. Host-run Django
@@ -41,6 +41,18 @@ run stops and identifies it. Follow the recovery paths reported by the command. 
 the interrupted copy, including its recovery directory, until its original files have
 been restored or a fresh copy has been verified. Do not delete the journal and rerun
 against partially transformed files. There is no force-overwrite or rebranding mode.
+
+For manual recovery, `.bootstrap-journal/recovery.json` records each original path,
+its numbered backup (or `null` when the file was newly created), its original numeric
+permission mode, and planned source/destination moves. Work from a copy of the
+interrupted directory. First undo completed moves in reverse order: move the destination
+back only when the destination exists and the original source does not. Then restore
+each numbered backup to its recorded original path and restore its permission mode;
+remove a recorded path only when its backup is `null` (it did not exist originally).
+If both sides of a move exist, or a required backup is missing, stop and recover from
+your original clone instead of guessing. Verify the restored files before removing
+the journal. A fresh clone is also a valid recovery path; preserve any unrelated
+work from the interrupted copy separately.
 
 ## Verification
 

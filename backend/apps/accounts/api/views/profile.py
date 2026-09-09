@@ -1,3 +1,6 @@
+from django.db import transaction
+from django.utils.decorators import method_decorator
+from apps.common.throttling import BaselineThrottle, OperationThrottle
 from core.api_errors import validation_error_response
 from django.core.exceptions import ValidationError
 from rest_framework import status
@@ -22,6 +25,9 @@ from apps.accounts.services import (
 
 
 class UserProfileView(APIView):
+    throttle_classes = [BaselineThrottle, OperationThrottle]
+    rate_limit_operation = {'PATCH': 'profile_update', 'DELETE': 'sensitive'}
+
     """
     Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion.
     """
@@ -59,6 +65,9 @@ class UserProfileView(APIView):
 
 
 class PhoneChangeInitiateView(APIView):
+    throttle_classes = [BaselineThrottle, OperationThrottle]
+    rate_limit_operation = 'sensitive'
+
     """
     Phase 1: Validate new phone number and issue OTP challenge to the NEW number.
     """
@@ -78,7 +87,11 @@ class PhoneChangeInitiateView(APIView):
             return validation_error_response(exc)
 
 
+@method_decorator(transaction.non_atomic_requests, name="dispatch")
 class PhoneChangeConfirmView(APIView):
+    throttle_classes = [BaselineThrottle, OperationThrottle]
+    rate_limit_operation = 'confirm'
+
     """
     Phase 2: Confirm OTP received on the new phone, update user phone number, and rotate sessions.
     """
@@ -100,6 +113,9 @@ class PhoneChangeConfirmView(APIView):
 
 
 class EmailChangeView(APIView):
+    throttle_classes = [BaselineThrottle, OperationThrottle]
+    rate_limit_operation = 'sensitive'
+
     """
     Update email address requiring password verification.
     """

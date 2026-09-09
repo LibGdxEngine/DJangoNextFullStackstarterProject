@@ -1,6 +1,6 @@
 # SaaS bootstrap: `make init`
 
-Status: implementation plan only. No application changes made. Assumption: the Python-package prompt renames `backend/core` to the requested package, following the user's example.
+Status: implemented in `scripts/init_project.py` with Make targets, configuration wiring, documentation, and 15 passing bootstrap tests. Independent review approved. Generated frontend checks, both production image builds, and Caddy validation passed. Full backend/API/runtime verification is blocked by the shared source's missing `core.settings.rate_limits` module; see `.omc/research/bootstrap-verification.md`. This checkout has not been initialized.
 
 ## Requirements summary
 

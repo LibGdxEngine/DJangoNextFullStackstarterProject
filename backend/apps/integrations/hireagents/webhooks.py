@@ -6,7 +6,9 @@ from core.api_errors import error_response
 from django.conf import settings
 from django.db import transaction
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from apps.common.throttling import WebhookIngressThrottle
+from apps.common.rate_limits import enforce_limits
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from apps.integrations.tasks import process_hireagents_event
@@ -39,6 +41,7 @@ def verify_signature(raw_body: bytes, signature: str | None, secret: str) -> boo
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([WebhookIngressThrottle])
 def hireagents_webhook_view(request, connection: str):
     """
     Webhook receiver endpoint for HireAgents events:
@@ -50,7 +53,7 @@ def hireagents_webhook_view(request, connection: str):
     connections = getattr(settings, "HIREAGENTS_CONNECTIONS", {})
     conn_config = connections.get(connection)
 
-    if not conn_config:
+    if not conn_config or not conn_config.get("enabled", True):
         logger.warning("HireAgents webhook received for unknown connection: '%s'", connection)
         return error_response(
             "not_found", f"Unknown connection '{connection}'",
@@ -88,6 +91,17 @@ def hireagents_webhook_view(request, connection: str):
         "status": WebhookEvent.Status.PENDING,
     }
 
+    # Authenticated duplicates bypass only the new-work quota, never ingress.
+    if provider_event_id:
+        existing = WebhookEvent.objects.filter(
+            provider="hireagents", connection=connection,
+            provider_event_id=provider_event_id,
+        ).first()
+        if existing:
+            return Response({"status": "received", "event_id": str(existing.id)})
+
+    enforce_limits([("webhook_connection", connection)])
+
     # A redelivered event reuses the stored row rather than queueing a second time.
     if provider_event_id:
         event, created = WebhookEvent.objects.get_or_create(
@@ -114,3 +128,25 @@ def hireagents_webhook_view(request, connection: str):
         {"status": "received", "event_id": str(event.id)},
         status=status.HTTP_200_OK,
     )
+
+
+def check_webhook_credentials(app_configs=None, **kwargs):
+    """Offline production check: inbound authentication cannot be optional."""
+    from django.core.checks import Error
+
+    if not getattr(settings, "RATE_LIMIT_PRODUCTION", False):
+        return []
+    connections = getattr(settings, "HIREAGENTS_CONNECTIONS", {})
+    return [
+        Error(
+            "Every enabled HireAgents connection requires an inbound API key or signing secret.",
+            hint="Set webhook_api_key or webhook_signing_secret for the connection.",
+            id="rate_limits.E010",
+        )
+        for config in connections.values()
+        if config.get("enabled", True) and not any(
+            isinstance(config.get(field), str) and config[field].strip()
+            and not config[field].strip().startswith("dev-")
+            for field in ("webhook_api_key", "webhook_signing_secret")
+        )
+    ]

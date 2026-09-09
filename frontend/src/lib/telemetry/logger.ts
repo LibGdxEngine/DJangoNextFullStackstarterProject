@@ -14,7 +14,7 @@ export function telemetryEnvironment(): string {
     || process.env.NODE_ENV || "development";
 }
 
-type ServerEvent = "server.request.error" | "auth.error" | "auth.warning" | "telemetry.started" | "telemetry.failed";
+type ServerEvent = "auth.vault.unavailable" | "auth.remote_revocation.pending" | "auth.revocation_worker.failed" | "auth.session.unavailable" | "server.request.error" | "auth.error" | "auth.warning" | "telemetry.started" | "telemetry.failed";
 
 export function logServerEvent(level: "INFO" | "WARN" | "ERROR", event: ServerEvent, fields: {
   method?: string;

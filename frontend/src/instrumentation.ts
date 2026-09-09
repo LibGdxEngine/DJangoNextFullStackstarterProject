@@ -1,6 +1,10 @@
 import type { Instrumentation } from "next";
 
 export async function register() {
+  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.NEXT_PHASE !== "phase-production-build") {
+    const { startRevocationWorker } = await import("./lib/auth-vault");
+    startRevocationWorker();
+  }
   if (process.env.NEXT_RUNTIME === "nodejs" && process.env.OTEL_ENABLED === "true"
     && process.env.NEXT_PHASE !== "phase-production-build") {
     try {

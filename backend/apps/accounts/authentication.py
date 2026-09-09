@@ -1,25 +1,36 @@
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
-from apps.accounts.models import UserStatus
+from rest_framework.exceptions import PermissionDenied
+from rest_framework_simplejwt.exceptions import InvalidToken
+from apps.accounts.models import AuthSession
+from apps.accounts.services.authentication import _session_id, validate_session
 
 
 class VersionedJWTAuthentication(JWTAuthentication):
-    """
-    Custom JWT Authentication that verifies token_version claim against user.token_version.
-    Whenever user.token_version increments (e.g. password reset, phone change, deletion pending,
-    manual session revocation), existing JWT access & refresh tokens become invalid immediately.
-    """
+    """Require an eligible user and a live persisted session on every request."""
+
+    def authenticate(self, request):
+        result = super().authenticate(request)
+        if result is None:
+            return None
+        user, token = result
+        if token.get("scope") == "phone_onboarding":
+            allowed = {
+                ("GET", "auth:me"),
+                ("POST", "auth:phone_change_initiate"),
+                ("POST", "auth:phone_change_confirm"),
+            }
+            match = request.resolver_match
+            if (request.method, match.view_name if match else None) not in allowed:
+                raise PermissionDenied("Phone verification is required.")
+        return user, token
 
     def get_user(self, validated_token):
         user = super().get_user(validated_token)
-
-        token_version = validated_token.get("token_version")
-        if token_version is not None and token_version != user.token_version:
-            raise InvalidToken("Token has been revoked due to session invalidation.")
-
-        if user.status == UserStatus.BLOCKED:
-            raise AuthenticationFailed("User account is blocked.")
-
+        try:
+            session = AuthSession.objects.get(pk=_session_id(validated_token))
+        except AuthSession.DoesNotExist as exc:
+            raise InvalidToken("Session does not exist.") from exc
+        validate_session(validated_token, user, session)
         return user
 
 

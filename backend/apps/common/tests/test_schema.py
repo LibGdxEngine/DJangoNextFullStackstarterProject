@@ -23,6 +23,12 @@ class ApiSchemaTests(SimpleTestCase):
                 self.assertEqual(operation['responses'], alias_operation['responses'])
                 self.assertEqual(operation.get('requestBody'), alias_operation.get('requestBody'))
 
+    def test_legacy_login_has_the_same_guarded_login_contract(self):
+        legacy = self.schema['paths']['/api/token/']['post']
+        canonical = self.schema['paths']['/api/v1/auth/login/']['post']
+        self.assertEqual(legacy['requestBody'], canonical['requestBody'])
+        self.assertEqual(legacy['responses'], canonical['responses'])
+
     def test_deletion_requires_password_and_returns_challenge(self):
         operation = self.schema['paths']['/api/v1/auth/me/']['delete']
         self.assertTrue(operation['requestBody']['required'])

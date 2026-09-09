@@ -6,6 +6,7 @@ __pycache__/
 *.sqlite3
 staticfiles/
 media/
+private/
 .env
 .env.*
 .git

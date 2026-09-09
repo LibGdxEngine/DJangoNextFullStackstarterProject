@@ -1,0 +1,10 @@
+
+2026-09-09 limiter foundation: strict admission uses Redis TIME plus one Lua script checking all independent buckets before debit. Redis integration tests require RATE_LIMIT_TEST_REDIS_URL and are tagged integration; do not reuse Django SimpleTestCase.client for Redis (Django replaces it). A 20-thread/80-attempt load admitted exactly 7 at limit7. Approximate DRF baselines deliberately fail open only on GET/HEAD; strict provenance and admission produce sanitized503. Production startup must invoke configuration checks (system-check registration alone is insufficient for gunicorn).
+
+## Accounts implementation verification (2026-09-09)
+
+- Strict account operation scopes live on views and share keys across both account route prefixes and legacy JWT paths. Verified refresh/reset/social subjects are charged after cryptographic verification, before session rotation/user writes.
+- Signup reserves recipient capacity before creating a user and calls the private persistence helper; public challenge creation and resend reserve exactly once. Recovery suppresses recipient-only rejection, preserving the existing generic message (the optional challenge ID remains a separate enumeration follow-up).
+- VerificationOutcome is the explicit API for enclosing transactions: commit first, then unwrap. The ordinary verify_challenge_code owns a durable transaction and refuses implicit nested ownership. OTP HTTP views opt out of ATOMIC_REQUESTS. Lock ordering is challenge then user; callback business updates and consumption commit together.
+- Real PostgreSQL + isolated Redis accounts suite passed 98 tests in 18.048s, including 8 simultaneous failed attempts capped at5,4 simultaneous successes yielding1 consumption,4 resends yielding1 update,6 shared-recipient reservations yielding1 new challenge, and failed attempts surviving real HTTP errors with ATOMIC_REQUESTS enabled.
+- Webhooks always check ingress first, then configured authentication, then recognize duplicates before connection admission. Production checks reject absent or dev-prefixed inbound credentials, and disabled connections are unavailable to requests.

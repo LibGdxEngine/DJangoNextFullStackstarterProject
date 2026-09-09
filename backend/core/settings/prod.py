@@ -6,6 +6,8 @@ SECRET_KEY = os.environ['SECRET_KEY']
 
 DEBUG = False
 
+RATE_LIMIT_PRODUCTION = True
+
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
 # Enforce PostgreSQL database configuration in production

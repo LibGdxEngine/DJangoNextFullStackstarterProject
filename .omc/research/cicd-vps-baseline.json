@@ -31,5 +31,29 @@
       "status": 200,
       "url": "https://athar-shaarawy.com"
     }
-  }
+  },
+  "detailed_containers": [
+    "\"/shaarawy_prod_frontend\"|\"f6a29483312897a360b31b35893a4b4e17de22a107467f14e5b087cc8be8c4b5\"|0|\"2026-09-03T16:07:25.841430119Z\"",
+    "\"/shaarawy_prod_backend\"|\"1cfa0763e2d08c75bb554775cfaa42574570e5b4f9982c49ba2c49990e74adca\"|0|\"2026-09-03T16:07:25.486114464Z\"",
+    "\"/shaarawy_prod_celery_worker\"|\"331cee61713d572a46f1904bd8d1feb2a6f0c82ee08a0dd2cfa91652bbb26c70\"|0|\"2026-09-03T14:51:50.008043076Z\"",
+    "\"/shaarawy_prod_celery_beat\"|\"4e9dfff77a66c49458e131457a63f81d5ea7b57ab246dc9345642def6d7ccc9f\"|0|\"2026-09-03T14:51:50.019768044Z\"",
+    "\"/shaarawy_tmp_meili\"|\"7cc372fb5bcfb06d57f7765c232a6da4668cdd62feb61c75e594d2a961aa032d\"|0|\"2026-09-02T18:26:46.852772175Z\"",
+    "\"/shaarawy_tmp_redis\"|\"a5ee0d4bef53f2f407cc1120d1769a876074235e8f1c69b73e1ef1cf27942ef3\"|0|\"2026-09-02T18:26:46.252167205Z\"",
+    "\"/shaarawy_tmp_testdb\"|\"9369a0868bbd21f6656746de8f93e750e2c03231375796d10398f399179f871d\"|0|\"2026-09-02T18:26:45.723968596Z\"",
+    "\"/search_frontend\"|\"077ee6015b8015c04bae6bb9e5791a09d7fcd4e292df20688567ce45da4e4cf7\"|0|\"2026-09-02T16:57:15.229620893Z\"",
+    "\"/search_agent\"|\"30e070d7406a16d171fe70ce1c219003a97a3eac202f7e440c6bae88bc2a6fa8\"|0|\"2026-09-02T16:57:14.119902137Z\"",
+    "\"/search_celery_worker\"|\"a7fd8eb45a74a7fdaa0e0b3e9b584090a7568d1506da21c75a6a5c31c4f8c984\"|1|\"2026-09-02T16:57:30.021384105Z\"",
+    "\"/search_backend\"|\"336c347dc09b6bc5f661396f07c2405ebf34d61c0fb60608d00e42994a7b1411\"|0|\"2026-09-02T16:57:13.322428012Z\"",
+    "\"/search_db\"|\"372c7f15589ba257b9bfe73191859ba77750fb36cd9d61e67965959c75ba0172\"|0|\"2026-09-02T16:56:46.365781938Z\"",
+    "\"/search_es\"|\"b9c2fadc74a5f47789118447c8ca0b29edf9797fd50126ec5bd3d40148a09d4f\"|0|\"2026-09-02T16:56:46.387160264Z\"",
+    "\"/search_minio\"|\"df0bfb14fa5bde4a6214dd43c8dcdbeba3130594a319ae939d3d61e9a10a6d5a\"|0|\"2026-09-02T16:56:46.367567439Z\"",
+    "\"/search_ocr_tesseract\"|\"1b36ee5d9bb7a53773f9e975b55d41e305700deffe153bd4ea2395e3baa185ab\"|0|\"2026-09-02T16:56:46.370308551Z\"",
+    "\"/shaarawy_prod_db\"|\"c51a829424bd6cf1b929c93282e8aae1df4ecfbdc881b421bd303d64bc4ad596\"|0|\"2026-08-22T20:40:14.814732407Z\"",
+    "\"/shaarawy_prod_redis\"|\"21173cc5c19c37cb19df48d8157d8ff9b91dd2ae107bae86d70ca21365dd8ae1\"|0|\"2026-08-22T13:41:13.543381753Z\"",
+    "\"/shaarawy_prod_meilisearch\"|\"1d40f6484fb4516c00000256a14619eedb0bea7fa2c818c391d2f751f29da726\"|0|\"2026-08-22T13:41:13.541246854Z\"",
+    "\"/search_redis\"|\"b576b7e230f5ec05ba5e48f6e6f610fe24afae1c6610f3472c4d08974f952abd\"|0|\"2026-07-10T12:02:20.231821625Z\"",
+    "\"/search_ocr_docling\"|\"e6ae9b4466d9b11bc8f97c7ee4adeb4703fc4c3799cb7bb8c353e1d1dd3d50db\"|0|\"2026-07-06T22:49:44.822403899Z\"",
+    "\"/search_caddy\"|\"74264d0e0b0aec0da10a4845f6a9b1698a973f3e09c5452ba7a7708b23c629ee\"|0|\"2026-07-11T21:36:49.418244442Z\""
+  ],
+  "caddy_config_sha256": "aad38241ac30a11ee0036bba3f951a602ce12af4deafae2ad10b4d5b8a9a1951"
 }

@@ -13,7 +13,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Update email address requiring password verification. */
         post: operations["accounts_email_change_create"];
         delete?: never;
         options?: never;
@@ -60,15 +59,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion. */
         get: operations["accounts_me_retrieve"];
         put?: never;
         post?: never;
-        /** @description Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion. */
         delete: operations["accounts_me_destroy"];
         options?: never;
         head?: never;
-        /** @description Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion. */
         patch: operations["accounts_me_partial_update"];
         trace?: never;
     };
@@ -145,7 +141,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Phase 1: Validate new phone number and issue OTP challenge to the NEW number. */
         post: operations["accounts_phone_change_create"];
         delete?: never;
         options?: never;
@@ -162,7 +157,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Phase 2: Confirm OTP received on the new phone, update user phone number, and rotate sessions. */
         post: operations["accounts_phone_change_confirm_create"];
         delete?: never;
         options?: never;
@@ -247,10 +241,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * @description Confirms an OTP verification challenge.
-         *     For signup verification: marks user ACTIVE, sets phone_verified_at, and issues JWT tokens directly.
-         */
         post: operations["accounts_verification_confirm_create"];
         delete?: never;
         options?: never;
@@ -267,7 +257,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Resends OTP challenge respecting cooldown and maximum resend limits. */
         post: operations["accounts_verification_resend_create"];
         delete?: never;
         options?: never;
@@ -494,10 +483,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * @description Takes a set of user credentials and returns an access and refresh JSON web
-         *     token pair to prove the authentication of those credentials.
-         */
         post: operations["token_create"];
         delete?: never;
         options?: never;
@@ -554,7 +539,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Update email address requiring password verification. */
         post: operations["v1_auth_email_change_create"];
         delete?: never;
         options?: never;
@@ -601,15 +585,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion. */
         get: operations["v1_auth_me_retrieve"];
         put?: never;
         post?: never;
-        /** @description Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion. */
         delete: operations["v1_auth_me_destroy"];
         options?: never;
         head?: never;
-        /** @description Retrieve or update authenticated user profile, or initiate sensitive step-up account deletion. */
         patch: operations["v1_auth_me_partial_update"];
         trace?: never;
     };
@@ -686,7 +667,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Phase 1: Validate new phone number and issue OTP challenge to the NEW number. */
         post: operations["v1_auth_phone_change_create"];
         delete?: never;
         options?: never;
@@ -703,7 +683,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Phase 2: Confirm OTP received on the new phone, update user phone number, and rotate sessions. */
         post: operations["v1_auth_phone_change_confirm_create"];
         delete?: never;
         options?: never;
@@ -788,10 +767,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * @description Confirms an OTP verification challenge.
-         *     For signup verification: marks user ACTIVE, sets phone_verified_at, and issues JWT tokens directly.
-         */
         post: operations["v1_auth_verification_confirm_create"];
         delete?: never;
         options?: never;
@@ -808,9 +783,88 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Resends OTP challenge respecting cooldown and maximum resend limits. */
         post: operations["v1_auth_verification_resend_create"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ocr/jobs/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["v1_ocr_jobs_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ocr/jobs/{job_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["v1_ocr_jobs_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ocr/jobs/{job_id}/result/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["v1_ocr_jobs_result_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ocr/keys/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["v1_ocr_keys_list"];
+        put?: never;
+        post: operations["v1_ocr_keys_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ocr/keys/{key_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["v1_ocr_keys_destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -961,6 +1015,73 @@ export interface components {
          * @enum {string}
          */
         NotificationTypeEnum: "INFO" | "SUCCESS" | "WARNING" | "ALERT";
+        OCRJob: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly status: components["schemas"]["OCRJobStatusEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly finished_at: string | null;
+            /** Format: date-time */
+            readonly result_expires_at: string | null;
+            readonly error_code: string;
+            readonly result_url: string;
+            readonly webhook_status: string;
+        };
+        /**
+         * @description * `queued` - Queued
+         *     * `processing` - Processing
+         *     * `succeeded` - Succeeded
+         *     * `failed` - Failed
+         *     * `expired` - Expired
+         * @enum {string}
+         */
+        OCRJobStatusEnum: "queued" | "processing" | "succeeded" | "failed" | "expired";
+        OCRKey: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly organization_id: string;
+            readonly name: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+            /** Format: date-time */
+            readonly revoked_at: string | null;
+        };
+        OCRKeyCreateRequest: {
+            /** Format: uuid */
+            organization_id: string;
+            name: string;
+        };
+        OCRKeyCreated: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly organization_id: string;
+            readonly name: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+            /** Format: date-time */
+            readonly revoked_at: string | null;
+            readonly api_key: string;
+            readonly webhook_signing_secret: string;
+        };
+        OCRResult: {
+            /** Format: uuid */
+            id: string;
+            result: unknown;
+        };
+        OCRSubmitRequest: {
+            /** Format: binary */
+            file: string;
+            /** Format: uri */
+            webhook_url: string;
+        };
         Organization: {
             /** Format: uuid */
             readonly id: string;
@@ -1040,6 +1161,12 @@ export interface components {
             message: string;
             purpose: components["schemas"]["VerificationPurposeEnum"];
         };
+        SessionTokenRefreshRequest: {
+            refresh: string;
+        };
+        SessionTokenVerifyRequest: {
+            token: string;
+        };
         SignupRequest: {
             /** Format: email */
             email: string;
@@ -1098,9 +1225,6 @@ export interface components {
             access: string;
             refresh: string;
         };
-        TokenRefreshRequest: {
-            refresh: string;
-        };
         TokenUser: {
             /** Format: uuid */
             id: string;
@@ -1110,9 +1234,6 @@ export interface components {
             status: components["schemas"]["UserStatusEnum"];
             first_name: string;
             last_name: string;
-        };
-        TokenVerifyRequest: {
-            token: string;
         };
         UserProfile: {
             /** Format: uuid */
@@ -1297,6 +1418,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1315,6 +1438,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1412,6 +1537,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1430,6 +1557,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1527,6 +1656,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1545,6 +1676,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1636,6 +1769,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1654,6 +1789,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1751,6 +1888,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1769,6 +1908,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1866,6 +2007,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1884,6 +2027,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1981,6 +2126,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1999,6 +2146,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2096,6 +2245,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2114,6 +2265,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2211,6 +2364,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2229,6 +2384,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2326,6 +2483,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2344,6 +2503,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2441,6 +2602,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2459,6 +2622,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2556,6 +2721,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2574,6 +2741,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2671,6 +2840,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2689,6 +2860,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2788,6 +2961,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2806,6 +2981,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2897,6 +3074,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2915,6 +3094,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2932,9 +3113,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TokenRefreshRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["TokenRefreshRequest"];
-                "multipart/form-data": components["schemas"]["TokenRefreshRequest"];
+                "application/json": components["schemas"]["SessionTokenRefreshRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SessionTokenRefreshRequest"];
+                "multipart/form-data": components["schemas"]["SessionTokenRefreshRequest"];
             };
         };
         responses: {
@@ -3012,6 +3193,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3030,6 +3213,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3127,6 +3312,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3145,6 +3332,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3242,6 +3431,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3260,6 +3451,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3351,6 +3544,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3369,6 +3564,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3460,6 +3657,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3478,6 +3677,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3569,6 +3770,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3587,6 +3790,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3678,6 +3883,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3696,6 +3903,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3787,6 +3996,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3805,6 +4016,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3896,6 +4109,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3914,6 +4129,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4005,6 +4222,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4023,6 +4242,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4122,6 +4343,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4140,6 +4363,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4233,6 +4458,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4251,6 +4478,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4342,6 +4571,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4360,6 +4591,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4457,6 +4690,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4475,6 +4710,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4569,6 +4806,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4587,6 +4826,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4687,6 +4928,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4705,6 +4948,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4798,6 +5043,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4816,6 +5063,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4916,6 +5165,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4934,6 +5185,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5025,6 +5278,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5043,6 +5298,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5071,7 +5328,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenPair"];
+                    "application/json": components["schemas"]["AuthTokens"];
                 };
             };
             /** @description Invalid request or validation error. */
@@ -5140,6 +5397,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5158,6 +5417,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5175,9 +5436,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TokenRefreshRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["TokenRefreshRequest"];
-                "multipart/form-data": components["schemas"]["TokenRefreshRequest"];
+                "application/json": components["schemas"]["SessionTokenRefreshRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SessionTokenRefreshRequest"];
+                "multipart/form-data": components["schemas"]["SessionTokenRefreshRequest"];
             };
         };
         responses: {
@@ -5255,6 +5516,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5273,6 +5536,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5290,9 +5555,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TokenVerifyRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["TokenVerifyRequest"];
-                "multipart/form-data": components["schemas"]["TokenVerifyRequest"];
+                "application/json": components["schemas"]["SessionTokenVerifyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SessionTokenVerifyRequest"];
+                "multipart/form-data": components["schemas"]["SessionTokenVerifyRequest"];
             };
         };
         responses: {
@@ -5370,6 +5635,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5388,6 +5655,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5485,6 +5754,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5503,6 +5774,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5600,6 +5873,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5618,6 +5893,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5715,6 +5992,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5733,6 +6012,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5824,6 +6105,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5842,6 +6125,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5939,6 +6224,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5957,6 +6244,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6054,6 +6343,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6072,6 +6363,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6169,6 +6462,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6187,6 +6482,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6284,6 +6581,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6302,6 +6601,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6399,6 +6700,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6417,6 +6720,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6514,6 +6819,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6532,6 +6839,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6629,6 +6938,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6647,6 +6958,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6744,6 +7057,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6762,6 +7077,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6859,6 +7176,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6877,6 +7196,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6976,6 +7297,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6994,6 +7317,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7085,6 +7410,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7103,6 +7430,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7120,9 +7449,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TokenRefreshRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["TokenRefreshRequest"];
-                "multipart/form-data": components["schemas"]["TokenRefreshRequest"];
+                "application/json": components["schemas"]["SessionTokenRefreshRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SessionTokenRefreshRequest"];
+                "multipart/form-data": components["schemas"]["SessionTokenRefreshRequest"];
             };
         };
         responses: {
@@ -7200,6 +7529,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7218,6 +7549,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7315,6 +7648,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7333,6 +7668,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7430,6 +7767,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7448,6 +7787,735 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    v1_ocr_jobs_create: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["OCRSubmitRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    v1_ocr_jobs_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    v1_ocr_jobs_result_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRResult"];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    v1_ocr_keys_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRKey"][];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    v1_ocr_keys_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OCRKeyCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OCRKeyCreateRequest"];
+                "multipart/form-data": components["schemas"]["OCRKeyCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRKeyCreated"];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    v1_ocr_keys_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7552,6 +8620,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7570,6 +8640,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7662,6 +8734,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7680,6 +8754,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7772,6 +8848,8 @@ export interface operations {
             /** @description Request throttled. */
             429: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7790,6 +8868,8 @@ export interface operations {
             /** @description A required service is unavailable. */
             503: {
                 headers: {
+                    /** @description Seconds to wait before manually retrying, when available. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {

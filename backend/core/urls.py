@@ -5,10 +5,10 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
+from apps.accounts.api.views.auth import (
+    LoginView,
+    RateLimitedTokenRefreshView as TokenRefreshView,
+    RateLimitedTokenVerifyView as TokenVerifyView,
 )
 from apps.common.views import hello_world, system_status
 from apps.common.observability import health_live, health_ready, observability_auth
@@ -32,11 +32,12 @@ urlpatterns = [
     # Backward-compatible API roots
     path('api/hello/', hello_world, name='api_hello'),
     path('api/status/', system_status, name='api_status'),
-    path('api/token/', TokenObtainPairView.as_view(), name='api_token_obtain_pair'),
+    path('api/token/', LoginView.as_view(), name='api_token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='api_token_refresh'),
     path('api/token/verify/', TokenVerifyView.as_view(), name='api_token_verify'),
 
     # Modular Platform App Routes
+    path('api/v1/ocr/', include('product.ocr.urls', namespace='ocr')),
     path('api/v1/auth/', include('apps.accounts.api.urls', namespace='auth')),
     path('api/v1/webhooks/hireagents/', include('apps.integrations.hireagents.urls', namespace='hireagents-webhooks')),
     path('api/common/', include('apps.common.urls', namespace='common')),

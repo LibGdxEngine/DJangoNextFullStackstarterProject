@@ -1,3 +1,5 @@
+from rest_framework.exceptions import Throttled
+from apps.common.rate_limits import enforce_limits, ensure_available
 import logging
 from typing import Any, Dict, Optional
 from django.core import signing
@@ -18,19 +20,24 @@ PASSWORD_RESET_TOKEN_MAX_AGE = 600  # 10 minutes
 def initiate_password_reset(identifier: str) -> Dict[str, Any]:
     """
     Begins password recovery flow. Sends WhatsApp OTP to the user's verified phone.
-    Always returns a generic confirmation message to prevent user enumeration attacks.
+    Uses a generic message; the existing optional challenge_id still reveals eligibility.
     """
+    ensure_available()
     user = get_user_by_identifier(identifier)
     challenge_id: Optional[str] = None
 
     if user and user.phone_verified_at and user.status != UserStatus.BLOCKED:
-        challenge, plain_code = create_verification_challenge(
-            user=user,
-            purpose=VerificationPurpose.PASSWORD_RESET,
-            destination=user.phone,
-            channel=VerificationChannel.WHATSAPP,
-            expires_minutes=5,
-        )
+        try:
+            challenge, plain_code = create_verification_challenge(
+                user=user,
+                purpose=VerificationPurpose.PASSWORD_RESET,
+                destination=user.phone,
+                channel=VerificationChannel.WHATSAPP,
+                expires_minutes=5,
+            )
+        except Throttled:
+            # Recipient-only denials must not add a distinct recovery response.
+            return {"message": "If an account exists, verification instructions were sent."}
         challenge_id = str(challenge.id)
 
         transaction.on_commit(
@@ -69,6 +76,7 @@ def verify_password_reset_code(challenge_id: str, code: str) -> str:
     return signer.sign_object(payload)
 
 
+@transaction.atomic
 def reset_password_with_token(reset_token: str, new_password: str) -> User:
     """
     Validates reset_token and updates user's password.
@@ -86,7 +94,8 @@ def reset_password_with_token(reset_token: str, new_password: str) -> User:
     user_id = payload.get("user_id")
     token_version = payload.get("token_version")
 
-    user = User.objects.filter(id=user_id).first()
+    enforce_limits([("reset_subject", str(user_id))])
+    user = User.objects.select_for_update().filter(id=user_id).first()
     if not user:
         raise ValidationError("User associated with this token does not exist.")
 
@@ -100,10 +109,15 @@ def reset_password_with_token(reset_token: str, new_password: str) -> User:
     return user
 
 
+@transaction.atomic
 def change_password(user: User, old_password: str, new_password: str) -> None:
     """
     Changes password for an authenticated user and increments token_version.
     """
+    request_version = user.token_version
+    user = User.objects.select_for_update().get(pk=user.pk)
+    if user.token_version != request_version:
+        raise ValidationError("This session has been invalidated. Sign in again.")
     if not user.check_password(old_password):
         raise ValidationError("Current password is incorrect.")
 

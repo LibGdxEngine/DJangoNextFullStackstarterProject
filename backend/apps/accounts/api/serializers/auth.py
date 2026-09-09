@@ -1,34 +1,42 @@
 from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from apps.accounts.phone import normalize_phone
 
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """
-    Accepts 'identifier' (email or phone) + password.
-    Embeds token_version, email, phone, and status into JWT claims.
-    """
-    username_field = "identifier"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["identifier"] = serializers.CharField(required=True)
-        if "username" in self.fields:
-            del self.fields["username"]
-
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        token["token_version"] = user.token_version
-        token["email"] = user.email
-        token["phone"] = user.phone
-        token["status"] = user.status
-        return token
+class CustomTokenObtainPairSerializer(serializers.Serializer):
+    identifier = serializers.CharField()
+    password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        # Allow standard SimpleJWT flow with custom identifier
-        attrs["username"] = attrs.get("identifier")
-        return super().validate(attrs)
+        from django.core.exceptions import ValidationError
+        from rest_framework_simplejwt.exceptions import AuthenticationFailed
+        from apps.accounts.services.authentication import (
+            authenticate_user, issue_tokens_for_user, PhoneVerificationRequiredError,
+        )
+        try:
+            user = authenticate_user(**attrs, request=self.context.get("request"))
+            return issue_tokens_for_user(user)
+        except (ValidationError, PhoneVerificationRequiredError) as exc:
+            raise AuthenticationFailed(str(exc)) from exc
+
+
+class SessionTokenRefreshSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+    access = serializers.CharField(read_only=True)
+
+    def validate(self, attrs):
+        from apps.accounts.services.authentication import rotate_refresh_token
+        return rotate_refresh_token(attrs["refresh"])
+
+
+class SessionTokenVerifySerializer(serializers.Serializer):
+    token = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        from apps.accounts.authentication import VersionedJWTAuthentication
+        authentication = VersionedJWTAuthentication()
+        token = authentication.get_validated_token(attrs["token"])
+        authentication.get_user(token)
+        return {}
 
 
 class SignupSerializer(serializers.Serializer):

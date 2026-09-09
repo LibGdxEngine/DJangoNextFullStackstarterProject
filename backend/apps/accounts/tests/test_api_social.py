@@ -78,7 +78,7 @@ class GoogleSignInAPITests(APITestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertFalse(res.data["created"])
-        self.assertFalse(res.data["requires_phone"])
+        self.assertTrue(res.data["requires_phone"])
         self.assertEqual(User.objects.count(), 1)
 
         existing.refresh_from_db()

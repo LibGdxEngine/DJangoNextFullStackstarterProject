@@ -108,4 +108,6 @@ def exception_handler(exc, context):
         code=codes if isinstance(codes, str) else None,
         validation=isinstance(exc, ValidationError),
     )
+    if response.status_code in (429, 503) and response.get('Retry-After', '').isdigit():
+        response.data['error'].setdefault('context', {})['retry_after_seconds'] = int(response['Retry-After'])
     return response

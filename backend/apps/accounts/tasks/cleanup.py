@@ -17,10 +17,13 @@ logger = logging.getLogger(__name__)
 def purge_expired_jwt_tokens():
     """Drop outstanding refresh tokens that expired beyond the retention window."""
     from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+    from apps.accounts.models import AuthSession
 
     cutoff = timezone.now() - timedelta(days=settings.EXPIRED_TOKEN_RETENTION_DAYS)
     deleted, _ = OutstandingToken.objects.filter(expires_at__lt=cutoff).delete()
-    logger.info("Deleted %s expired outstanding tokens", deleted)
+    sessions_deleted, _ = AuthSession.objects.filter(expires_at__lt=cutoff).delete()
+    deleted += sessions_deleted
+    logger.info("Deleted %s expired tokens and sessions", deleted)
     return deleted
 
 

@@ -15,7 +15,7 @@ afterEach(cleanup);
 
 it.each([null, undefined])("retries expiry on a later 401 when update returns %s", async (failedUpdate) => {
   const token = `failed-${String(failedUpdate)}`;
-  const current = { expires: "2099-01-01", accessToken: token };
+  const current = { expires: "2099-01-01", sessionGeneration: token };
   vi.mocked(getSession).mockResolvedValue(current);
   const update = vi.fn().mockResolvedValueOnce(failedUpdate)
     .mockResolvedValue({ expires: "2099-01-01", sessionExpired: true });

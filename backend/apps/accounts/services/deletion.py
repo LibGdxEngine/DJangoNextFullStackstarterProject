@@ -43,19 +43,19 @@ def confirm_account_deletion(user: User, challenge_id: str, code: str) -> User:
     Verifies deletion OTP challenge, marks account DELETION_PENDING,
     and bumps token_version to invalidate all existing sessions immediately.
     """
+    def mark_deleted(challenge):
+        locked_user = challenge.user
+        if locked_user.token_version != user.token_version:
+            raise ValidationError("This session has been invalidated. Sign in again.")
+        locked_user.status = UserStatus.DELETION_PENDING
+        locked_user.deletion_requested_at = timezone.now()
+        locked_user.token_version += 1
+        locked_user.save(update_fields=["status", "deletion_requested_at", "token_version", "updated_at"])
+
     challenge = verify_challenge_code(
-        challenge_id=challenge_id,
-        code=code,
+        challenge_id=challenge_id, code=code,
         expected_purpose=VerificationPurpose.DELETE_ACCOUNT,
+        expected_user_id=user.id, on_verified=mark_deleted,
     )
-
-    if challenge.user_id != user.id:
-        raise ValidationError("Verification challenge does not match the authenticated user.")
-
-    user.status = UserStatus.DELETION_PENDING
-    user.deletion_requested_at = timezone.now()
-    user.token_version += 1
-    user.save(update_fields=["status", "deletion_requested_at", "token_version", "updated_at"])
-
     logger.warning("Account marked DELETION_PENDING for user %s", user.id)
-    return user
+    return challenge.user

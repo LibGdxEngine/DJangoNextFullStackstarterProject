@@ -10,19 +10,30 @@ vi.mock("../auth", () => ({ authApi: { login: vi.fn(), exchangeSocialToken: vi.f
 type JwtArgs = Parameters<NonNullable<NonNullable<typeof authOptions.callbacks>["jwt"]>>[0];
 const jwt = (args: Partial<JwtArgs>) => authOptions.callbacks!.jwt!(args as JwtArgs);
 
-it("invalidates only the matching token and requires sign-in", async () => {
-  const token = { accessToken: "old", refreshToken: "refresh", name: "A" };
-  const expired = await jwt({ token, trigger: "update", session: { invalidateAccessToken: "old" } });
-  expect(expired).toMatchObject({ sessionExpired: true, accessToken: undefined, refreshToken: undefined });
-  const newer = { accessToken: "new", refreshToken: "new-refresh" };
-  expect(await jwt({ token: newer, trigger: "update", session: { invalidateAccessToken: "old" } })).toEqual(newer);
+vi.mock("@/lib/auth-vault", () => ({
+  createVaultSession: vi.fn().mockResolvedValue({ sessionId: "private-vault-id", sessionGeneration: "public-marker", sessionExpiresAt: 4099680000000 }),
+  vaultSessionActive: vi.fn().mockResolvedValue(true), revokeVaultSession: vi.fn(), SESSION_MAX_AGE: 604800,
+}));
+
+it("removes legacy credentials from cookies and ignores browser update injection", async () => {
+  const token = await jwt({ token: { accessToken: "secret-access", refreshToken: "secret-refresh", sessionId: "private-vault-id", sessionExpiresAt: 4099680000000 }, trigger: "update", session: { sessionId: "attacker", accessToken: "injected" } });
+  expect(token).toMatchObject({ sessionId: "private-vault-id" });
+  expect(token).not.toHaveProperty("accessToken");
+  expect(token).not.toHaveProperty("refreshToken");
 });
 
-it("clears expiry on a successful credentials login", async () => {
-  const token = await jwt({ token: { sessionExpired: true }, user: { id: "id", accessToken: "new", refreshToken: "refresh" } });
-  expect(token).toMatchObject({ accessToken: "new", sessionExpired: false });
-  const session = await authOptions.callbacks!.session!({ session: { expires: "2099-01-01" }, token: token as JWT } as Parameters<NonNullable<NonNullable<typeof authOptions.callbacks>["session"]>>[0]);
-  expect(session).toMatchObject({ accessToken: "new", sessionExpired: false });
+it("exposes only safe browser metadata and reflects server revocation", async () => {
+  const { vaultSessionActive } = await import("@/lib/auth-vault");
+  vi.mocked(vaultSessionActive).mockResolvedValue(true);
+  const token = await jwt({ token: {}, user: { id: "id", name: "A", sessionId: "private-vault-id", sessionGeneration: "public-marker", sessionExpiresAt: 4099680000000 } });
+  const args = { session: { expires: "2099-01-01", accessToken: "legacy" }, token: token as JWT } as unknown as Parameters<NonNullable<NonNullable<typeof authOptions.callbacks>["session"]>>[0];
+  const session = await authOptions.callbacks!.session!(args);
+  expect(session).toMatchObject({ backendAuthenticated: true, sessionGeneration: "public-marker", sessionExpired: false });
+  expect(JSON.stringify(session)).not.toMatch(/private-vault-id|accessToken|refreshToken/);
+  vi.mocked(vaultSessionActive).mockResolvedValueOnce(false);
+  expect(await authOptions.callbacks!.session!(args)).toMatchObject({ backendAuthenticated: false, sessionExpired: true });
+  vi.mocked(vaultSessionActive).mockRejectedValueOnce(new Error("Redis offline"));
+  expect(await authOptions.callbacks!.session!(args)).toMatchObject({ backendAuthenticated: false });
 });
 
 it("retains verification-required behavior at the NextAuth boundary", async () => {

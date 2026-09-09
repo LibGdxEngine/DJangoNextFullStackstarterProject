@@ -1,0 +1,65 @@
+{
+  "verified_at": "2026-09-09T14:57:08.621944+00:00",
+  "status": "complete",
+  "site": "https://mobser-test.2.24.9.126.sslip.io",
+  "repository": "LibGdxEngine/DJangoNextFullStackstarterProject",
+  "source_sha": "51ed5fd7adc4ba7b3b18d7ef3a0f0262dd8ce5d0",
+  "implementation_workspace": "/home/ahmed/Documents/Mobser-cicd",
+  "merged_pull_requests": [
+    1,
+    19
+  ],
+  "successful_releases": [
+    {
+      "run_id": 34363206443,
+      "attempt": 2
+    },
+    {
+      "run_id": 34365028158,
+      "attempt": 1
+    }
+  ],
+  "current_manifest": {
+    "schema_version": 1,
+    "repository": "LibGdxEngine/DJangoNextFullStackstarterProject",
+    "sha": "51ed5fd7adc4ba7b3b18d7ef3a0f0262dd8ce5d0",
+    "run_id": 34365028158,
+    "run_attempt": 1,
+    "backend_image": "ghcr.io/libgdxengine/djangonextfullstackstarterproject-backend@sha256:524a40a15f850aa87aa3fcd382f60970c998348b3ddccecad723198c05ff0e62",
+    "frontend_image": "ghcr.io/libgdxengine/djangonextfullstackstarterproject-frontend@sha256:227793b51e8bbcc4f970906e1757560941ee36f343c9b73ddd61492159aa8064",
+    "runtime_sha256": "27d18370b66f0c20d6349a0010292235a569406d43c816578c2255051bfb6ad7",
+    "migration_compatible": true
+  },
+  "checks": {
+    "https_login_authenticated_api_logout": "passed",
+    "saved_browser_session_across_release": "passed",
+    "db_cache_upload_persistence_across_release_and_two_rollbacks": "passed",
+    "celery_task_and_beat_heartbeat": "passed",
+    "rollback_first_then_return_second": "passed",
+    "backup_restore_into_disposable_database": "passed",
+    "historical_replay_rejected_without_state_change": "passed",
+    "temporary_fixture_cleanup": "passed",
+    "release_artifact_sha256": "passed"
+  },
+  "highest_accepted": [
+    2,
+    1
+  ],
+  "limitations": [
+    "Email and external messaging/Google integrations are unconfigured on the test target.",
+    "Backups are currently on the same VPS; off-VPS backup and retention remain production prerequisites.",
+    "Existing shared Caddy stale bind mount has an administrative reload helper and restart repair timer; recovery can take about one minute."
+  ],
+  "independent_review": {
+    "result": "PASS",
+    "reviewer": "deployment_security_review",
+    "current_previous_manifests_and_running_digests": "match",
+    "installed_controller_sha256": "1ffcfd048f65a0457f3e076c8996a543eb912739b08b6c6e67b1c3c32d499154",
+    "original_containers_unchanged": 21,
+    "original_sites_https": "both 200",
+    "new_services": "7 running, zero restarts, five health checks healthy",
+    "fixture_and_disposable_database_cleanup": "confirmed",
+    "isolation_and_ssh_restrictions": "confirmed",
+    "caddy_repair_timer": "active"
+  }
+}

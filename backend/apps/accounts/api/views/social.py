@@ -1,3 +1,4 @@
+from apps.common.throttling import BaselineThrottle, OperationThrottle
 from core.api_errors import error_response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -21,6 +22,9 @@ class SocialProvidersView(APIView):
 
 
 class SocialAuthView(APIView):
+    throttle_classes = [BaselineThrottle, OperationThrottle]
+    rate_limit_operation = 'social'
+
     permission_classes = [AllowAny]
 
     def post(self, request, provider):

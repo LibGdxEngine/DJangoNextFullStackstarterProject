@@ -13,6 +13,11 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-secret-key-templa
 
 DEBUG = True
 
+# Direct local access is explicit; Compose uses the authenticated ingress instead.
+RATE_LIMIT_TRUST_PROXY = os.environ.get('RATE_LIMIT_TRUST_PROXY', 'false').lower() == 'true'
+RATE_LIMIT_ALLOW_DIRECT = os.environ.get('RATE_LIMIT_ALLOW_DIRECT', 'true').lower() == 'true'
+RATE_LIMIT_KEY_SECRET = os.environ.get('RATE_LIMIT_KEY_SECRET', 'dev-rate-limit-key-not-for-production')
+
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # Default to SQLite for easy non-docker runs, but swap to Postgres when available in environment

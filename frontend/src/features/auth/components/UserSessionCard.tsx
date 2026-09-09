@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 
 export function UserSessionCard() {
   const { data: session } = useSession();
-  const [showTokens, setShowTokens] = useState(false);
+  const [error, setError] = useState(false);
 
   if (!session?.user) return null;
 
@@ -20,11 +20,11 @@ export function UserSessionCard() {
           </div>
           <div>
             <p className="text-sm font-semibold text-zinc-100">{session.user.name}</p>
-            <p className="text-xs text-zinc-400">Authenticated via Django SimpleJWT</p>
+            <p className="text-xs text-zinc-400">Signed in securely</p>
           </div>
         </div>
         <Badge variant="success" size="sm">
-          Active Session
+          {session.sessionUnavailable ? "Session unavailable" : "Active Session"}
         </Badge>
       </div>
 
@@ -37,28 +37,22 @@ export function UserSessionCard() {
           <span className="text-zinc-400">Auth Strategy:</span>
           <span className="font-mono text-zinc-200">NextAuth JWT Session</span>
         </div>
-        {session.accessToken && (
-          <div>
-            <button
-              onClick={() => setShowTokens(!showTokens)}
-              className="text-emerald-400 hover:underline text-xs"
-            >
-              {showTokens ? "Hide Access Token" : "View Access Token"}
-            </button>
-            {showTokens && (
-              <p className="mt-2 p-2 bg-zinc-900 rounded font-mono text-[10px] break-all text-zinc-400">
-                {session.accessToken}
-              </p>
-            )}
-          </div>
-        )}
+
       </div>
 
+      {session.sessionUnavailable && <p role="alert" className="text-sm text-amber-300">Your session could not be checked. Please try again shortly.</p>}
+      {error && <p role="alert" className="text-sm text-amber-300">Sign out could not be completed. Please try again.</p>}
       <Button
         variant="secondary"
         size="sm"
         className="w-full"
-        onClick={() => signOut({ redirect: false })}
+        onClick={async () => {
+          setError(false);
+          try {
+            const result = await signOut({ redirect: false });
+            if (!result?.url) setError(true);
+          } catch { setError(true); }
+        }}
       >
         Sign Out
       </Button>

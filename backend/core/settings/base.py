@@ -4,6 +4,8 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+from .ocr import *
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -29,6 +31,7 @@ INSTALLED_APPS = [
     'apps.billing.apps.BillingConfig',
     'apps.notifications.apps.NotificationsConfig',
     'apps.audit.apps.AuditConfig',
+    'product.ocr.apps.OCRConfig',
 ]
 
 MIDDLEWARE = [
@@ -121,17 +124,20 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # DRF settings
 REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': ['apps.common.throttling.BaselineThrottle'],
     'EXCEPTION_HANDLER': 'core.api_errors.exception_handler',
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'apps.accounts.authentication.VersionedJWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
     ],
     'DEFAULT_SCHEMA_CLASS': 'core.schema.ContractAutoSchema',
 }
+
+from .rate_limits import *
+
+CORS_EXPOSE_HEADERS = ['Retry-After', 'X-Request-ID']
 
 # OpenAPI / Swagger configuration
 SPECTACULAR_SETTINGS = {
@@ -162,6 +168,8 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': os.environ.get('SECRET_KEY', 'django-insecure-dev-secret-key-template-project-1234'),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'TOKEN_REFRESH_SERIALIZER': 'apps.accounts.api.serializers.auth.SessionTokenRefreshSerializer',
+    'TOKEN_VERIFY_SERIALIZER': 'apps.accounts.api.serializers.auth.SessionTokenVerifySerializer',
     'TOKEN_OBTAIN_SERIALIZER': 'apps.accounts.api.serializers.auth.CustomTokenObtainPairSerializer',
 }
 
@@ -242,6 +250,9 @@ CELERY_TASK_DEFAULT_QUEUE = 'celery'
 # Maintenance sweeps are isolated onto their own queue so a long-running cleanup
 # never delays latency-sensitive work such as OTP delivery.
 CELERY_TASK_ROUTES = {
+    'product.ocr.tasks.process_job': {'queue': 'ocr'},
+    'product.ocr.tasks.deliver_event': {'queue': 'ocr-webhooks'},
+    'product.ocr.tasks.recover_jobs': {'queue': 'maintenance'},
     'apps.accounts.tasks.*': {'queue': 'maintenance'},
     'apps.billing.tasks.*': {'queue': 'maintenance'},
     'apps.organizations.tasks.*': {'queue': 'maintenance'},
@@ -265,6 +276,11 @@ TASK_RECORD_RETENTION_DAYS = int(os.environ.get('TASK_RECORD_RETENTION_DAYS', 30
 # startup, after which they can be retimed from the Django admin without a deploy.
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_BEAT_SCHEDULE = {
+    'ocr-recovery': {
+        'task': 'product.ocr.tasks.recover_jobs',
+        'schedule': 60.0,
+        'options': {'queue': 'maintenance'},
+    },
     'beat-heartbeat': {
         'task': 'apps.common.tasks.beat_heartbeat',
         'schedule': 60.0,

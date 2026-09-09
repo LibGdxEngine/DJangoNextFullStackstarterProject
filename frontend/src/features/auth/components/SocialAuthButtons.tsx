@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { getProviders, signIn } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
+import { decodeAuthRetry } from "@/lib/api/retry";
+import { useRetryCountdown } from "@/hooks/useRetryCountdown";
 
 interface SocialAuthButtonsProps {
   callbackUrl?: string;
@@ -45,6 +47,7 @@ export function SocialAuthButtons({ callbackUrl = "/" }: SocialAuthButtonsProps)
   const [providerIds, setProviderIds] = useState<string[]>([]);
   const [pendingProvider, setPendingProvider] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { remaining, wait } = useRetryCountdown();
 
   useEffect(() => {
     let isActive = true;
@@ -52,15 +55,23 @@ export function SocialAuthButtons({ callbackUrl = "/" }: SocialAuthButtonsProps)
     getProviders().then((available) => {
       if (!isActive || !available) return;
       setProviderIds(Object.keys(available).filter((id) => id in PROVIDER_META));
-      if (new URLSearchParams(window.location.search).get("error")) {
-        setErrorMessage("Social sign-in failed. Please try again or use your email and password.");
+      const error = new URLSearchParams(window.location.search).get("error");
+      if (error) {
+        const retry = decodeAuthRetry(error);
+        if (retry) {
+          wait(retry.seconds);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("error");
+          window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+        }
+        setErrorMessage(retry ? (retry.status === 429 ? "Too many sign-in attempts. Please wait and try again." : "Sign-in is temporarily unavailable. Please try again shortly.") : "Social sign-in failed. Please try again or use your email and password.");
       }
     });
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [wait]);
 
   if (providerIds.length === 0) return null;
 
@@ -88,7 +99,7 @@ export function SocialAuthButtons({ callbackUrl = "/" }: SocialAuthButtonsProps)
             variant="outline"
             className="w-full"
             isLoading={pendingProvider === id}
-            disabled={pendingProvider !== null}
+            disabled={pendingProvider !== null || remaining > 0}
             onClick={() => {
               setPendingProvider(id);
               setErrorMessage(null);
@@ -96,7 +107,7 @@ export function SocialAuthButtons({ callbackUrl = "/" }: SocialAuthButtonsProps)
             }}
           >
             {pendingProvider !== id && <span className="mr-2">{PROVIDER_META[id].icon}</span>}
-            {PROVIDER_META[id].label}
+            {remaining > 0 ? `Try again in ${remaining}s` : PROVIDER_META[id].label}
           </Button>
         ))}
       </div>

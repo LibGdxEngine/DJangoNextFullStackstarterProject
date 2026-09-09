@@ -1,6 +1,6 @@
 .PHONY: help up down build restart ps logs logs-backend logs-frontend logs-worker logs-beat shell backend-shell frontend-shell beat-shell makemigrations migrate createsuperuser seed check test-backend test-frontend api-generate api-check clean prod-up prod-down prod-build
 
-.PHONY: init test-init
+.PHONY: init test-init test-rate-limits
 PYTHON ?= python3
 PROD_ENV_FILE ?= .env.prod
 PROD_COMPOSE = docker compose $(if $(strip $(PROD_ENV_FILE)),--env-file $(PROD_ENV_FILE)) -f docker-compose.prod.yml
@@ -45,6 +45,7 @@ help:
 	@echo ""
 	@echo "Testing & Quality:"
 	@echo "  test-backend      - Run Django unit tests"
+	@echo "  test-rate-limits  - Run Redis/PostgreSQL rate-limit integration tests"
 	@echo "  test-frontend     - Run frontend ESLint checks"
 	@echo "  api-generate      - Export OpenAPI and regenerate frontend API types"
 	@echo "  api-check         - Fail if generated API artifacts have drifted"
@@ -128,7 +129,10 @@ frontend-shell:
 
 # Testing Commands
 test-backend:
-	docker compose exec backend python manage.py test
+	docker compose exec backend python manage.py test --settings=core.settings.test --exclude-tag=integration
+
+test-rate-limits:
+	docker compose exec -e RATE_LIMIT_TEST_REDIS_URL=$${RATE_LIMIT_TEST_REDIS_URL:-redis://redis:6379/1} backend python manage.py test --settings=core.settings.test --tag=integration
 
 test-frontend:
 	docker compose exec frontend npm run lint

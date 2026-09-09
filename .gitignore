@@ -3,3 +3,6 @@
 .env.*
 !.env.example
 !.env.prod.example
+
+# Private OCR source files must never enter git or Docker build contexts.
+backend/private/
