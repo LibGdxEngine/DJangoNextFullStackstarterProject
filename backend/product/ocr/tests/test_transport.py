@@ -66,9 +66,14 @@ class WebhookSecurityTests(SimpleTestCase):
         pool_type.assert_not_called()
 
 
-@override_settings(OCR_MODEL_URL='https://gpu.example.com/ocr', OCR_MODEL_TOKEN='server-secret',
+@override_settings(OCR_MODEL_URL='https://gpu.example.com/ocr',
                    OCR_MODEL_TIMEOUT=660, OCR_MODEL_FILE_FIELD='file', OCR_MAX_RESULT_BYTES=1000)
 class ModelTransportTests(SimpleTestCase):
+    def setUp(self):
+        selector = patch('product.ocr.api_key_service.get_api_key', return_value='database-key')
+        self.select_key = selector.start()
+        self.addCleanup(selector.stop)
+
     def run_response(self, *, body=b'{"text":"hello"}', status=200, headers=None):
         source = io.BytesIO(b'%PDF-test')
         response = MagicMock()
@@ -88,8 +93,24 @@ class ModelTransportTests(SimpleTestCase):
         self.assertFalse(config.kwargs['trust_env'])
         self.assertFalse(config.kwargs['follow_redirects'])
         self.assertEqual(call.kwargs['headers']['Idempotency-Key'], 'job-id')
-        self.assertEqual(call.kwargs['headers']['Authorization'], 'Bearer server-secret')
+        self.assertEqual(call.kwargs['headers']['Authorization'], 'Bearer database-key')
         self.assertIsInstance(call.kwargs['files']['file'][1], io.BytesIO)
+
+    @patch('product.ocr.api_key_service.get_api_key', side_effect=['provider-key-a', 'provider-key-b'])
+    def test_each_model_request_consults_pool_and_uses_selected_key(self, select_key):
+        _, _, first = self.run_response()
+        _, _, second = self.run_response()
+        self.assertEqual(first.kwargs['headers']['Authorization'], 'Bearer provider-key-a')
+        self.assertEqual(second.kwargs['headers']['Authorization'], 'Bearer provider-key-b')
+        self.assertEqual(select_key.call_count, 2)
+
+    def test_empty_pool_fails_before_sending_a_document(self):
+        from product.ocr.api_key_service import NoUsableApiKey
+        with patch('product.ocr.api_key_service.get_api_key', side_effect=NoUsableApiKey('No available key')), patch('product.ocr.gpu.httpx.Client') as client:
+            with self.assertRaises(ModelError) as caught:
+                run_model('private-id', 'application/pdf', 'job-id')
+            self.assertEqual(caught.exception.code, 'provider_keys_unavailable')
+            client.assert_not_called()
 
     def test_rejects_invalid_large_or_compressed_results(self):
         for kwargs, code in [

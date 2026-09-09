@@ -65,6 +65,7 @@ services:
       - ./scripts:/app/scripts:ro
     environment:
       - OCR_ENABLED=${OCR_ENABLED:-false}
+      - OCR_PROVIDER_KEY_ENCRYPTION_KEY=${OCR_PROVIDER_KEY_ENCRYPTION_KEY:-}
       - OCR_PRIVATE_ROOT=/app/private/ocr
       - OCR_WEBHOOK_SIGNING_KEY=${OCR_WEBHOOK_SIGNING_KEY:-}
       - OCR_MAX_PENDING_PER_ORG=${OCR_MAX_PENDING_PER_ORG:-5}
@@ -130,6 +131,7 @@ services:
       - ./backend:/app
     environment:
       - OCR_ENABLED=${OCR_ENABLED:-false}
+      - OCR_PROVIDER_KEY_ENCRYPTION_KEY=${OCR_PROVIDER_KEY_ENCRYPTION_KEY:-}
       - OCR_PRIVATE_ROOT=/app/private/ocr
       - OCR_WEBHOOK_SIGNING_KEY=${OCR_WEBHOOK_SIGNING_KEY:-}
       - OCR_MAX_PENDING_PER_ORG=${OCR_MAX_PENDING_PER_ORG:-5}
@@ -203,7 +205,6 @@ services:
     networks: [default, telemetry-ingest, ocr-scan]
     environment:
       - OCR_MODEL_URL=${OCR_MODEL_URL:-}
-      - OCR_MODEL_TOKEN=${OCR_MODEL_TOKEN:-}
       - OCR_MODEL_FILE_FIELD=${OCR_MODEL_FILE_FIELD:-file}
       - OCR_CLAMAV_HOST=clamav
       - OTEL_SERVICE_NAME=mobser-ocr-worker

@@ -69,3 +69,35 @@ class OCRWebhookEvent(BaseModel):
 class OCRCapacity(models.Model):
     """A single database lock serializes aggregate admission across organizations."""
     id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+
+
+class OCRProviderKey(BaseModel):
+    """Internal provider credentials, preserving the source pool's row identity."""
+    id = models.BigIntegerField(primary_key=True)
+    email = models.EmailField(max_length=254)
+    status = models.CharField(max_length=32)
+    api_key_ciphertext = models.TextField(blank=True)
+    api_key_fingerprint = models.CharField(max_length=64, blank=True, db_index=True)
+    api_key_status = models.CharField(max_length=32, db_index=True)
+    leased_by = models.CharField(max_length=255, blank=True)
+    lease_expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
+    exhausted_at = models.DateTimeField(null=True, blank=True)
+    source_fingerprint = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        indexes = [models.Index(fields=["api_key_status", "id"])]
+
+    @property
+    def api_key(self):
+        from .credential_crypto import decrypt_api_key
+        return decrypt_api_key(self.api_key_ciphertext) if self.api_key_ciphertext else ""
+
+
+class OCRProviderKeyPoolLock(models.Model):
+    """Serialize provider-key transitions and persist the round-robin cursor."""
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    last_key_id = models.BigIntegerField(default=0)
+    last_key_fingerprint = models.CharField(max_length=64, blank=True, default="")

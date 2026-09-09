@@ -6,6 +6,8 @@ from urllib.parse import urlsplit
 
 import httpx
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from django.views.decorators.debug import sensitive_variables
 
 from .uploads import private_path
 
@@ -16,6 +18,17 @@ class ModelError(Exception):
         super().__init__(code)
 
 
+@sensitive_variables()
+def get_provider_api_key():
+    """Select credentials per upstream operation; never expose them to API clients."""
+    from .api_key_service import NoUsableApiKey, get_api_key
+    try:
+        return get_api_key()
+    except (NoUsableApiKey, ImproperlyConfigured):
+        raise ModelError('provider_keys_unavailable') from None
+
+
+@sensitive_variables()
 def run_model(storage_name, content_type, job_id):
     url = settings.OCR_MODEL_URL
     try:
@@ -25,7 +38,7 @@ def run_model(storage_name, content_type, job_id):
         parts.port  # Validate before opening the source file.
     except ValueError as exc:
         raise ModelError('model_not_configured') from exc
-    token = settings.OCR_MODEL_TOKEN
+    token = get_provider_api_key()
     headers = {'Accept': 'application/json', 'Accept-Encoding': 'identity', 'Idempotency-Key': str(job_id)}
     if token:
         headers['Authorization'] = f'Bearer {token}'

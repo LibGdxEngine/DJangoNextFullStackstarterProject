@@ -6,3 +6,7 @@
 
 # Private OCR source files must never enter git or Docker build contexts.
 backend/private/
+
+# Local databases may contain encrypted provider credentials and account metadata.
+backend/*.sqlite3
+backend/*.sqlite3-*

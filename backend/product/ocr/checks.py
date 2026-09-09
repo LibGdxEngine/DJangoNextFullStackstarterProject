@@ -11,6 +11,12 @@ def check_ocr_configuration(app_configs, **kwargs):
     if not settings.OCR_ENABLED:
         return []
     errors = []
+    from .credential_crypto import _cipher
+    from django.core.exceptions import ImproperlyConfigured
+    try:
+        _cipher()
+    except ImproperlyConfigured:
+        errors.append(Error('Configure OCR_PROVIDER_KEY_ENCRYPTION_KEY before enabling OCR.', id='ocr.E007'))
     if len(settings.OCR_WEBHOOK_SIGNING_KEY.encode()) < 32:
         errors.append(Error('OCR_WEBHOOK_SIGNING_KEY must contain at least 32 bytes of independently generated secret material.', id='ocr.E001'))
     root = Path(settings.OCR_PRIVATE_ROOT)

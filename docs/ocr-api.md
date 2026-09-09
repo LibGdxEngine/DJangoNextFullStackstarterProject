@@ -19,7 +19,7 @@ OCR_ENABLED=true
 COMPOSE_PROFILES=ocr
 OCR_UPLOAD_UPSTREAM=ocr_upload:8000
 OCR_MODEL_URL=https://gpu.example.com/ocr
-OCR_MODEL_TOKEN=your-server-side-model-credential
+OCR_PROVIDER_KEY_ENCRYPTION_KEY=your-fernet-encryption-key
 OCR_MODEL_FILE_FIELD=file
 OCR_WEBHOOK_SIGNING_KEY=independently-generated-secret-at-least-32-bytes
 OCR_WORKER_CONCURRENCY=1
@@ -31,8 +31,17 @@ secret. Rotating the master changes those secrets, including for pending events;
 coordinate receiver updates before rotation. Revoking an API key does not stop
 delivery of completion events for already accepted work.
 
+For the provider credential pool, generate a separate encryption key with
+`python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`.
+Import the credentials as described in [Provider credential pool](ocr-provider-keys.md).
+Keep this key stable and backed up separately from the database: losing it makes
+the stored provider credentials unreadable. This environment value encrypts the
+database; it is not an API key and is never sent to the OCR provider. Provider API
+keys are selected from the database on every call, with no environment-token fallback.
+
 Run `make prod-build` and `make prod-up` for the existing production stack. The
-backend applies the new `ocr.0001_initial` migration through the existing entrypoint.
+backend applies the OCR migrations, including the provider-pool migration `0002`,
+through the existing entrypoint.
 The upload service waits for those migrations instead of applying them concurrently.
 PostgreSQL is required in production: admission, idempotency and task claims rely
 on database row locks. Compose must support `extends` and the `!reset` tag used to
@@ -64,7 +73,8 @@ storage upload/finalize flow before scaling workers across hosts.
 Until the real model contract is supplied, `gpu.py` assumes:
 
 - HTTPS `POST` to the server-configured URL, multipart file field `file` (configurable).
-- Optional server-side `Authorization: Bearer <OCR_MODEL_TOKEN>`.
+- Server-side bearer authentication using the next usable database key on each
+  model request. The rotation position is persisted across workers and restarts.
 - `Idempotency-Key: <job UUID>` forwarded to the model.
 - A synchronous HTTP 200 response with `Content-Type: application/json` containing
   a JSON object or array, with a maximum response size of 20,000,000 bytes.
