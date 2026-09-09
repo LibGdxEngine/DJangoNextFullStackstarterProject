@@ -274,5 +274,5 @@ from django.test import Client
 assert Client().get('/api/hello/').status_code == 200
 shutdown()
 '''
-        result = subprocess.run([sys.executable, '-c', code], cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))) , env={**os.environ, 'OTEL_ENABLED': 'true', 'OTEL_EXPORTER_OTLP_ENDPOINT': 'http://127.0.0.1:1', 'DJANGO_SETTINGS_MODULE': 'core.settings.dev'}, capture_output=True, text=True, timeout=30)
+        result = subprocess.run([sys.executable, '-c', code], cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))) , env={**os.environ, 'ALLOWED_HOSTS': 'testserver', 'OTEL_ENABLED': 'true', 'OTEL_EXPORTER_OTLP_ENDPOINT': 'http://127.0.0.1:1', 'DJANGO_SETTINGS_MODULE': 'core.settings.dev'}, capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -49,8 +49,10 @@ The server uses a temporary private Docker credential directory and removes it
 after the operation. A personal GitHub token and a root SSH password are not
 needed for routine deployments.
 
-Enable the `CI gate` branch protection check on `master`, require the branch to
-be up to date, and prohibit force pushes and branch deletion. `CODEOWNERS`
+The configured `CI gate` branch protection on `master` requires the branch to
+be up to date and prohibits force pushes and branch deletion, including for
+administrators. Pull requests are required; no self-approval is required for
+this single-maintainer repository. `CODEOWNERS`
 identifies the maintainer for workflow, deployment, and migration changes.
 An agent must not bypass failed checks or remove tests to obtain a green result.
 
@@ -116,7 +118,9 @@ arbitrary migration operations cumulatively since the reviewed baseline
 `b56dce1ce5b76aaaf2bf54b73e473609f30299a8`, including migrations from failed
 releases. It permits only new `CreateModel`, `AddIndex`, and nullable or safe
 database-default `AddField` operations. Changes or deletions to existing migrations
-fail the gate. Advancing this baseline requires an explicit review of the host
+fail the gate. The history check also rejects modifying or deleting migrations
+introduced in earlier commits on the main line, even if a failed release is
+followed by unrelated changes. Advancing this baseline requires an explicit review of the host
 schema and compatibility with the stored rollback release. A migration-policy check
 does not replace review of business behavior or queued Celery task compatibility.
 
@@ -124,6 +128,15 @@ If migration or container rollout completion is uncertain, the controller quaran
 deployment. An administrator must reconcile pending Docker operations, running
 container image selection, and database migration state before resolving the
 quarantine; a retry or a higher workflow attempt does not clear it.
+
+After completing that inspection, an administrator can acknowledge resolution:
+
+```sh
+sudo /usr/local/sbin/mobser-deploy resolve-quarantine
+```
+
+This command clears the gate; it does not repair data or restore application
+containers. Follow it with a new verified release or a reviewed application rollback.
 
 Root-only application rollback uses the stored previously verified release:
 
@@ -140,6 +153,28 @@ Never automatically restore a database backup after a failed release: it could
 discard customer writes. To test a backup, restore it into a separate disposable
 database and verify the expected records. Keep off-VPS copies for real customer
 data; backups on the same VPS do not protect against loss of that VPS.
+
+For an administrator's isolated restore drill, select a completed backup and run
+the following in a root shell. The database named `mobser_restore_check` must not
+already exist. Only that disposable database is dropped afterward:
+
+```sh
+set -e
+cd /srv/mobser-test
+export BACKEND_IMAGE="$(python3 -c 'import json; print(json.load(open("state.json"))["current"]["backend_image"])')"
+export FRONTEND_IMAGE="$(python3 -c 'import json; print(json.load(open("state.json"))["current"]["frontend_image"])')"
+backup_file=backups/REPLACE_WITH_RUN_ID-ATTEMPT.dump
+docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'createdb -U "$POSTGRES_USER" mobser_restore_check'
+docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'pg_restore -U "$POSTGRES_USER" --exit-on-error --no-owner -d mobser_restore_check' < "$backup_file"
+docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'psql -U "$POSTGRES_USER" -d mobser_restore_check -c "SELECT count(*) FROM django_migrations;"'
+# Verify any additional application records before cleanup.
+docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'dropdb -U "$POSTGRES_USER" mobser_restore_check'
+```
+
+Backups currently remain on the VPS without automatic expiry. Archive verified
+copies off the VPS before deleting selected old dumps. Retain the current and
+previous application images for rollback. Monitor free space: deployments stop
+below 5 GiB rather than pruning shared Docker resources.
 
 Do not use `make clean`, `docker compose down -v`, or host-wide Docker prune as
 part of deployment or recovery. They can destroy persistent data or affect other

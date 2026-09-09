@@ -39,7 +39,8 @@ class MigrationPolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             migrations.validate_migration(self.source('migrations.AddField(model_name="user", name="nickname", field=models.CharField(null=True, unique=True))'))
 
-    def test_failed_release_migration_cannot_be_hidden_by_unrelated_push(self):
+    @mock.patch.object(migrations, 'validate_merged_history')
+    def test_failed_release_migration_cannot_be_hidden_by_unrelated_push(self, history):
         # Commit A introduced RunSQL and failed its gate. Commit B only changes
         # application code; a comparison against B's parent would be empty.
         path = 'backend/apps/example/migrations/0002_failed_release.py'
@@ -51,7 +52,47 @@ class MigrationPolicyTests(unittest.TestCase):
                     migrations.main()
         diff.assert_called_once_with(migrations.REVIEWED_BASELINE)
 
-    def test_baseline_migrations_cannot_be_modified(self):
+    @mock.patch.object(migrations, 'validate_merged_history')
+    def test_baseline_migrations_cannot_be_modified(self, history):
         with mock.patch.object(migrations, 'changed_migrations', return_value=[('M', 'backend/apps/example/migrations/0001_initial.py')]):
             with self.assertRaisesRegex(ValueError, 'existing migrations'):
                 migrations.main()
+
+    def test_merged_migration_edit_cannot_hide_behind_cumulative_addition(self):
+        path = 'backend/apps/example/migrations/0002_additive.py'
+        # Every version is additive, and the baseline diff still reports A.
+        valid_source = self.source('migrations.AddField(model_name="user", name="nickname", field=models.CharField(null=True))')
+        changes = {
+            (migrations.REVIEWED_BASELINE, 'HEAD'): [('A', path)],
+            ('added^', 'added'): [('A', path)],
+            ('modified^', 'modified'): [('M', path)],
+            ('unrelated^', 'unrelated'): [],
+        }
+        with mock.patch.object(migrations.subprocess, 'check_output', return_value='added\nmodified\nunrelated\n'):
+            with mock.patch.object(migrations, 'changed_migrations', side_effect=lambda base, head='HEAD': changes[(base, head)]):
+                with mock.patch.object(Path, 'read_text', return_value=valid_source):
+                    with self.assertRaisesRegex(ValueError, 'merged migration edited or removed in modified'):
+                        migrations.main()
+
+    def test_merged_migration_deletion_cannot_hide_behind_empty_cumulative_diff(self):
+        path = 'backend/apps/example/migrations/0002_additive.py'
+        changes = {
+            (migrations.REVIEWED_BASELINE, 'HEAD'): [],
+            ('added^', 'added'): [('A', path)],
+            ('deleted^', 'deleted'): [('D', path)],
+            ('unrelated^', 'unrelated'): [],
+        }
+        with mock.patch.object(migrations.subprocess, 'check_output', return_value='added\ndeleted\nunrelated\n'):
+            with mock.patch.object(migrations, 'changed_migrations', side_effect=lambda base, head='HEAD': changes[(base, head)]):
+                with self.assertRaisesRegex(ValueError, 'merged migration edited or removed in deleted'):
+                    migrations.main()
+
+    def test_merge_compares_first_parent_without_auditing_unmerged_feature_edits(self):
+        path = 'backend/apps/example/migrations/0002_additive.py'
+        with mock.patch.object(migrations.subprocess, 'check_output', return_value='merge\n') as history:
+            with mock.patch.object(migrations, 'changed_migrations', return_value=[('A', path)]) as diff:
+                migrations.validate_merged_history()
+        history.assert_called_once_with([
+            'git', 'rev-list', '--first-parent', '--reverse', f'{migrations.REVIEWED_BASELINE}..HEAD',
+        ], text=True)
+        diff.assert_called_once_with('merge^', 'merge')

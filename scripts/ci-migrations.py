@@ -62,7 +62,20 @@ def changed_migrations(base, head='HEAD'):
     return changes
 
 
+def validate_merged_history():
+    # PR merge refs follow main as their first parent, so unpublished feature
+    # edits are assessed together while already merged migrations stay immutable.
+    commits = subprocess.check_output([
+        'git', 'rev-list', '--first-parent', '--reverse', f'{REVIEWED_BASELINE}..HEAD',
+    ], text=True).splitlines()
+    for commit in commits:
+        for status, path in changed_migrations(f'{commit}^', commit):
+            if status != 'A':
+                raise ValueError(f'{path}: merged migration edited or removed in {commit}')
+
+
 def main():
+    validate_merged_history()
     # A failed release may leave its migrations unexecuted. Comparing only the
     # latest push would allow an unrelated follow-up to conceal that migration.
     changes = changed_migrations(REVIEWED_BASELINE)
