@@ -27,6 +27,15 @@ ports and includes the optional full observability stack.
    updates this application's services, and checks HTTPS readiness. The current
    release is recorded only after checks succeed.
 
+To retry a failed release, select **Re-run all jobs** in GitHub Actions. Each
+attempt needs its own successful build job and immutable manifest. A deployment
+job retried alone cannot reuse an earlier attempt's artifact. A quarantined
+deployment still needs administrator inspection and resolution before retrying.
+
+For a repeatability check, **Run workflow** on `Release` with `master` selected
+creates a new verified release through the same gates. It does not bypass CI,
+migration checks, capacity checks, or the deployment lock.
+
 Fork pull requests receive no deployment secrets. Image publication and deployment
 are restricted to the trusted `master` release workflow. The SSH credential does
 not grant an interactive shell, forwarding, general sudo, or Docker access.
