@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify production routing, login/session, static assets and background jobs."""
 import http.cookiejar
+import base64
 import json
 import re
 import secrets
@@ -52,6 +53,8 @@ fixture = (
 )
 django(fixture)
 try:
+    basic = base64.b64encode(f'{email}:{password}'.encode()).decode()
+    request('/api/v1/auth/me/', headers={'Authorization': 'Basic ' + basic}, expected=401)
     tokens = json.loads(request('/api/v1/auth/login/', json.dumps({'identifier': email, 'password': password}).encode(), {'Content-Type': 'application/json'}))
     assert tokens.get('access') and tokens.get('refresh'), 'login did not issue tokens'
     request('/api/v1/auth/me/', headers={'Authorization': 'Bearer ' + tokens['access']})

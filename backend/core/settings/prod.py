@@ -6,6 +6,14 @@ SECRET_KEY = os.environ['SECRET_KEY']
 
 DEBUG = False
 
+# API credentials must pass account, session-revocation, and onboarding checks.
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'apps.accounts.authentication.VersionedJWTAuthentication',
+    ],
+}
+
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
 # Enforce PostgreSQL database configuration in production
