@@ -18,7 +18,7 @@ requests>=2.32.0
 
 # Keep the SDK and contrib instrumentation on the same release train.
 opentelemetry-api==1.38.0
-opentelemetry-sdk==1.38.0
+opentelemetry-sdk==1.44.0
 opentelemetry-exporter-otlp-proto-http==1.38.0
 opentelemetry-instrumentation-django==0.59b0
 opentelemetry-instrumentation-celery==0.59b0
