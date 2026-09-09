@@ -77,8 +77,9 @@ def read_token(stream, timeout=10):
                 break
             token.extend(chunk)
             require(len(token) <= 4096, 'token input too large')
-        value = bytes(token).strip()
-        require(re.fullmatch(rb'[A-Za-z0-9_]+', value), 'invalid token')
+        # The SSH sender frames the token with one optional trailing LF.
+        value = bytes(token).removesuffix(b'\n')
+        require(re.fullmatch(rb'[A-Za-z0-9._~+/-]+=*', value), 'invalid token')
         return value.decode('ascii')
     finally:
         selector.close()
