@@ -1,4 +1,4 @@
-# Deployment and migration changes require the repository owner's review.
+# Maintainer for deployment and migration review.
 /.github/ @LibGdxEngine
 /deploy/ @LibGdxEngine
 /scripts/ci-* @LibGdxEngine

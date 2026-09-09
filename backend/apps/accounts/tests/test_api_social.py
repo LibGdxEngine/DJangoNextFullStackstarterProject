@@ -134,6 +134,16 @@ class GoogleSignInAPITests(APITestCase):
         self.assertEqual(res.data["error"]["code"], "SOCIAL_AUTH_FAILED")
         self.assertFalse(SocialAccount.objects.exists())
 
+    def test_inactive_user_cannot_sign_in(self):
+        User.objects.create_user(
+            email="social@example.com", phone="01039811349",
+            password="StrongPassword123!", is_active=False,
+        )
+        res = self.sign_in()
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(res.data["error"]["code"], "SOCIAL_AUTH_FAILED")
+        self.assertFalse(SocialAccount.objects.exists())
+
     def test_several_social_users_can_coexist_without_a_phone(self):
         self.sign_in()
         self.sign_in(sub="google-sub-456", email="other@example.com")

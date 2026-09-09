@@ -82,6 +82,16 @@ and use a graceful reload. Do not replace or recreate the shared Caddy container
 The Mobser edge-network ensure timer repairs its network attachment if that
 container is recreated by its owning application.
 
+This VPS currently has a stale single-file mount: the container sees an older
+Caddyfile inode. The complete host file was validated and loaded through
+`/config/shared-live.Caddyfile` without recreating Caddy. Use
+`sudo /usr/local/sbin/mobser-shared-caddy-reload` after administrative edits; it
+copies the canonical host file into the container, validates it, and reloads it.
+The ensure timer repeats this on Caddy restart; recovery can take one timer
+interval (about a minute), so this does not guarantee uninterrupted restarts.
+Canonical configuration recovery runs before Mobser network repair. Do not reload the stale
+`/etc/caddy/Caddyfile` until its owning application recreates the container.
+
 Application updates do not edit Caddy, firewall rules, network definitions, or
 host deployment scripts. Changing `deploy/compose.yml` or
 `deploy/gateway.Caddyfile` requires an administrator to install the reviewed files

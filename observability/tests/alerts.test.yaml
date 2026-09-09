@@ -1,0 +1,47 @@
+rule_files:
+  - ../alerts.yaml
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'system_filesystem_usage_bytes{device="/dev/test", mountpoint="/", state="free"}'
+        values: '10+0x10'
+      - series: 'system_filesystem_usage_bytes{device="/dev/test", mountpoint="/", state="used"}'
+        values: '90+0x10'
+      - series: 'otelcol_exporter_send_failed_spans{exporter="otlphttp/tempo"}'
+        values: '0+10x10'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: HostDiskSpaceLow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              device: /dev/test
+              mountpoint: /
+              state: free
+            exp_annotations:
+              summary: Host filesystem has less than 15% free space
+              description: Inspect Docker volume usage and shorten retention or increase disk capacity.
+      - eval_time: 6m
+        alertname: TelemetryExportFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: Telemetry export failures
+              description: Check collector and storage logs, disk capacity, and exporter queue size.
+  - interval: 1m
+    input_series:
+      - series: 'system_filesystem_usage_bytes{device="/dev/test", mountpoint="/", state="free"}'
+        values: '50+0x10'
+      - series: 'system_filesystem_usage_bytes{device="/dev/test", mountpoint="/", state="used"}'
+        values: '50+0x10'
+      - series: 'otelcol_exporter_send_failed_log_records{exporter="otlphttp/loki"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: HostDiskSpaceLow
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: TelemetryExportFailing
+        exp_alerts: []

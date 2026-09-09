@@ -26,7 +26,7 @@ def authenticate_with_social_provider(*, provider: str, token: str) -> Dict[str,
         with transaction.atomic():
             user, created = _resolve_user(identity)
 
-    tokens = issue_tokens_for_user(user)
+    tokens = issue_tokens_for_user(user, allow_phone_onboarding=True)
     tokens["created"] = created
     tokens["requires_phone"] = not user.phone
     return tokens
@@ -70,6 +70,8 @@ def _resolve_user(identity: SocialIdentity) -> Tuple[User, bool]:
 
 
 def _assert_can_sign_in(user: User) -> None:
+    if not user.is_active:
+        raise SocialAuthError("This account is inactive.")
     if user.status == UserStatus.BLOCKED:
         raise SocialAuthError("This account is blocked. Please contact support.")
     if user.status == UserStatus.DELETION_PENDING:

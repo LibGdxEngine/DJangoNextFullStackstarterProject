@@ -1,6 +1,8 @@
 """Process-local OpenTelemetry setup and a deliberately narrow export boundary."""
 
 import atexit
+import logging
+import math
 import os
 import socket
 import time
@@ -90,6 +92,17 @@ def initialize():
     global _initialized_pid
     if os.environ.get('OTEL_ENABLED', 'false').lower() != 'true' or _initialized_pid == os.getpid():
         return
+    # Mark the attempt before constructing providers, so failed initialization is
+    # not retried by a second serving entrypoint in the same process.
+    _initialized_pid = os.getpid()
+    try:
+        _initialize()
+    except Exception:
+        logging.getLogger(__name__).exception('OpenTelemetry initialization failed; telemetry disabled')
+        shutdown()
+
+
+def _initialize():
     from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.instrumentation.celery import CeleryInstrumentor
@@ -108,13 +121,20 @@ def initialize():
     from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
 
     default_ratio = '0.1' if os.environ.get('DJANGO_SETTINGS_MODULE', '').endswith('.prod') else '1'
-    ratio = float(os.environ.get('OTEL_TRACES_SAMPLER_ARG', default_ratio))
+    try:
+        ratio = float(os.environ.get('OTEL_TRACES_SAMPLER_ARG', default_ratio))
+        if not math.isfinite(ratio) or not 0 <= ratio <= 1:
+            raise ValueError
+    except (TypeError, ValueError):
+        ratio = float(default_ratio)
+        logging.getLogger(__name__).warning('Invalid trace sampling ratio; using environment default')
     resource = Resource.create({
         'service.name': os.environ.get('OTEL_SERVICE_NAME', 'backend'),
         'service.instance.id': instance_id(),
         'service.version': os.environ.get('OTEL_SERVICE_VERSION', 'local'),
     })
     tracer_provider = TracerProvider(resource=resource, sampler=ParentBased(TraceIdRatioBased(ratio)))
+    _providers.append(tracer_provider)
     tracer_provider.add_span_processor(BatchSpanProcessor(
         SafeSpanExporter(OTLPSpanExporter(timeout=2)),
         max_queue_size=2048, max_export_batch_size=256, schedule_delay_millis=5000,
@@ -129,7 +149,7 @@ def initialize():
     )
     trace.set_tracer_provider(tracer_provider)
     metrics.set_meter_provider(meter_provider)
-    _providers.extend([meter_provider, tracer_provider])
+    _providers.insert(0, meter_provider)
     # SDK startup happens before Django builds the middleware chain.
     DjangoInstrumentor().instrument(excluded_urls='health/live,health/ready,internal/observability/auth')
     CeleryInstrumentor().instrument()
@@ -143,7 +163,6 @@ def initialize():
         'process.thread.count': None,
         'cpython.gc.collections': None,
     }).instrument()
-    _initialized_pid = os.getpid()
     atexit.register(shutdown)
 
 
@@ -151,7 +170,10 @@ def shutdown(**kwargs):
     if _initialized_pid != os.getpid():
         return
     for provider in _providers[:]:
-        provider.shutdown()
+        try:
+            provider.shutdown()
+        except Exception:
+            logging.getLogger(__name__).exception('OpenTelemetry shutdown failed')
     _providers.clear()
 
 

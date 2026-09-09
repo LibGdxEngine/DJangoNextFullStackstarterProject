@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from django.core.cache import cache
-from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.utils.functional import SimpleLazyObject
 
 from apps.accounts.models import User, UserStatus
@@ -106,22 +106,32 @@ class HealthTests(SimpleTestCase):
         self.assertIn('no-store', response['Cache-Control'])
         self.assertIn('error', response.json())
 
-    @override_settings(CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}})
     def test_dependency_exceptions_are_not_returned(self):
-        with patch('apps.common.health.connection') as connection, patch('apps.common.health.cache') as cache_mock:
-            connection.vendor = 'sqlite'
-            connection.cursor.side_effect = RuntimeError('sentinel-database-password')
-            cache_mock.set.side_effect = RuntimeError('sentinel-redis-password')
-            self.assertEqual(dependency_status(), {'database': 'down', 'redis': 'down'})
+        for backend in ('locmem.LocMemCache', 'redis.RedisCache'):
+            configuration = {'default': {
+                'BACKEND': f'django.core.cache.backends.{backend}',
+                'LOCATION': 'redis://unused:6379/0',
+            }}
+            with self.subTest(backend=backend), self.settings(CACHES=configuration):
+                with patch('apps.common.health.connection') as connection, patch('apps.common.health.cache') as cache_mock, patch('redis.Redis.from_url') as redis_probe:
+                    connection.vendor = 'sqlite'
+                    connection.cursor.side_effect = RuntimeError('sentinel-database-password')
+                    cache_mock.set.side_effect = RuntimeError('sentinel-redis-password')
+                    redis_probe.side_effect = RuntimeError('sentinel-redis-password')
+                    self.assertEqual(dependency_status(), {'database': 'down', 'redis': 'down'})
 
-    @override_settings(CACHES={'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache', 'LOCATION': 'redis://redis:6379/1'}})
     def test_redis_probe_failure_is_private_and_has_connection_deadlines(self):
-        with patch('apps.common.health.connection') as connection, patch('redis.Redis.from_url') as from_url:
-            connection.vendor = 'sqlite'
-            connection.cursor.side_effect = RuntimeError('sentinel-database-password')
-            redis_probe = from_url.return_value.__enter__.return_value
-            redis_probe.ping.side_effect = RuntimeError('sentinel-redis-password')
-            self.assertEqual(dependency_status(), {'database': 'down', 'redis': 'down'})
+        configuration = {'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': 'redis://unused:6379/1',
+        }}
+        with self.settings(CACHES=configuration):
+            with patch('apps.common.health.connection') as connection, patch('redis.Redis.from_url') as from_url:
+                connection.vendor = 'sqlite'
+                connection.cursor.side_effect = RuntimeError('sentinel-database-password')
+                redis_probe = from_url.return_value.__enter__.return_value
+                redis_probe.ping.side_effect = RuntimeError('sentinel-redis-password')
+                self.assertEqual(dependency_status(), {'database': 'down', 'redis': 'down'})
         redis_probe.ping.assert_called_once_with()
         self.assertEqual(from_url.call_args.kwargs['socket_connect_timeout'], 2)
         self.assertEqual(from_url.call_args.kwargs['socket_timeout'], 2)
@@ -136,9 +146,8 @@ class HealthTests(SimpleTestCase):
         publish.assert_not_called()
         cache.delete(BEAT_HEARTBEAT_CACHE_KEY)
 
-    @override_settings(CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}})
     def test_postgres_probe_has_connection_and_statement_deadlines(self):
-        with patch('apps.common.health.connection') as connection, patch('psycopg.connect') as connect, patch('apps.common.health.cache'):
+        with patch('apps.common.health.connection') as connection, patch('psycopg.connect') as connect, patch('apps.common.health.cache'), patch('redis.Redis.from_url'):
             connection.vendor = 'postgresql'
             connection.get_connection_params.return_value = {'dbname': 'test'}
             dependency_status()
@@ -222,22 +231,48 @@ class TelemetryPrivacyTests(SimpleTestCase):
         self.assertNotEqual(valid_request_id('sentinel-secret'), 'sentinel-secret')
         uuid.UUID(valid_request_id('anything'))
 
+    def test_startup_failure_is_safe_and_not_retried(self):
+        from core import telemetry
+        with patch.dict(os.environ, {'OTEL_ENABLED': 'true'}), patch.object(telemetry, '_initialized_pid', None), patch.object(telemetry, '_initialize', side_effect=ValueError('sentinel-startup-secret')) as startup:
+            with self.assertLogs('core.telemetry', level='ERROR') as records:
+                telemetry.initialize()
+                telemetry.initialize()
+            self.assertEqual(startup.call_count, 1)
+            self.assertNotIn('sentinel-startup-secret', JsonFormatter().format(records.records[0]))
+
+    def test_invalid_sampling_ratios_use_environment_default(self):
+        code = """
+from core.telemetry import initialize, shutdown
+from opentelemetry import trace
+initialize()
+assert 'TraceIdRatioBased{1.0}' in trace.get_tracer_provider().sampler.get_description()
+shutdown()
+"""
+        for ratio in ('invalid', 'nan', 'inf', '-1', '1.1'):
+            with self.subTest(ratio=ratio):
+                result = subprocess.run(
+                    [sys.executable, '-c', code],
+                    cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+                    env={**os.environ, 'OTEL_ENABLED': 'true', 'OTEL_TRACES_SAMPLER_ARG': ratio,
+                         'OTEL_EXPORTER_OTLP_ENDPOINT': 'http://127.0.0.1:1', 'DJANGO_SETTINGS_MODULE': 'core.settings.dev'},
+                    capture_output=True, text=True, timeout=20,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_startup_is_idempotent_and_collector_outage_does_not_break_requests(self):
         # Providers are process-wide and cannot be reset safely by ordinary tests.
         code = '''
 from core.telemetry import initialize, shutdown
-from unittest.mock import patch
 from opentelemetry import trace
-with patch('opentelemetry.exporter.otlp.proto.http.metric_exporter.OTLPMetricExporter.export'), patch('opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter.export'):
-    initialize()
-    provider = trace.get_tracer_provider()
-    initialize()
-    assert trace.get_tracer_provider() is provider
-    import django
-    django.setup()
-    from django.test import Client
-    assert Client().get('/api/hello/').status_code == 200
-    shutdown()
+initialize()
+provider = trace.get_tracer_provider()
+initialize()
+assert trace.get_tracer_provider() is provider
+import django
+django.setup()
+from django.test import Client
+assert Client().get('/api/hello/').status_code == 200
+shutdown()
 '''
-        result = subprocess.run([sys.executable, '-c', code], cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))) , env={**os.environ, 'OTEL_ENABLED': 'true', 'DJANGO_SETTINGS_MODULE': 'core.settings.dev'}, capture_output=True, text=True, timeout=30)
+        result = subprocess.run([sys.executable, '-c', code], cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))) , env={**os.environ, 'OTEL_ENABLED': 'true', 'OTEL_EXPORTER_OTLP_ENDPOINT': 'http://127.0.0.1:1', 'DJANGO_SETTINGS_MODULE': 'core.settings.dev'}, capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -68,7 +68,46 @@ Ensure you have Docker and Docker Compose installed:
 *   [Docker Engine](https://docs.docker.com/engine/install/)
 *   [Docker Compose](https://docs.docker.com/compose/install/)
 
-### 2. Run the Development Server
+### 2. Initialize a New SaaS
+
+In a fresh clone or copy, run `make init` (Python 3.10+ and Make). On systems without
+Make, use `python3 scripts/init_project.py`. The initializer asks for a project name,
+production domain, Python package, and database name, then previews the files it
+will change before applying them.
+
+```text
+Project name: Acme
+Domain: acme.com
+Python package [acme]: acme
+Database name [acme]: acme
+```
+
+For a scripted preview, and then application:
+
+```bash
+python3 scripts/init_project.py --name Acme --domain acme.com --package acme --database acme --dry-run
+python3 scripts/init_project.py --name Acme --domain acme.com --package acme --database acme --yes
+```
+
+Use `--slug acme-tools` to override the derived slug or `--package core` to retain
+the starter's Python package. The command renames project imports, updates branding,
+package metadata and monitoring, and creates ignored root `.env` and `.env.prod`
+files with independent secrets. Review these files and supply any optional integration
+credentials. Development stays on localhost; the supplied domain configures production.
+The command does not install dependencies or start services.
+
+Run it before modifying the template or creating environment files. It refuses
+conflicting target files and existing environment files; it never overwrites deployment
+credentials. Git is optional; without it, only content and collision checks are available.
+A successful run writes a non-secret `.bootstrap.json`. Repeating the command preserves
+the files and secrets; use another fresh copy for a different product.
+
+This initializes a fresh database and Compose project. It does not rename an existing
+database or migrate old volumes. Different project names separate resources, but running
+multiple stacks on one host also requires distinct published ports and observability subnets.
+See [bootstrap recovery and validation](docs/bootstrap.md) for failure recovery and checks.
+
+### 3. Run the Development Server
 From the root of the project, execute:
 ```bash
 make up
@@ -76,6 +115,7 @@ make up
 Or to build and launch from scratch:
 ```bash
 make build && make up
+make migrate
 ```
 This starts PostgreSQL (`db`), Redis (`redis`), Django (`backend`), Celery (`celery_worker`), Next.js (`frontend`), and Caddy (`caddy`) in the background.
 
@@ -84,14 +124,14 @@ To watch all logs:
 make logs
 ```
 
-### 3. Verify
+### 4. Verify
 Open your browser and navigate to:
 *   **Web Dashboard**: [http://localhost](http://localhost)
 *   **Interactive API Docs (Swagger)**: [http://localhost/api/docs/](http://localhost/api/docs/)
 *   **Django API Status**: [http://localhost/api/status/](http://localhost/api/status/)
 *   **Django Admin Console**: [http://localhost/admin/](http://localhost/admin/)
 
-### 4. Create a Superuser
+### 5. Create a Superuser
 To create a superuser for dashboard authentication, run:
 ```bash
 make createsuperuser

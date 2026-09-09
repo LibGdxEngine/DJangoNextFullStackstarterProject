@@ -62,6 +62,11 @@ processors:
       - context: log
         statements:
           - 'set(cache["record"], ParseJSON(body)) where IsString(body) and IsMatch(body, "^\\s*\\{")'
+          - 'delete_key(cache, "record") where resource.attributes["service.name"] == "frontend" and (cache["record"]["service"] != "mobser-frontend" or cache["record"]["timestamp"] == nil or cache["record"]["severity"] == nil or cache["record"]["message"] == nil or not IsMatch(cache["record"]["message"], "^(server[.]request[.]error|auth[.]error|auth[.]warning|telemetry[.]started|telemetry[.]failed)$"))'
+          - 'set(body, "Next.js runtime log (details retained only in rotated local container logs)") where resource.attributes["service.name"] == "frontend" and cache["record"] == nil'
+          - 'delete_key(cache, "record") where IsMatch(resource.attributes["service.name"], "^(backend|celery_worker|celery_beat)$") and (cache["record"]["service"] == nil or not IsMatch(cache["record"]["service"], "^mobser-(backend|worker|beat)$") or cache["record"]["timestamp"] == nil or cache["record"]["severity"] == nil or cache["record"]["logger"] == nil or cache["record"]["service_instance_id"] == nil)'
+          - 'set(body, "Python runtime log (details retained only in rotated local container logs)") where IsMatch(resource.attributes["service.name"], "^(backend|celery_worker|celery_beat)$") and cache["record"] == nil'
+          - 'set(resource.attributes["service.instance.id"], cache["record"]["instance_id"]) where cache["record"]["instance_id"] != nil'
           - 'set(resource.attributes["service.name"], cache["record"]["service"]) where cache["record"]["service"] != nil'
           - 'set(resource.attributes["service.instance.id"], cache["record"]["service_instance_id"]) where cache["record"]["service_instance_id"] != nil'
           - 'set(resource.attributes["service.version"], cache["record"]["release"]) where cache["record"]["release"] != nil'
@@ -72,7 +77,7 @@ processors:
           - 'set(attributes["task_name"], cache["record"]["task_name"]) where cache["record"]["task_name"] != nil'
           - 'set(severity_text, cache["record"]["severity"]) where cache["record"]["severity"] != nil'
           - 'set(severity_text, cache["record"]["level"]) where cache["record"]["level"] != nil'
-          - 'keep_keys(cache["record"], ["timestamp", "severity", "level", "message", "msg", "logger", "service", "environment", "release", "request_id", "trace_id", "span_id", "task_id", "task_name", "exception_type", "exception_frames", "status", "duration", "size", "request", "ts", "service_instance_id", "http_method", "http_route", "http_status", "duration_seconds"]) where cache["record"] != nil'
+          - 'keep_keys(cache["record"], ["timestamp", "severity", "level", "message", "msg", "logger", "service", "environment", "release", "request_id", "trace_id", "span_id", "task_id", "task_name", "exception_type", "exception_frames", "status", "duration", "size", "request", "ts", "service_instance_id", "http_method", "http_route", "http_status", "duration_seconds", "instance_id", "method", "route"]) where cache["record"] != nil'
           - 'keep_keys(cache["record"]["request"], ["method", "uri", "host", "proto"]) where IsMap(cache["record"]["request"])'
           - 'replace_pattern(cache["record"]["message"], "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "[redacted]") where IsString(cache["record"]["message"])'
           - 'replace_pattern(cache["record"]["message"], "(?i)(password|token|secret|authorization|cookie|otp)[=: ]+[^\\s,;]+", "[redacted]") where IsString(cache["record"]["message"])'
@@ -89,6 +94,7 @@ processors:
     trace_statements:
       - context: span
         statements:
+          - 'set(status.message, "")'
           - 'delete_matching_keys(attributes, "(?i).*(password|token|secret|authorization|cookie|body|query|statement|parameter|command_line|args|kwargs).*")'
           - 'replace_pattern(attributes["http.url"], "\\?.*", "") where attributes["http.url"] != nil'
           - 'replace_pattern(attributes["url.full"], "\\?.*", "") where attributes["url.full"] != nil'

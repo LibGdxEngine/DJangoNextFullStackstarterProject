@@ -100,14 +100,34 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
+  production-smoke:
+    name: Production image smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build production backend
+        run: docker build -f backend/Dockerfile.prod -t mobser-ci-backend:check backend
+      - name: Build production frontend
+        run: docker build -f frontend/Dockerfile.prod --build-arg NEXT_PUBLIC_API_URL=/api -t mobser-ci-frontend:check frontend
+      - name: Exercise production containers
+        env:
+          BACKEND_IMAGE: mobser-ci-backend:check
+          FRONTEND_IMAGE: mobser-ci-frontend:check
+          CI_SMOKE_PULL: 'false'
+        run: bash scripts/ci-smoke.sh
+
   gate:
     name: CI gate
     runs-on: ubuntu-24.04
-    needs: [backend, frontend]
+    needs: [backend, frontend, production-smoke]
     if: always()
     steps:
       - name: Require every check to succeed
         env:
           BACKEND_RESULT: ${{ needs.backend.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
-        run: test "$BACKEND_RESULT" = success && test "$FRONTEND_RESULT" = success
+          SMOKE_RESULT: ${{ needs.production-smoke.result }}
+        run: test "$BACKEND_RESULT" = success && test "$FRONTEND_RESULT" = success && test "$SMOKE_RESULT" = success

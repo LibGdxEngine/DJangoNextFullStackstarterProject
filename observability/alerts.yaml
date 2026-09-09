@@ -10,7 +10,7 @@ groups:
           summary: 'Telemetry scrape failed for {{ $labels.job }}'
           description: 'Check the service container, its memory limit, and internal networking.'
       - alert: TelemetryExportFailing
-        expr: (sum(rate(otelcol_exporter_send_failed_spans_total[5m])) or vector(0)) + (sum(rate(otelcol_exporter_send_failed_log_records_total[5m])) or vector(0)) > 0
+        expr: (sum(rate(otelcol_exporter_send_failed_spans[5m])) or vector(0)) + (sum(rate(otelcol_exporter_send_failed_log_records[5m])) or vector(0)) > 0
         for: 5m
         labels:
           severity: warning
@@ -38,3 +38,11 @@ groups:
           severity: warning
         annotations:
           summary: 'A background task failed'
+      - alert: TelemetryQueueFilling
+        expr: otelcol_exporter_queue_size / otelcol_exporter_queue_capacity > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Telemetry export queue is more than 80% full'
+          description: 'Check storage health before bounded collector queues discard telemetry.'

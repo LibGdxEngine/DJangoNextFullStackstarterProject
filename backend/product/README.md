@@ -13,6 +13,10 @@ This directory is reserved for **domain-specific product modules and business lo
 
 ## Creating a new product app
 
+Initialize a fresh clone with `make init` before adding product modules. The
+initializer updates the package paths below to the selected Python package while
+retaining the shared `apps` and product module namespaces.
+
 1. Create your app folder: `backend/product/<feature_name>/`
 2. Define `apps.py` with `name = 'product.<feature_name>'` and `label = '<feature_name>'`.
 3. Register `'product.<feature_name>.apps.<FeatureName>Config'` in `INSTALLED_APPS` inside `backend/core/settings/base.py`.

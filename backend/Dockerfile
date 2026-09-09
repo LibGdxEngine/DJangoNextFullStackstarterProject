@@ -27,7 +27,7 @@ RUN chmod +x /app/entrypoint.sh
 COPY . /app/
 
 # Set entrypoint
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["sh", "/app/entrypoint.sh"]
 
 # Expose Django port
 EXPOSE 8000

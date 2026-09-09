@@ -5,6 +5,7 @@ from .verification import (
     VerificationChannel,
 )
 from .social import SocialAccount, SocialProvider
+from .session import AuthSession
 
 __all__ = [
     "User",
@@ -14,4 +15,5 @@ __all__ = [
     "VerificationChannel",
     "SocialAccount",
     "SocialProvider",
+    "AuthSession",
 ]

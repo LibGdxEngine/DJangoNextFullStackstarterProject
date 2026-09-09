@@ -1,5 +1,7 @@
 .PHONY: help up down build restart ps logs logs-backend logs-frontend logs-worker logs-beat shell backend-shell frontend-shell beat-shell makemigrations migrate createsuperuser seed check test-backend test-frontend api-generate api-check clean prod-up prod-down prod-build
 
+.PHONY: init test-init
+PYTHON ?= python3
 PROD_ENV_FILE ?= .env.prod
 PROD_COMPOSE = docker compose $(if $(strip $(PROD_ENV_FILE)),--env-file $(PROD_ENV_FILE)) -f docker-compose.prod.yml
 
@@ -9,6 +11,10 @@ help:
 	@echo "                      Mobser Modular Platform                          "
 	@echo "======================================================================="
 	@echo "Usage: make <target>"
+	@echo ""
+	@echo "Bootstrap a fresh clone:"
+	@echo "  init              - Set project identity and generate local environment files"
+	@echo "  test-init         - Test the initializer in temporary copies (Python only)"
 	@echo ""
 	@echo "Development Stack:"
 	@echo "  up                - Start development containers in background"
@@ -52,6 +58,13 @@ help:
 	@echo "Maintenance:"
 	@echo "  clean             - Stop containers, remove volumes and temporary caches"
 	@echo "======================================================================="
+
+# Initialize before installing application dependencies or starting containers.
+init:
+	$(PYTHON) scripts/init_project.py
+
+test-init:
+	$(PYTHON) -m unittest discover -s scripts/tests -p 'test_init_project.py' -v
 
 # Development Commands
 up:

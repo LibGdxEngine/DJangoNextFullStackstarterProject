@@ -75,6 +75,14 @@ mismatched project labels are rejected. A custom daemon data root needs the
 corresponding log-directory override. Docker Desktop and rootless Docker can
 require host-specific mount and permission changes.
 
+Set `DOCKER_LOG_ROOT` to the daemon's `containers` directory when it differs from
+`/var/lib/docker/containers`. Production Grafana uses `NEXTAUTH_URL` as its public
+origin; `OBSERVABILITY_ROOT_URL` and `OBSERVABILITY_ROOT_ORIGIN` override it.
+The isolated Caddy/Grafana proxy network defaults to `172.30.240.0/29` in
+development and `172.30.241.0/29` in production. If either conflicts with an
+existing network, change `OBSERVABILITY_PROXY_SUBNET`, `OBSERVABILITY_CADDY_IP`,
+and `OBSERVABILITY_GRAFANA_IP` together; the IPs must belong to that subnet.
+
 Docker alone manages log rotation. Recreate old containers to apply new logging
 options; a restart does not change their logging driver settings. Persistent
 volumes retain logs, traces, metrics, Grafana state, and collector read offsets.
