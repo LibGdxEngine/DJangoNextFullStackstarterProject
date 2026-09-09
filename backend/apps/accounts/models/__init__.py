@@ -4,6 +4,7 @@ from .verification import (
     VerificationPurpose,
     VerificationChannel,
 )
+from .social import SocialAccount, SocialProvider
 
 __all__ = [
     "User",
@@ -11,4 +12,6 @@ __all__ = [
     "VerificationChallenge",
     "VerificationPurpose",
     "VerificationChannel",
+    "SocialAccount",
+    "SocialProvider",
 ]

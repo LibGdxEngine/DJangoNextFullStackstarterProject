@@ -20,6 +20,7 @@ from .profile import (
     EmailChangeSerializer,
     AccountDeletionInitiateSerializer,
 )
+from .social import SocialAuthSerializer
 
 __all__ = [
     "SignupSerializer",
@@ -38,4 +39,5 @@ __all__ = [
     "PhoneChangeConfirmSerializer",
     "EmailChangeSerializer",
     "AccountDeletionInitiateSerializer",
+    "SocialAuthSerializer",
 ]

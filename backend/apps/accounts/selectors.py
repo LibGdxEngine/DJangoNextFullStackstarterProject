@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional
-from apps.accounts.models import User, VerificationChallenge
+from apps.accounts.models import SocialAccount, User, VerificationChallenge
 from apps.accounts.phone import normalize_phone
 
 
@@ -52,3 +52,13 @@ def get_challenge_by_id(challenge_id: str | uuid.UUID) -> Optional[VerificationC
         return VerificationChallenge.objects.select_related("user").get(id=challenge_id)
     except (VerificationChallenge.DoesNotExist, ValueError):
         return None
+
+
+def get_social_account(provider: str, provider_user_id: str) -> Optional[SocialAccount]:
+    if not provider or not provider_user_id:
+        return None
+    return (
+        SocialAccount.objects.select_related("user")
+        .filter(provider=provider, provider_user_id=provider_user_id)
+        .first()
+    )

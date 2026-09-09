@@ -48,6 +48,7 @@ services:
       - DB_PASSWORD=postgres
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
     depends_on:
       db:
         condition: service_healthy
@@ -94,6 +95,8 @@ services:
       - NEXTAUTH_SECRET=a-secure-nextauth-secret-key-change-this-in-dev
       - NEXTAUTH_URL=http://localhost
       - BACKEND_API_URL=http://backend:8000/api
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
     ports:
       - "3000:3000"
     depends_on:

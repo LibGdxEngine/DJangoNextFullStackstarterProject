@@ -17,6 +17,10 @@ from .profile import (
     PhoneChangeConfirmView,
     EmailChangeView,
 )
+from .social import (
+    SocialAuthView,
+    SocialProvidersView,
+)
 
 __all__ = [
     "SignupView",
@@ -32,4 +36,6 @@ __all__ = [
     "PhoneChangeInitiateView",
     "PhoneChangeConfirmView",
     "EmailChangeView",
+    "SocialAuthView",
+    "SocialProvidersView",
 ]

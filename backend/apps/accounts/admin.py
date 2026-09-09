@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, VerificationChallenge
+from .models import SocialAccount, User, VerificationChallenge
 
 
 @admin.register(User)
@@ -79,3 +79,11 @@ class VerificationChallengeAdmin(admin.ModelAdmin):
     list_filter = ("purpose", "channel", "created_at")
     search_fields = ("id", "destination", "user__email", "user__phone")
     readonly_fields = ("id", "code_digest", "created_at", "last_sent_at")
+
+
+@admin.register(SocialAccount)
+class SocialAccountAdmin(admin.ModelAdmin):
+    list_display = ("provider", "email", "user", "provider_user_id", "last_login_at", "created_at")
+    list_filter = ("provider", "created_at")
+    search_fields = ("email", "provider_user_id", "user__email")
+    readonly_fields = ("provider", "provider_user_id", "created_at", "last_login_at")

@@ -28,6 +28,13 @@ from .deletion import (
     initiate_account_deletion,
     confirm_account_deletion,
 )
+from .social import (
+    authenticate_with_social_provider,
+    get_enabled_providers,
+    ProviderNotConfiguredError,
+    SocialAuthError,
+    SocialIdentity,
+)
 
 __all__ = [
     "create_verification_challenge",
@@ -50,4 +57,9 @@ __all__ = [
     "change_email",
     "initiate_account_deletion",
     "confirm_account_deletion",
+    "authenticate_with_social_provider",
+    "get_enabled_providers",
+    "ProviderNotConfiguredError",
+    "SocialAuthError",
+    "SocialIdentity",
 ]

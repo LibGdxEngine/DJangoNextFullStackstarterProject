@@ -34,6 +34,25 @@ class CustomUserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
+    def create_social_user(self, email, **extra_fields):
+        """
+        Creates a user from an already-verified social identity: no phone, no usable password.
+        """
+        if not email:
+            raise ValueError("The Email field must be set.")
+
+        extra_fields.setdefault("is_staff", False)
+        extra_fields.setdefault("is_superuser", False)
+
+        user = self.model(
+            email=self.normalize_email(email).strip().lower(),
+            phone=None,
+            **extra_fields,
+        )
+        user.set_unusable_password()
+        user.save(using=self._db)
+        return user
+
     def create_superuser(self, email, phone, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)

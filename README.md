@@ -98,19 +98,72 @@ make createsuperuser
 
 ---
 
+## Google Sign-In (Optional)
+
+Google sign-in ships wired end-to-end and stays hidden until credentials are supplied.
+No code changes are needed to switch it on.
+
+1.  **Create an OAuth client**: In the [Google Cloud Console credentials page](https://console.cloud.google.com/apis/credentials), create an *OAuth 2.0 Client ID* of type **Web application**.
+    *   Authorized JavaScript origin: `http://localhost` (production: `https://yourdomain.com`)
+    *   Authorized redirect URI: `http://localhost/api/auth/callback/google`
+
+    The redirect URI must always be `<NEXTAUTH_URL>/api/auth/callback/google`.
+
+2.  **Add the credentials to your environment**:
+    *   Development: put them in a `.env` file at the repository root, which Docker Compose loads automatically.
+    *   Production: add them to `.env.prod` alongside the other secrets.
+    ```env
+    GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+    GOOGLE_CLIENT_SECRET=your-client-secret
+    ```
+
+3.  **Restart the stack** with `make restart` (or `make prod-up`). A "Continue with Google" button now appears on the sign-in form.
+
+**How it works**: NextAuth performs the OAuth handshake, then posts Google's ID token to
+`POST /api/v1/auth/social/google/`. Django verifies the token signature, audience and expiry
+against Google's public keys, requires a verified email, resolves or creates the user, and
+returns the same access/refresh pair as password login — so the backend remains the only
+issuer of application tokens.
+
+Google accounts have no phone number, so users created this way are activated on their
+verified email and the login response carries `requires_phone: true`. An account that already
+signed up with a password is linked to the same user when the Google email matches.
+
+Adding another provider means registering it in `apps/accounts/services/social/registry.py`
+and adding one entry to `PROVIDER_META` in `SocialAuthButtons.tsx`.
+
+---
+
 ## Deployment (Production)
 
 To spin up the production environment:
 
-1.  **Configure environment variables**: Copy or rename `.env.prod` and configure your credentials, database password, secret keys, domain name, and trusted origins.
+1.  **Create and configure the production environment file**:
+    ```bash
+    cp .env.prod.example .env.prod
+    ```
+    In PowerShell:
+    ```powershell
+    Copy-Item .env.prod.example .env.prod
+    ```
+    Replace every placeholder in `.env.prod` with production values. This file is ignored by Git and must not be committed.
 2.  **Run the production stack**:
     ```bash
     make prod-build && make prod-up
     ```
 3.  **Logs verification**:
     ```bash
-    docker compose -f docker-compose.prod.yml logs -f
+    docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f
     ```
+
+### Deploying with injected secrets
+
+CI/CD and managed hosting platforms that inject all required environment variables can omit the local file:
+```bash
+make PROD_ENV_FILE= prod-build
+make PROD_ENV_FILE= prod-up
+```
+When `.env.prod` is used, deployment-provided environment variables take precedence over values in the file.
 
 ### Production Best Practices Implemented:
 *   **Security Policies**: Django is run under a non-root system user (`django`) and Next.js under a non-root node user (`nextjs`).

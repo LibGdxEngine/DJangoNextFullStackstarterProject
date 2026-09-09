@@ -26,7 +26,9 @@ class User(AbstractUser):
     username = None
 
     email = models.EmailField()
-    phone = models.CharField(max_length=20)
+
+    # Nullable: social sign-in providers do not supply a phone number.
+    phone = models.CharField(max_length=20, null=True, blank=True)
 
     phone_verified_at = models.DateTimeField(
         null=True,

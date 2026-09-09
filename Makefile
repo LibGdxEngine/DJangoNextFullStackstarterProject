@@ -1,5 +1,8 @@
 .PHONY: help up down build restart ps logs logs-backend logs-frontend shell backend-shell frontend-shell makemigrations migrate createsuperuser seed check test-backend test-frontend clean prod-up prod-down prod-build
 
+PROD_ENV_FILE ?= .env.prod
+PROD_COMPOSE = docker compose $(if $(strip $(PROD_ENV_FILE)),--env-file $(PROD_ENV_FILE)) -f docker-compose.prod.yml
+
 # Default target: show help
 help:
 	@echo "======================================================================="
@@ -34,9 +37,10 @@ help:
 	@echo "  test-frontend     - Run Next.js linting and type checks"
 	@echo ""
 	@echo "Production Stack:"
-	@echo "  prod-up           - Start production containers in background"
-	@echo "  prod-down         - Stop and remove production containers"
-	@echo "  prod-build        - Build or rebuild production containers"
+	@echo "  prod-up           - Start production containers in background (.env.prod by default)"
+	@echo "  prod-down         - Stop and remove production containers (.env.prod by default)"
+	@echo "  prod-build        - Build or rebuild production containers (.env.prod by default)"
+	@echo "  PROD_ENV_FILE=    - Use deployment-injected environment variables instead"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  clean             - Stop containers, remove volumes and temporary caches"
@@ -102,13 +106,13 @@ test-frontend:
 
 # Production Commands
 prod-up:
-	docker compose -f docker-compose.prod.yml up -d
+	$(PROD_COMPOSE) up -d
 
 prod-down:
-	docker compose -f docker-compose.prod.yml down
+	$(PROD_COMPOSE) down
 
 prod-build:
-	docker compose -f docker-compose.prod.yml build
+	$(PROD_COMPOSE) build
 
 # Clean caching and volumes
 clean:

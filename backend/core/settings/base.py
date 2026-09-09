@@ -174,6 +174,17 @@ HIREAGENTS_CONNECTIONS = {
     },
 }
 
+# ------------------------------------------------------------------------------
+# Social Sign-In Providers
+# ------------------------------------------------------------------------------
+# A provider is enabled only when its client_id is set, so dropping the credentials
+# into the environment is all that is needed to turn the flow on.
+SOCIAL_AUTH_PROVIDERS = {
+    'google': {
+        'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
+    },
+}
+
 # Celery configurations
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')

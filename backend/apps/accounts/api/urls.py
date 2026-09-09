@@ -14,6 +14,8 @@ from apps.accounts.api.views import (
     PhoneChangeInitiateView,
     PhoneChangeConfirmView,
     EmailChangeView,
+    SocialAuthView,
+    SocialProvidersView,
 )
 
 app_name = "auth"
@@ -24,6 +26,10 @@ urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+
+    # Social Sign-In
+    path("social/providers/", SocialProvidersView.as_view(), name="social_providers"),
+    path("social/<str:provider>/", SocialAuthView.as_view(), name="social_auth"),
 
     # OTP Verification
     path("verification/confirm/", VerificationConfirmView.as_view(), name="verification_confirm"),
