@@ -10,12 +10,12 @@ afterEach(cleanup);
 
 it("consumes retry redirects once without dropping other query parameters or hashes", async () => {
   vi.mocked(getProviders).mockResolvedValue({ google: { id: "google", name: "Google", type: "oauth", signinUrl: "/signin", callbackUrl: "/callback" } } as Awaited<ReturnType<typeof getProviders>>);
-  window.history.replaceState(null, "", "/?keep=yes&error=MOBSER_RETRY_429_30#form");
+  window.history.replaceState(null, "", "/login?keep=yes&error=MOBSER_RETRY_429_30#form");
   const view = render(<SocialAuthButtons />);
-  await screen.findByRole("button", { name: "Try again in 30s" });
+  await screen.findByRole("button", { name: "حاول مجددًا خلال 30 ث" });
   expect(window.location.search).toBe("?keep=yes");
   expect(window.location.hash).toBe("#form");
   view.unmount();
   render(<SocialAuthButtons />);
-  await waitFor(() => expect((screen.getByRole("button", { name: "Continue with Google" }) as HTMLButtonElement).disabled).toBe(false));
+  await waitFor(() => expect((screen.getByRole("button", { name: "المتابعة باستخدام Google" }) as HTMLButtonElement).disabled).toBe(false));
 });

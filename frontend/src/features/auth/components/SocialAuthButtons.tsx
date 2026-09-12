@@ -40,10 +40,10 @@ function GoogleIcon() {
 
 // Adding another provider is one entry here plus its credentials in the environment.
 const PROVIDER_META: Record<string, ProviderMeta> = {
-  google: { label: "Continue with Google", icon: <GoogleIcon /> },
+  google: { label: "المتابعة باستخدام Google", icon: <GoogleIcon /> },
 };
 
-export function SocialAuthButtons({ callbackUrl = "/" }: SocialAuthButtonsProps) {
+export function SocialAuthButtons({ callbackUrl = "/account" }: SocialAuthButtonsProps) {
   const [providerIds, setProviderIds] = useState<string[]>([]);
   const [pendingProvider, setPendingProvider] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export function SocialAuthButtons({ callbackUrl = "/" }: SocialAuthButtonsProps)
           url.searchParams.delete("error");
           window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
         }
-        setErrorMessage(retry ? (retry.status === 429 ? "Too many sign-in attempts. Please wait and try again." : "Sign-in is temporarily unavailable. Please try again shortly.") : "Social sign-in failed. Please try again or use your email and password.");
+        setErrorMessage(retry ? (retry.status === 429 ? "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى." : "تسجيل الدخول غير متاح مؤقتًا. حاول بعد قليل.") : "تعذر تسجيل الدخول عبر Google. حاول مرة أخرى أو استخدم البريد الإلكتروني وكلمة المرور.");
       }
     });
 
@@ -78,15 +78,15 @@ export function SocialAuthButtons({ callbackUrl = "/" }: SocialAuthButtonsProps)
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-zinc-800" />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-          or continue with
+        <span className="h-px flex-1 bg-slate-200" />
+        <span className="text-xs font-semibold text-slate-500">
+          أو تابع باستخدام
         </span>
-        <span className="h-px flex-1 bg-zinc-800" />
+        <span className="h-px flex-1 bg-slate-200" />
       </div>
 
       {errorMessage && (
-        <div className="p-3 text-xs rounded-lg border bg-red-500/10 border-red-500/20 text-red-400">
+        <div className="p-3 text-xs rounded-lg border bg-red-50 border-red-200 text-red-700">
           {errorMessage}
         </div>
       )}
@@ -106,8 +106,8 @@ export function SocialAuthButtons({ callbackUrl = "/" }: SocialAuthButtonsProps)
               signIn(id, { callbackUrl });
             }}
           >
-            {pendingProvider !== id && <span className="mr-2">{PROVIDER_META[id].icon}</span>}
-            {remaining > 0 ? `Try again in ${remaining}s` : PROVIDER_META[id].label}
+            {pendingProvider !== id && <span className="ml-2">{PROVIDER_META[id].icon}</span>}
+            {remaining > 0 ? `حاول مجددًا خلال ${remaining} ث` : PROVIDER_META[id].label}
           </Button>
         ))}
       </div>

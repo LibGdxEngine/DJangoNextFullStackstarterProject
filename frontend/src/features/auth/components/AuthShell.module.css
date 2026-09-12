@@ -1,0 +1,8 @@
+.page { min-height: 100vh; padding: 3rem 1.25rem; background: radial-gradient(circle at 20% 10%, #dcefeb 0, transparent 30%), #faf7ef; color: #102a43; }
+.brand { display: block; width: max-content; margin: 0 auto 2rem; color: #0f766e; font-size: 1.75rem; font-weight: 900; text-decoration: none; }
+.card { width: min(100%, 31rem); margin: 0 auto; padding: clamp(1.5rem, 5vw, 2.5rem); border: 1px solid #d8ded8; border-radius: 1.5rem; background: rgba(255, 255, 255, .92); box-shadow: 0 24px 70px rgba(16, 42, 67, .1); }
+.header { margin-bottom: 1.5rem; text-align: center; }
+.header h1 { margin: 0 0 .5rem; font-size: 1.8rem; font-weight: 850; color: #102a43; }
+.header p { margin: 0; color: #526777; line-height: 1.8; }
+.footer { margin-top: 1.5rem; border-top: 1px solid #e5e9e5; padding-top: 1.25rem; text-align: center; color: #526777; font-size: .9rem; }
+.footer a { color: #0f766e; font-weight: 750; text-decoration: underline; text-underline-offset: 4px; }

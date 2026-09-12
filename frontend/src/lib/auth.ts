@@ -82,7 +82,7 @@ return {
       } catch (error) {
         if (error instanceof ApiError) {
           const retry = encodeAuthRetry(error.status, error.retryAfterSeconds);
-          if (retry) return `/?error=${retry}`;
+          if (retry) return `/login?error=${retry}`;
         }
         return false;
       }
@@ -139,7 +139,7 @@ return {
     },
   },
   pages: {
-    signIn: "/",
+    signIn: "/login",
   },
   session: {
     strategy: "jwt",

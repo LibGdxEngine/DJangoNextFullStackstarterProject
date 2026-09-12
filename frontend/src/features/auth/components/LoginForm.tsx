@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { SocialAuthButtons } from "@/features/auth/components/SocialAuthButtons";
@@ -9,6 +10,11 @@ import { useRetryCountdown } from "@/hooks/useRetryCountdown";
 
 interface LoginFormProps {
   onSuccess?: () => void;
+}
+
+function arabicError(error: string) {
+  if (error.includes("CredentialsSignin") || error.includes("INVALID_CREDENTIALS")) return "البريد الإلكتروني أو رقم الهاتف أو كلمة المرور غير صحيحة.";
+  return "تعذر تسجيل الدخول. تحقق من بياناتك وحاول مرة أخرى.";
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
@@ -37,12 +43,12 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         const retry = decodeAuthRetry(res.error);
         if (retry) {
           wait(retry.seconds);
-          setErrorMessage(retry.status === 429 ? "Too many attempts. Please wait before trying again." : "Sign-in is temporarily unavailable. Please try again shortly.");
+          setErrorMessage(retry.status === 429 ? "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى." : "تسجيل الدخول غير متاح مؤقتًا. حاول بعد قليل.");
         } else if (res.error.includes("PHONE_VERIFICATION_REQUIRED")) {
           setIsVerificationRequired(true);
-          setErrorMessage("WhatsApp phone verification is required before logging in.");
+          setErrorMessage("يجب تأكيد رقم الهاتف عبر واتساب قبل تسجيل الدخول.");
         } else {
-          setErrorMessage(res.error || "Authentication failed. Check credentials.");
+          setErrorMessage(arabicError(res.error));
         }
       } else if (res?.ok) {
         setIdentifier("");
@@ -50,7 +56,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         if (onSuccess) onSuccess();
       }
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "An unexpected error occurred during login.");
+      setErrorMessage(err instanceof Error ? arabicError(err.message) : "حدث خطأ غير متوقع أثناء تسجيل الدخول.");
     } finally {
       setIsLoading(false);
     }
@@ -62,52 +68,58 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         {errorMessage && (
           <div className={`p-3 text-xs rounded-lg border ${
             isVerificationRequired 
-              ? "bg-amber-500/10 border-amber-500/20 text-amber-300"
-              : "bg-red-500/10 border-red-500/20 text-red-400"
+              ? "bg-amber-50 border-amber-200 text-amber-800"
+              : "bg-red-50 border-red-200 text-red-700"
           }`}>
             {errorMessage}
             {isVerificationRequired && (
-              <p className="mt-1 font-medium underline cursor-pointer">
-                Click here to confirm your WhatsApp verification code.
-              </p>
+              <Link href="/register" className="mt-1 block font-medium underline underline-offset-2">
+                أكمل تأكيد رقمك من صفحة إنشاء الحساب.
+              </Link>
             )}
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
-            Email or Phone
+          <label htmlFor="login-identifier" className="block text-sm font-semibold text-slate-800 mb-1.5">
+            البريد الإلكتروني أو رقم الهاتف
           </label>
           <input
+            id="login-identifier"
             type="text"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             required
-            placeholder="ahmed@example.com or +201039811349"
-            className="w-full px-3 py-2 text-sm rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            autoComplete="username"
+            placeholder="ahmed@example.com أو +201039811349"
+            dir="ltr"
+            className="w-full px-3 py-2.5 text-sm rounded-lg bg-white border border-slate-300 text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-teal-600"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
-            Password
+          <label htmlFor="login-password" className="block text-sm font-semibold text-slate-800 mb-1.5">
+            كلمة المرور
           </label>
           <input
+            id="login-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="current-password"
+            dir="ltr"
             placeholder="••••••••"
-            className="w-full px-3 py-2 text-sm rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            className="w-full px-3 py-2.5 text-sm rounded-lg bg-white border border-slate-300 text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-teal-600"
           />
         </div>
 
         <Button type="submit" variant="primary" className="w-full" isLoading={isLoading} disabled={remaining > 0}>
-          {remaining > 0 ? `Try again in ${remaining}s` : "Sign In with Email or Phone"}
+          {remaining > 0 ? `حاول مجددًا خلال ${remaining} ث` : "تسجيل الدخول"}
         </Button>
 
-        <p className="text-xs text-zinc-500 text-center">
-          Tip: Identified by canonical email or E.164 phone. Authenticated via password.
+        <p className="text-xs text-slate-600 text-center">
+          يمكنك استخدام بريدك الإلكتروني أو رقم هاتفك بصيغة دولية.
         </p>
       </form>
 

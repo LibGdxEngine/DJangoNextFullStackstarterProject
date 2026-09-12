@@ -7,6 +7,9 @@ export { ApiError } from "./client";
 
 export type TokenUser = components["schemas"]["TokenUser"];
 export type AuthTokens = components["schemas"]["AuthTokens"];
+export type SignupRequest = components["schemas"]["SignupRequest"];
+export type VerificationConfirmRequest = components["schemas"]["VerificationConfirmRequest"];
+export type VerificationChallenge = components["schemas"]["VerificationChallengeResponse"];
 
 export const authApi = {
   login: (body: components["schemas"]["LoginRequest"], identity?: ClientIdentity) =>
