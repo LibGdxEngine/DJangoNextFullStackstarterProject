@@ -213,6 +213,32 @@ class RedisAdmissionTests(SimpleTestCase):
             self.redis_connection.delete(*keys)
         self.settings_override.disable()
 
+    def test_signup_form_corrections_allow_ten_attempts_then_short_retry(self):
+        client = APIClient()
+        for _ in range(10):
+            response = client.post('/api/v1/auth/signup/', {}, format='json')
+            self.assertEqual(response.status_code, 400)
+        response = client.post('/api/v1/auth/signup/', {}, format='json')
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.json()['error']['code'], 'throttled')
+        self.assertGreater(int(response['Retry-After']), 0)
+        self.assertLessEqual(int(response['Retry-After']), 60)
+        self.assertEqual(self.redis_connection.zcard(key_for('signup_ip', '127.0.0.1')), 10)
+
+    def test_signup_hourly_budget_still_applies_after_burst_expires(self):
+        seconds, micros = self.redis_connection.time()
+        now = seconds * 1000 + micros // 1000
+        key = key_for('signup_ip', '127.0.0.1')
+        # Prior admitted requests are outside the minute window but inside the hour.
+        self.redis_connection.zadd(key, {f'previous-{i}': now - 120000 for i in range(59)})
+        client = APIClient()
+        self.assertEqual(client.post('/api/v1/auth/signup/', {}, format='json').status_code, 400)
+        response = client.post('/api/v1/auth/signup/', {}, format='json')
+        self.assertEqual(response.status_code, 429)
+        self.assertGreater(int(response['Retry-After']), 60)
+        self.assertLessEqual(int(response['Retry-After']), 3480)
+        self.assertEqual(self.redis_connection.zcard(key), 60)
+
     @override_settings(RATE_LIMITS={'test': [(7, 60)]})
     def test_concurrent_connections_admit_exactly_limit(self):
         def attempt(_):

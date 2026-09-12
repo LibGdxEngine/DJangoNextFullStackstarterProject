@@ -20,6 +20,8 @@ RATE_LIMIT_POLICIES={"login_ip":[[20,60]],"login_identifier":[[10,900]]}
 
 Keep independent IP and identifier limits; never combine those identities into a single bucket. Initial login limits count admitted successful and failed attempts and expire automatically. They are not permanent account lockouts. Shared message limits are one/minute, five/hour, and ten/day per normalized destination/channel, across creation, resends, and purposes. Worker retries do not consume send admission again. A failed database/queue operation conservatively retains its already-reserved allowance until expiry.
 
+Signup admission allows ten attempts/minute and sixty/hour per IP, including invalid submissions. This gives users room to correct form errors and accommodates users sharing an IP, while retaining burst and sustained limits. Verification-message limits remain separate and unchanged; increasing signup admission does not increase a recipient's message allowance.
+
 The policy registry in `backend/core/settings/rate_limits.py` is the source of truth for initial values. Tune specific policies from observed legitimate traffic, shared-NAT behavior and provider capacity. Do not add an unbounded production bypass.
 
 ## Trusted ingress

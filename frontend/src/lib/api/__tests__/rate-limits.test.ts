@@ -64,7 +64,7 @@ it("rejects OAuth quota failures before minting a session and uses a safe redire
   const options = createAuthOptions(new Headers());
   const signIn = options.callbacks!.signIn!;
   type Args = Parameters<typeof signIn>[0];
-  expect(await signIn({ account: { provider: "google", id_token: "private" } } as Args)).toBe("/?error=MOBSER_RETRY_429_30");
+  expect(await signIn({ account: { provider: "google", id_token: "private" } } as Args)).toBe("/login?error=MOBSER_RETRY_429_30");
   type JwtArgs = Parameters<NonNullable<typeof options.callbacks>["jwt"] & object>[0];
   await expect(options.callbacks!.jwt!({ token: {}, account: { provider: "google", id_token: "private" } } as JwtArgs)).rejects.toThrow("not completed");
 });

@@ -20,7 +20,7 @@ RATE_LIMIT_BASELINE_RATES = {
 }
 RATE_LIMITS = {
     'login_ip': [(20, 60)], 'login_identifier': [(10, 900)],
-    'signup_ip': [(5, 3600)],
+    'signup_ip': [(10, 60), (60, 3600)],
     'forgot_ip': [(10, 3600)], 'forgot_identifier': [(3, 3600), (10, 86400)],
     'resend_ip': [(10, 3600)],
     'confirm_ip': [(20, 60)], 'confirm_user': [(20, 60)],
