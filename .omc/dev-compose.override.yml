@@ -1,0 +1,28 @@
+# Local development overlay; keep existing services on port 80 untouched.
+services:
+  caddy:
+    ports: !override
+      - "127.0.0.1:8080:80"
+    networks:
+      telemetry-proxy:
+        ipv4_address: 172.30.241.2
+    environment:
+      GRAFANA_PROXY_IP: 172.30.241.3
+  frontend:
+    environment:
+      NEXTAUTH_URL: http://localhost:8080
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+  grafana:
+    networks:
+      telemetry-proxy:
+        ipv4_address: 172.30.241.3
+    environment:
+      GF_SERVER_HTTP_ADDR: 172.30.241.3
+      GF_AUTH_PROXY_WHITELIST: 172.30.241.2
+      GF_SERVER_ROOT_URL: http://localhost:8080/observability/
+      GF_LIVE_ALLOWED_ORIGINS: http://localhost:8080
+networks:
+  telemetry-proxy:
+    ipam:
+      config: !override
+        - subnet: 172.30.241.0/29
