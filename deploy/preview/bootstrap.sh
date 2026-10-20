@@ -12,10 +12,12 @@ chmod 700 "$BASE" "$BASE/backups"
 # Reviewed runtime definition, copied verbatim from the repository.
 cp "$SRC/deploy/compose.yml" "$BASE/compose.yml"
 cp "$SRC/deploy/gateway.Caddyfile" "$BASE/gateway.Caddyfile"
-for f in redeploy.sh rollback.sh caddy-ensure.sh caddy-site.caddy; do
-    cp "$SRC/deploy/preview/$f" "$BASE/$f"
+# Replace via rename, never in place: receive.sh is executing from $BASE while this runs.
+for f in receive.sh ci-dispatch.sh redeploy.sh rollback.sh caddy-ensure.sh caddy-site.caddy; do
+    cp "$SRC/deploy/preview/$f" "$BASE/.$f.new"
+    mv -f "$BASE/.$f.new" "$BASE/$f"
 done
-chmod 755 "$BASE/redeploy.sh" "$BASE/rollback.sh" "$BASE/caddy-ensure.sh"
+chmod 755 "$BASE/receive.sh" "$BASE/ci-dispatch.sh" "$BASE/redeploy.sh" "$BASE/rollback.sh" "$BASE/caddy-ensure.sh"
 chmod 644 "$BASE/compose.yml" "$BASE/gateway.Caddyfile" "$BASE/caddy-site.caddy"
 if [ ! -f "$BASE/runtime.env" ]; then
     rand() { openssl rand -hex "$1"; }

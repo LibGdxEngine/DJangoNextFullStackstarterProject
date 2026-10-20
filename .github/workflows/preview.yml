@@ -1,0 +1,66 @@
+name: Preview deploy
+
+# Every push to master that passes CI is built and rolled out on the company VPS at
+# https://quran.ic-mobile.tech. The company website on https://ic-mobile.tech shares that
+# VPS's Caddy and is left untouched. See deploy/preview/README.md.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quran-preview-deploy
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/master'
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy quran.ic-mobile.tech
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: preview
+      url: https://quran.ic-mobile.tech
+    env:
+      PREVIEW_HOST: ${{ vars.PREVIEW_SSH_HOST || '168.231.116.193' }}
+      PREVIEW_URL: https://quran.ic-mobile.tech
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Configure SSH
+        env:
+          PREVIEW_SSH_KEY: ${{ secrets.PREVIEW_SSH_KEY }}
+          PREVIEW_KNOWN_HOSTS: ${{ secrets.PREVIEW_KNOWN_HOSTS }}
+        run: |
+          test -n "$PREVIEW_SSH_KEY" && test -n "$PREVIEW_KNOWN_HOSTS" \
+            || { echo "::error::PREVIEW_SSH_KEY and PREVIEW_KNOWN_HOSTS secrets are required"; exit 1; }
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$PREVIEW_SSH_KEY" > ~/.ssh/preview
+          printf '%s\n' "$PREVIEW_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/preview ~/.ssh/known_hosts
+      - name: Ship source and deploy
+        run: |
+          tag="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}"
+          echo "deploying $tag"
+          # The key is pinned server-side to deploy/preview/ci-dispatch.sh: "deploy <tag>" only.
+          git archive --format=tar.gz HEAD | ssh -i ~/.ssh/preview \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+            "root@$PREVIEW_HOST" "deploy $tag"
+      - name: Public smoke check
+        run: |
+          curl -fsS --retry 10 --retry-delay 6 --retry-all-errors "$PREVIEW_URL/api/health/ready/"; echo
+          curl -fsS -o /dev/null --retry 5 --retry-delay 6 --retry-all-errors "$PREVIEW_URL/"
+          # The company website shares this host's Caddy; make sure it still answers.
+          curl -fsS -o /dev/null --retry 5 --retry-delay 6 --retry-all-errors https://ic-mobile.tech/
+      - name: Remove SSH material
+        if: always()
+        run: rm -f ~/.ssh/preview

@@ -216,9 +216,10 @@ capacity limits for each cloned template rather than reusing this test target.
 
 ## Preview deployment (ic-mobile VPS)
 
-A separate, hand-managed **client demo** runs at `https://quran.ic-mobile.tech` on the
+A separate **client demo** runs at `https://quran.ic-mobile.tech` on the
 company VPS, sharing the company website's Caddy. It is built on that host from the
-developer's working tree with `deploy/preview/push.sh`, uses the same reviewed
+commit on every push to `master` by `.github/workflows/preview.yml` (after the CI gate), or
+from a developer's working tree with `deploy/preview/push.sh`. It uses the same reviewed
 `deploy/compose.yml` and `deploy/gateway.Caddyfile`, and keeps the demo wiring (dummy
 mail, mock OTP, sign-in code `123456`). It has none of the CI controller, GHCR or SSH
 dispatch described above, and it is not a customer production instance. See
