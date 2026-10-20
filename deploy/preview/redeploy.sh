@@ -29,7 +29,7 @@ echo "== migrate"
 compose run --rm --no-deps backend python manage.py migrate --noinput
 echo "== roll application services"
 compose up -d --wait --wait-timeout 180 --remove-orphans
-curl -fsS "http://127.0.0.1:$port/api/health/ready/"; echo
+curl -fsS -H "Host: localhost" "http://127.0.0.1:$port/api/health/ready/"; echo
 "$BASE/caddy-ensure.sh" || echo "warning: caddy-ensure failed; the timer will retry" >&2
 
 # Keep only the current and previous image pair.
