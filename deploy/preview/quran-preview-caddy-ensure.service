@@ -1,0 +1,8 @@
+[Unit]
+Description=Keep the company Caddy wired to the quran preview
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/srv/quran-preview/caddy-ensure.sh

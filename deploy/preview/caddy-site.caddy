@@ -1,0 +1,8 @@
+
+# quran-preview: managed by /srv/quran-preview/caddy-ensure.sh; do not edit by hand.
+quran.ic-mobile.tech {
+	encode gzip zstd
+	reverse_proxy quran-preview-gateway:8080 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

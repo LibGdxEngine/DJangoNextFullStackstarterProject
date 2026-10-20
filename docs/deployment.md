@@ -3,7 +3,7 @@
 This repository uses GitHub Actions to test changes, publish immutable application
 images to GHCR, and deploy an isolated Docker Compose application over SSH.
 
-The configured test site is **https://mobser-test.2.24.9.126.sslip.io**. It shares
+The configured test site is **https://quran_app-test.2.24.9.126.sslip.io**. It shares
 the VPS and its existing Caddy with other applications. Releases must never run
 the legacy `docker-compose.prod.yml` on this shared host: that file owns public
 ports and includes the optional full observability stack.
@@ -48,7 +48,7 @@ The `staging` GitHub environment accepts deployments from `master` only.
 | --- | --- | --- |
 | Variable | `VPS_HOST` | SSH host; currently `2.24.9.126` |
 | Variable | `VPS_PORT` | SSH port; currently `22` |
-| Variable | `VPS_USER` | Restricted account; currently `mobser-deploy` |
+| Variable | `VPS_USER` | Restricted account; currently `quran_app-deploy` |
 | Variable | `TEST_URL` | Public HTTPS origin for smoke checks |
 | Secret | `VPS_SSH_KEY` | Dedicated Ed25519 private key |
 | Secret | `VPS_KNOWN_HOSTS` | Pinned SSH host public key |
@@ -75,38 +75,38 @@ same CI gate and maintainer review before merging.
 
 | Path or resource | Owner / role |
 | --- | --- |
-| `/srv/mobser-test/` | Root-owned application deployment state |
-| `/srv/mobser-test/runtime.env` | Runtime secrets; mode `0600` |
-| `/srv/mobser-test/config.json` | Fixed deployment origin and capacity settings |
-| `/srv/mobser-test/compose.yml` | Reviewed installed runtime definition |
-| `/srv/mobser-test/gateway.Caddyfile` | Private application routing |
-| `/srv/mobser-test/state.json` | Current/previous/candidate release and stage |
-| `/srv/mobser-test/backups/` | Per-release PostgreSQL custom-format backups |
-| `/usr/local/sbin/mobser-deploy` | Privileged, fixed-target controller |
-| `/usr/local/bin/mobser-ssh-dispatch` | Forced-command SSH argument validation |
-| `mobser-test` | Compose project; separate database/cache/media volumes |
-| `mobser_test_edge` | Dedicated network between shared Caddy and app gateway |
+| `/srv/quran_app-test/` | Root-owned application deployment state |
+| `/srv/quran_app-test/runtime.env` | Runtime secrets; mode `0600` |
+| `/srv/quran_app-test/config.json` | Fixed deployment origin and capacity settings |
+| `/srv/quran_app-test/compose.yml` | Reviewed installed runtime definition |
+| `/srv/quran_app-test/gateway.Caddyfile` | Private application routing |
+| `/srv/quran_app-test/state.json` | Current/previous/candidate release and stage |
+| `/srv/quran_app-test/backups/` | Per-release PostgreSQL custom-format backups |
+| `/usr/local/sbin/quran_app-deploy` | Privileged, fixed-target controller |
+| `/usr/local/bin/quran_app-ssh-dispatch` | Forced-command SSH argument validation |
+| `quran_app-test` | Compose project; separate database/cache/media volumes |
+| `quran_app_test_edge` | Dedicated network between shared Caddy and app gateway |
 
 Only the app gateway joins the edge network. PostgreSQL, Redis, workers, and web
 applications remain on the project's private network. The gateway's host port is
 bound to loopback only. The existing `search_caddy` continues to own 80/443 and
-routes the test hostname to the unique `mobser-test-gateway` alias.
+routes the test hostname to the unique `quran_app-test-gateway` alias.
 
 The shared Caddy configuration is a single-file bind mount at
 `/root/home/ILM_SHAMELA/caddy/Caddyfile`. Administrative changes must preserve that
 file's inode, back up the existing content, validate the complete configuration,
 and use a graceful reload. Do not replace or recreate the shared Caddy container.
-The Mobser edge-network ensure timer repairs its network attachment if that
+The quran_app edge-network ensure timer repairs its network attachment if that
 container is recreated by its owning application.
 
 This VPS currently has a stale single-file mount: the container sees an older
 Caddyfile inode. The complete host file was validated and loaded through
 `/config/shared-live.Caddyfile` without recreating Caddy. Use
-`sudo /usr/local/sbin/mobser-shared-caddy-reload` after administrative edits; it
+`sudo /usr/local/sbin/quran_app-shared-caddy-reload` after administrative edits; it
 copies the canonical host file into the container, validates it, and reloads it.
 The ensure timer repeats this on Caddy restart; recovery can take one timer
 interval (about a minute), so this does not guarantee uninterrupted restarts.
-Canonical configuration recovery runs before Mobser network repair. Do not reload the stale
+Canonical configuration recovery runs before quran_app network repair. Do not reload the stale
 `/etc/caddy/Caddyfile` until its owning application recreates the container.
 
 Application updates do not edit Caddy, firewall rules, network definitions, or
@@ -147,7 +147,7 @@ quarantine; a retry or a higher workflow attempt does not clear it.
 After completing that inspection, an administrator can acknowledge resolution:
 
 ```sh
-sudo /usr/local/sbin/mobser-deploy resolve-quarantine
+sudo /usr/local/sbin/quran_app-deploy resolve-quarantine
 ```
 
 This command clears the gate; it does not repair data or restore application
@@ -156,7 +156,7 @@ containers. Follow it with a new verified release or a reviewed application roll
 Root-only application rollback uses the stored previously verified release:
 
 ```sh
-sudo /usr/local/sbin/mobser-deploy rollback
+sudo /usr/local/sbin/quran_app-deploy rollback
 ```
 
 This restores application image digests, not database contents. The administrator
@@ -170,20 +170,20 @@ database and verify the expected records. Keep off-VPS copies for real customer
 data; backups on the same VPS do not protect against loss of that VPS.
 
 For an administrator's isolated restore drill, select a completed backup and run
-the following in a root shell. The database named `mobser_restore_check` must not
+the following in a root shell. The database named `quran_app_restore_check` must not
 already exist. Only that disposable database is dropped afterward:
 
 ```sh
 set -e
-cd /srv/mobser-test
+cd /srv/quran_app-test
 export BACKEND_IMAGE="$(python3 -c 'import json; print(json.load(open("state.json"))["current"]["backend_image"])')"
 export FRONTEND_IMAGE="$(python3 -c 'import json; print(json.load(open("state.json"))["current"]["frontend_image"])')"
 backup_file=backups/REPLACE_WITH_RUN_ID-ATTEMPT.dump
-docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'createdb -U "$POSTGRES_USER" mobser_restore_check'
-docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'pg_restore -U "$POSTGRES_USER" --exit-on-error --no-owner -d mobser_restore_check' < "$backup_file"
-docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'psql -U "$POSTGRES_USER" -d mobser_restore_check -c "SELECT count(*) FROM django_migrations;"'
+docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'createdb -U "$POSTGRES_USER" quran_app_restore_check'
+docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'pg_restore -U "$POSTGRES_USER" --exit-on-error --no-owner -d quran_app_restore_check' < "$backup_file"
+docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'psql -U "$POSTGRES_USER" -d quran_app_restore_check -c "SELECT count(*) FROM django_migrations;"'
 # Verify any additional application records before cleanup.
-docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'dropdb -U "$POSTGRES_USER" mobser_restore_check'
+docker compose --env-file runtime.env -f compose.yml exec -T db sh -ec 'dropdb -U "$POSTGRES_USER" quran_app_restore_check'
 ```
 
 Backups currently remain on the VPS without automatic expiry. Archive verified
@@ -213,6 +213,16 @@ protected GitHub environment. Configure real mail/messaging and any required
 authenticated media storage. Promote the tested image pair; do not rebuild it
 with different browser API origins. Review fixed controller identifiers and
 capacity limits for each cloned template rather than reusing this test target.
+
+## Preview deployment (ic-mobile VPS)
+
+A separate, hand-managed **client demo** runs at `https://quran.ic-mobile.tech` on the
+company VPS, sharing the company website's Caddy. It is built on that host from the
+developer's working tree with `deploy/preview/push.sh`, uses the same reviewed
+`deploy/compose.yml` and `deploy/gateway.Caddyfile`, and keeps the demo wiring (dummy
+mail, mock OTP, sign-in code `123456`). It has none of the CI controller, GHCR or SSH
+dispatch described above, and it is not a customer production instance. See
+[deploy/preview/README.md](../deploy/preview/README.md).
 
 ## Verification evidence
 
