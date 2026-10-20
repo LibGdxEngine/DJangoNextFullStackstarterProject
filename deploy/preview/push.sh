@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Ship the local working tree to the preview host, then build and roll the stack there.
 # Run from the developer machine: deploy/preview/push.sh
-# Routine updates deploy automatically from master (.github/workflows/preview.yml); use this
-# to show clients uncommitted work or to deploy when GitHub Actions is unavailable.
+# This is the only deploy path for quran.ic-mobile.tech: it ships the tree as it is on disk,
+# including uncommitted changes. SSH key auth to $HOST is required (no password prompts).
 set -euo pipefail
 HOST=${PREVIEW_SSH:-root@168.231.116.193}
 BASE=${PREVIEW_BASE:-/srv/quran-preview}

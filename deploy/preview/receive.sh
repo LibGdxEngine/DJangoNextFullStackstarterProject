@@ -1,6 +1,6 @@
 #!/bin/sh
 # Receive a source tarball (gzip) on stdin, install it as $BASE/src, then bootstrap and redeploy.
-# Root only. Used by push.sh (developer machine) and ci-dispatch.sh (GitHub Actions).
+# Root only. Called by push.sh from the developer machine.
 set -eu
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 BASE=${PREVIEW_BASE:-/srv/quran-preview}
