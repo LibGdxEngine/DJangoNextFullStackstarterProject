@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Readex_Pro } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "../components/SessionProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const readex = Readex_Pro({
+  variable: "--font-readex",
+  subsets: ["arabic", "latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Dockerized Full-Stack Template",
-  description: "Next.js & Django starter boilerplate with Postgres, Redis, Celery, and Caddy",
+  title: {
+    default: "واصل — موظفك الذكاء الاصطناعي",
+    template: "%s · واصل",
+  },
+  description:
+    "واصل موظف ذكاء اصطناعي يعمل في متصفح حقيقي: يجد العملاء ويتواصل معهم، ويدير حملاتك، ويُعدّ العروض والتقارير — من البداية إلى النهاية.",
 };
 
 export default function RootLayout({
@@ -24,14 +24,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        <SessionProvider>
-          {children}
-        </SessionProvider>
+    <html lang="ar" dir="rtl" className={`${readex.variable} h-full antialiased`}>
+      <body className="min-h-full bg-paper text-ink">
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );

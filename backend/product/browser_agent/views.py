@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.http import FileResponse, Http404
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -43,6 +45,10 @@ class AgentRunViewSet(mixins.CreateModelMixin, mixins.ListModelMixin,
         run = serializer.save(created_by=self.request.user)
         run_agent.delay_on_commit(str(run.id))
 
+    @extend_schema(
+        parameters=[OpenApiParameter('after', int, description='Only events with seq >= this value.')],
+        responses=AgentRunEventSerializer(many=True),
+    )
     @action(detail=True, methods=['get'])
     def events(self, request, pk=None):
         run = self.get_object()
@@ -55,6 +61,7 @@ class AgentRunViewSet(mixins.CreateModelMixin, mixins.ListModelMixin,
                 raise ValidationError({'after': 'Must be an integer.'})
         return Response(AgentRunEventSerializer(events[:500], many=True).data)
 
+    @extend_schema(request=None, responses={202: AgentRunSerializer})
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         run = self.get_object()
@@ -64,11 +71,13 @@ class AgentRunViewSet(mixins.CreateModelMixin, mixins.ListModelMixin,
         run.save(update_fields=['cancel_requested', 'updated_at'])
         return Response(self.get_serializer(run).data, status=status.HTTP_202_ACCEPTED)
 
+    @extend_schema(responses=AgentArtifactSerializer(many=True))
     @action(detail=True, methods=['get'])
     def artifacts(self, request, pk=None):
         run = self.get_object()
         return Response(AgentArtifactSerializer(run.artifacts.all(), many=True).data)
 
+    @extend_schema(responses={(200, 'application/octet-stream'): OpenApiTypes.BINARY})
     @action(detail=True, methods=['get'], url_path=r'artifacts/(?P<artifact_id>[0-9a-f-]+)/download')
     def download(self, request, pk=None, artifact_id=None):
         run = self.get_object()
