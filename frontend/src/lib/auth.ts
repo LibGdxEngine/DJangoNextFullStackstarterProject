@@ -8,7 +8,7 @@ import { logServerEvent } from "@/lib/telemetry/logger";
 
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
-    name: "Mobser Credentials",
+    name: "Quran App Credentials",
     credentials: {
       identifier: { label: "Email or Phone", type: "text" },
       password: { label: "Password", type: "password" },

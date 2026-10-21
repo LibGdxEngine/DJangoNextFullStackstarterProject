@@ -49,6 +49,6 @@ if not os.environ.get('CACHE_URL') and not os.environ.get('REDIS_URL'):
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'mobser-dev',
+            'LOCATION': 'quran_app-dev',
         }
     }

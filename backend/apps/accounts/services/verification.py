@@ -27,7 +27,7 @@ def compute_code_digest(code: str, secret: Optional[str] = None) -> str:
     Computes a keyed HMAC-SHA256 digest of the OTP code using OTP_SECRET.
     Never store raw OTP codes in the database.
     """
-    otp_secret = secret or getattr(settings, "OTP_SECRET", "fallback-secret-key-mobser")
+    otp_secret = secret or getattr(settings, "OTP_SECRET", "fallback-secret-key-quran_app")
     return hmac.new(
         otp_secret.encode("utf-8"),
         code.strip().encode("utf-8"),

@@ -31,7 +31,7 @@ def records(service):
 
 
 def producer(service, lines, label_project=project):
-    name = "mobser-log-probe-" + uuid.uuid4().hex[:12]
+    name = "quran_app-log-probe-" + uuid.uuid4().hex[:12]
     created.append(name)
     args = ["docker", "run", "--name", name, "--log-driver", "json-file",
             "--log-opt", "max-size=10k", "--log-opt", "max-file=3"]

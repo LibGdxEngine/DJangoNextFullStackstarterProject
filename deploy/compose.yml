@@ -1,4 +1,4 @@
-name: ${COMPOSE_PROJECT_NAME:-mobser-test}
+name: ${COMPOSE_PROJECT_NAME:-quran_app-test}
 
 x-logging: &logging
   driver: json-file
@@ -141,7 +141,7 @@ services:
       default:
       edge:
         aliases:
-          - ${EDGE_ALIAS:-mobser-test-gateway}
+          - ${EDGE_ALIAS:-quran_app-test-gateway}
     healthcheck:
       test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/healthz]
       interval: 15s
@@ -157,4 +157,4 @@ networks:
   default:
   edge:
     external: true
-    name: ${EDGE_NETWORK:-mobser_test_edge}
+    name: ${EDGE_NETWORK:-quran_app_test_edge}

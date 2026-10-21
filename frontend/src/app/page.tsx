@@ -1,100 +1,45 @@
-"use client";
+import Link from "next/link";
+import { Briefcase, GraduationCap, Home, LogIn, Palette } from "lucide-react";
+import { LogoMark } from "@/components/shells/ShellParts";
 
-import React from "react";
-import { useSession } from "next-auth/react";
-import { SystemDiagnostics } from "@/features/system/components/SystemDiagnostics";
-import { LoginForm } from "@/features/auth/components/LoginForm";
-import { UserSessionCard } from "@/features/auth/components/UserSessionCard";
-import { ArchitectureGuide } from "@/features/overview/components/ArchitectureGuide";
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+const workspaces = [
+  { href: "/manage", icon: Briefcase, title: "Management", body: "Students, families, teachers, schedule, payments, payroll, WhatsApp, reports" },
+  { href: "/teacher", icon: GraduationCap, title: "Teacher", body: "Today's classes, lesson reports, students and earnings (mobile-first)" },
+  { href: "/family", icon: Home, title: "Family", body: "Next class, progress, cancel or reschedule, packages and payments" },
+];
 
-export default function Home() {
-  const { data: session, status: sessionStatus } = useSession();
-
+export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-emerald-500 selection:text-white p-6 sm:p-10">
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-900">
-          <div>
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center font-bold text-white shadow-lg shadow-emerald-500/10">
-                M
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Mobser</h1>
-              <Badge variant="success" size="sm">v1.0 Modular</Badge>
-            </div>
-            <p className="text-sm text-zinc-400 mt-1">
-              Decoupled SaaS Architecture: Reusable Platform Foundation + Dedicated Product Modules
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <a
-              href="/api/docs/"
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-1.5 rounded-lg border border-zinc-800 text-xs text-zinc-300 hover:bg-zinc-900 transition-colors"
-            >
-              OpenAPI Docs ↗
-            </a>
-            <a
-              href="/admin/"
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-1.5 rounded-lg bg-zinc-800 text-xs font-medium text-zinc-100 hover:bg-zinc-700 transition-colors"
-            >
-              Django Admin ↗
-            </a>
-          </div>
-        </div>
-
-        {/* Main 2-Column Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left / Primary Column (2 cols) */}
-          <div className="lg:col-span-2 space-y-8">
-            <SystemDiagnostics />
-            <ArchitectureGuide />
-          </div>
-
-          {/* Right Column (1 col): Auth & Identity */}
-          <div className="space-y-6">
-            <Card
-              title="Identity & Access"
-              subtitle="NextAuth.js session mapped to Django SimpleJWT"
-            >
-              {sessionStatus === "loading" ? (
-                <div className="py-8 text-center text-xs text-zinc-500">
-                  Checking active authentication session...
-                </div>
-              ) : session?.accessToken ? (
-                <UserSessionCard />
-              ) : (
-                <>
-                  {session?.sessionExpired && (
-                    <p role="alert" className="mb-4 text-sm text-amber-300">
-                      Your session has expired. Please sign in again.
-                    </p>
-                  )}
-                  <LoginForm />
-                </>
-              )}
-            </Card>
-
-            {/* Quick Architecture Summary */}
-            <div className="p-4 rounded-xl border border-zinc-900 bg-zinc-950/40 text-xs space-y-2 text-zinc-400">
-              <p className="font-semibold text-zinc-200">Architecture Structure</p>
-              <p>
-                Platform services run under <code className="text-emerald-400">backend/apps/</code> and feature components live in <code className="text-emerald-400">frontend/src/features/</code>.
-              </p>
-              <p>
-                Domain features belong in <code className="text-purple-400">backend/product/</code> to keep cross-cutting SaaS code clean and reusable.
-              </p>
-            </div>
-          </div>
+    <main id="main" className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col justify-center gap-8 px-4 py-12">
+      <div className="flex items-center gap-3">
+        <LogoMark />
+        <div className="leading-tight">
+          <h1 className="text-2xl font-semibold">Quran Academy</h1>
+          <p className="text-[13px] text-muted">Academy management platform — pick a workspace</p>
         </div>
       </div>
+
+      <ul className="grid gap-3 sm:grid-cols-3">
+        {workspaces.map(({ href, icon: Icon, title, body }) => (
+          <li key={href}>
+            <Link href={href} className="flex h-full flex-col gap-2 rounded-card border border-line-soft bg-surface p-4 hover:border-brand-300">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-brand-100 text-brand-800"><Icon aria-hidden className="size-5" /></span>
+              <span className="text-[15px] font-semibold">{title}</span>
+              <span className="text-xs leading-relaxed text-muted">{body}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex flex-wrap gap-2 text-[13px]">
+        <Link href="/sign-in" className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-brand-800 px-4 font-medium text-white hover:bg-brand-700">
+          <LogIn aria-hidden className="size-4" />Sign in
+        </Link>
+        <Link href="/manage/design-system" className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-line bg-surface px-4 font-medium">
+          <Palette aria-hidden className="size-4" />Design system
+        </Link>
+      </div>
+      <p className="text-xs text-muted">Demo build: sign-in accepts any phone number and the code 123456. Data shown is sample data. The original starter dashboard is at /starter.</p>
     </main>
   );
 }

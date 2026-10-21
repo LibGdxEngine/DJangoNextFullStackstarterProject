@@ -1,6 +1,6 @@
 {
-  "uid": "mobser-overview",
-  "title": "Mobser observability",
+  "uid": "quran_app-overview",
+  "title": "quran_app observability",
   "schemaVersion": 39,
   "version": 1,
   "editable": false,
@@ -10,7 +10,7 @@
     "to": "now"
   },
   "tags": [
-    "mobser"
+    "quran_app"
   ],
   "templating": {
     "list": [
@@ -106,7 +106,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (http_route) (rate(mobser_http_requests_total[5m]))",
+          "expr": "sum by (http_route) (rate(quran_app_http_requests_total[5m]))",
           "refId": "A"
         }
       ],
@@ -134,7 +134,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(mobser_http_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(quran_app_http_duration_seconds_bucket[5m])))",
           "refId": "A"
         }
       ],
@@ -162,7 +162,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (task_name, task_state) (rate(mobser_task_executions_total[5m]))",
+          "expr": "sum by (task_name, task_state) (rate(quran_app_task_executions_total[5m]))",
           "refId": "A"
         }
       ],
@@ -190,7 +190,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (task_name) (rate(mobser_task_retries_total[5m]))",
+          "expr": "sum by (task_name) (rate(quran_app_task_retries_total[5m]))",
           "refId": "A"
         }
       ],

@@ -3,7 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { context, createContextKey, type TextMapPropagator } from "@opentelemetry/api";
 
-export const requestIdKey = createContextKey("mobser.request_id");
+export const requestIdKey = createContextKey("quran_app.request_id");
 
 export function validRequestId(value: unknown): string | undefined {
   return typeof value === "string" && /^(?:[a-f0-9]{32}|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i.test(value)

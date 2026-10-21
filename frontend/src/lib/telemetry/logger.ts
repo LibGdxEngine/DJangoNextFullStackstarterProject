@@ -5,8 +5,8 @@ import { trace } from "@opentelemetry/api";
 import { currentRequestId, validRequestId } from "./context";
 import { safeMethod, safeRoute } from "./safety";
 
-const processState = globalThis as typeof globalThis & { mobserTelemetryInstance?: string };
-export const instanceId = processState.mobserTelemetryInstance ??= `${process.pid}-${randomUUID()}`;
+const processState = globalThis as typeof globalThis & { quranAppTelemetryInstance?: string };
+export const instanceId = processState.quranAppTelemetryInstance ??= `${process.pid}-${randomUUID()}`;
 
 export function telemetryEnvironment(): string {
   return process.env.OTEL_RESOURCE_ATTRIBUTES?.split(",")
@@ -27,7 +27,7 @@ export function logServerEvent(level: "INFO" | "WARN" | "ERROR", event: ServerEv
     timestamp: new Date().toISOString(),
     severity: level,
     message: event,
-    service: process.env.OTEL_SERVICE_NAME || "mobser-frontend",
+    service: process.env.OTEL_SERVICE_NAME || "quran_app-frontend",
     environment: telemetryEnvironment(),
     release: process.env.OTEL_SERVICE_VERSION || "development",
     instance_id: instanceId,

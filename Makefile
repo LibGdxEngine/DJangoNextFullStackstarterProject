@@ -8,7 +8,7 @@ PROD_COMPOSE = docker compose $(if $(strip $(PROD_ENV_FILE)),--env-file $(PROD_E
 # Default target: show help
 help:
 	@echo "======================================================================="
-	@echo "                      Mobser Modular Platform                          "
+	@echo "                      Quran App Modular Platform                       "
 	@echo "======================================================================="
 	@echo "Usage: make <target>"
 	@echo ""

@@ -22,10 +22,10 @@ import urllib.request
 import zipfile
 
 
-BASE = Path('/srv/mobser-test')
+BASE = Path('/srv/quran_app-test')
 REPOSITORY = 'LibGdxEngine/DJangoNextFullStackstarterProject'
 PACKAGE = 'ghcr.io/libgdxengine/djangonextfullstackstarterproject'
-PROJECT = 'mobser-test'
+PROJECT = 'quran_app-test'
 MIGRATION_CONTAINER = PROJECT + '-migrate'
 APP_SERVICES = ['backend', 'frontend', 'celery_worker', 'celery_beat', 'gateway']
 ENV = {'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'HOME': '/root', 'LANG': 'C.UTF-8'}
@@ -97,7 +97,7 @@ class SafeRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def fetch(url, token=None, limit=MAX_JSON):
-    headers = {'Accept': 'application/vnd.github+json', 'User-Agent': 'mobser-deployer',
+    headers = {'Accept': 'application/vnd.github+json', 'User-Agent': 'quran_app-deployer',
                'X-GitHub-Api-Version': '2022-11-28'}
     if token:
         require(urllib.parse.urlsplit(url).hostname == 'api.github.com', 'invalid token destination')

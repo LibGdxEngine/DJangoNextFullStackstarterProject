@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: mobser-test-release
+  group: quran_app-test-release
   cancel-in-progress: false
 
 jobs:
@@ -99,14 +99,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VPS_HOST: ${{ vars.VPS_HOST }}
           VPS_PORT: ${{ vars.VPS_PORT || '22' }}
-          VPS_USER: ${{ vars.VPS_USER || 'mobser-deploy' }}
+          VPS_USER: ${{ vars.VPS_USER || 'quran_app-deploy' }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           [[ "$VPS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
           [[ "$VPS_PORT" =~ ^[0-9]{1,5}$ ]]
-          [[ "$VPS_USER" == mobser-deploy ]]
+          [[ "$VPS_USER" == quran_app-deploy ]]
           [[ -n "$VPS_SSH_KEY" && -n "$VPS_KNOWN_HOSTS" ]]
           credential_dir=$(mktemp -d)
           trap 'rm -rf "$credential_dir"' EXIT

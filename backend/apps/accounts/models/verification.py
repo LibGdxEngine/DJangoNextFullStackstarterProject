@@ -6,6 +6,7 @@ from django.utils import timezone
 
 class VerificationPurpose(models.TextChoices):
     SIGNUP = "signup", "Signup"
+    LOGIN = "login", "Phone sign-in"
     PASSWORD_RESET = "password_reset", "Password Reset"
     CHANGE_PHONE = "change_phone", "Change Phone"
     CHANGE_EMAIL = "change_email", "Change Email"

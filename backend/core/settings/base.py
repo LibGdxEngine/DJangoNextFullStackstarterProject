@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'apps.billing.apps.BillingConfig',
     'apps.notifications.apps.NotificationsConfig',
     'apps.audit.apps.AuditConfig',
+    'product.academy.apps.AcademyConfig',
 ]
 
 MIDDLEWARE = [
@@ -168,7 +169,7 @@ SIMPLE_JWT = {
 # ------------------------------------------------------------------------------
 # Messaging & WhatsApp Integration Settings (HireAgents)
 # ------------------------------------------------------------------------------
-OTP_SECRET = os.environ.get('OTP_SECRET', 'dev-otp-secret-key-32-chars-minimum-mobser')
+OTP_SECRET = os.environ.get('OTP_SECRET', 'dev-otp-secret-key-32-chars-minimum-quran_app')
 WHATSAPP_AUTH_TEMPLATE = os.environ.get('WHATSAPP_AUTH_TEMPLATE', 'auth_verification_otp')
 HIREAGENTS_BASE_URL = os.environ.get('HIREAGENTS_BASE_URL', 'https://hireagents.blinksolutions.tech')
 
@@ -320,7 +321,7 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': os.environ.get('CACHE_URL', 'redis://redis:6379/1'),
-        'KEY_PREFIX': 'mobser',
+        'KEY_PREFIX': 'quran_app',
         'OPTIONS': {'socket_connect_timeout': 2, 'socket_timeout': 2},
     }
 }
@@ -329,7 +330,7 @@ CACHES = {
 # Email
 # ------------------------------------------------------------------------------
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@mobser.local')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@quran_app.local')
 
 # ------------------------------------------------------------------------------
 # Logging
@@ -373,3 +374,31 @@ LOGGING = {
         },
     },
 }
+
+# Bind each academy slug to a server-configured messaging connection. Tenant users
+# cannot select another academy's channel. Empty mapping keeps delivery disabled.
+import json
+ACADEMY_WHATSAPP_CONNECTIONS = json.loads(os.environ.get('ACADEMY_WHATSAPP_CONNECTIONS') or '{}')
+ACADEMY_WHATSAPP_CHANNELS = json.loads(os.environ.get('ACADEMY_WHATSAPP_CHANNELS') or '{}')
+# Channel credentials are server-owned; no API response exposes them.
+# A channel entry may omit api_key and use the shared HIREAGENTS_API_KEY (messages:send scope).
+HIREAGENTS_API_KEY = os.environ.get('HIREAGENTS_API_KEY', '')
+for _channel in ACADEMY_WHATSAPP_CHANNELS.values():
+    if not _channel.get('api_key'):
+        _channel['api_key'] = HIREAGENTS_API_KEY
+HIREAGENTS_CONNECTIONS.update(ACADEMY_WHATSAPP_CHANNELS)
+CELERY_BEAT_SCHEDULE['academy-outbox'] = {
+    'task': 'product.academy.tasks.process_academy_outbox',
+    'schedule': 60.0,
+}
+
+SPECTACULAR_SETTINGS['ENUM_NAME_OVERRIDES'].update({
+    'AcademyLanguageEnum': [('ar', 'Arabic'), ('en', 'English')],
+    'AcademyLanguageInputEnum': ['ar', 'en'],
+    'SessionAttendanceEnum': [('unknown', 'Unknown'), ('present', 'Present'), ('late', 'Late'), ('absent', 'Absent')],
+    'ReportedAttendanceEnum': ['present', 'late', 'absent'],
+    'StudentStatusEnum': [('active', 'Active'), ('paused', 'Paused'), ('archived', 'Archived')],
+    'StudentStatusInputEnum': ['active', 'paused'],
+})
+
+SPECTACULAR_SETTINGS['ENUM_NAME_OVERRIDES']['ApprovalStatusEnum'] = [('pending', 'Pending'), ('approved', 'Approved'), ('rejected', 'Rejected')]

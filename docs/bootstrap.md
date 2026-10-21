@@ -22,7 +22,7 @@ port instead of the internal `db` hostname. Explicit process environment values 
 precedence over dotenv values. Configure Redis endpoints similarly when running workers
 outside Docker. Production Caddy consumes `DOMAIN_NAME`; development keeps localhost.
 
-The default Compose projects are `mobser-dev` and `mobser-prod` before initialization.
+The default Compose projects are `quran_app-dev` and `quran_app-prod` before initialization.
 The initializer substitutes the new slug. Existing deployments can retain their old
 project name via `docker compose -p ...` or `COMPOSE_PROJECT_NAME`. Fixed container
 names are no longer used. Project-name changes select different volumes; they do not

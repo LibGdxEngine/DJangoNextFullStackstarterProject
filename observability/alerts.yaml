@@ -1,5 +1,5 @@
 groups:
-  - name: mobser-observability
+  - name: quran_app-observability
     rules:
       - alert: ObservabilityServiceUnavailable
         expr: up == 0
@@ -26,14 +26,14 @@ groups:
           summary: 'Host filesystem has less than 15% free space'
           description: 'Inspect Docker volume usage and shorten retention or increase disk capacity.'
       - alert: BackendErrors
-        expr: sum(rate(mobser_http_requests_total{http_response_status_code=~"5.."}[5m])) / clamp_min(sum(rate(mobser_http_requests_total[5m])), 0.001) > 0.05
+        expr: sum(rate(quran_app_http_requests_total{http_response_status_code=~"5.."}[5m])) / clamp_min(sum(rate(quran_app_http_requests_total[5m])), 0.001) > 0.05
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: 'Backend error rate exceeds 5%'
       - alert: BackgroundTaskFailure
-        expr: sum(increase(mobser_task_executions_total{task_state="FAILURE"}[10m])) > 0
+        expr: sum(increase(quran_app_task_executions_total{task_state="FAILURE"}[10m])) > 0
         labels:
           severity: warning
         annotations:

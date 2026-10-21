@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Development seed script for Mobser.
+Development seed script for quran_app.
 Populates the local database with default admin user, demo organization, membership, and billing plans.
 """
 import os
@@ -25,10 +25,10 @@ from apps.audit.services import record_audit_log
 User = get_user_model()
 
 def seed():
-    print("🌱 Seeding Mobser development database...")
+    print("🌱 Seeding quran_app development database...")
 
     # 1. Superuser
-    email = os.environ.get("DEV_SUPERUSER_EMAIL", "admin@mobser.local")
+    email = os.environ.get("DEV_SUPERUSER_EMAIL", "admin@quran_app.local")
     phone = os.environ.get("DEV_SUPERUSER_PHONE", "+201000000000")
     password = os.environ.get("DEV_SUPERUSER_PASSWORD", "admin12345")
 
@@ -37,7 +37,7 @@ def seed():
         defaults={
             "phone": phone,
             "first_name": "Admin",
-            "last_name": "Mobser",
+            "last_name": "quran_app",
             "is_staff": True,
             "is_superuser": True,
             "status": "active",
@@ -105,7 +105,7 @@ def seed():
     # 6. Welcome Notification
     Notification.objects.get_or_create(
         recipient=user,
-        title="Welcome to Mobser Platform",
+        title="Welcome to quran_app Platform",
         defaults={
             "message": "Your modular platform environment has been initialized with organizations, billing, and audit services.",
             "notification_type": Notification.NotificationType.SUCCESS,

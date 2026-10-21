@@ -11,17 +11,17 @@ import { instanceId, logServerEvent, telemetryEnvironment } from "./logger";
 import { sanitizeSpan } from "./safety";
 
 const state = globalThis as typeof globalThis & {
-  mobserTelemetryStarted?: boolean;
-  mobserTelemetryShutdown?: () => Promise<void>;
+  quranAppTelemetryStarted?: boolean;
+  quranAppTelemetryShutdown?: () => Promise<void>;
 };
 
 export async function shutdownServerTelemetry() {
-  await state.mobserTelemetryShutdown?.();
+  await state.quranAppTelemetryShutdown?.();
 }
 
 export function registerServerTelemetry() {
-  if (state.mobserTelemetryStarted || process.env.OTEL_ENABLED !== "true" || process.env.NEXT_PHASE === "phase-production-build") return;
-  state.mobserTelemetryStarted = true;
+  if (state.quranAppTelemetryStarted || process.env.OTEL_ENABLED !== "true" || process.env.NEXT_PHASE === "phase-production-build") return;
+  state.quranAppTelemetryStarted = true;
   const endpoint = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "http://otel-collector:4318").replace(/\/$/, "");
   const exporter = new OTLPTraceExporter({ url: `${endpoint}/v1/traces`, timeoutMillis: 3000 });
   const processor = new BatchSpanProcessor({
@@ -47,7 +47,7 @@ export function registerServerTelemetry() {
   const configuredRatio = Number(process.env.OTEL_TRACES_SAMPLER_ARG ?? defaultRatio);
   const ratio = Number.isFinite(configuredRatio) && configuredRatio >= 0 && configuredRatio <= 1 ? configuredRatio : defaultRatio;
   registerOTel({
-    serviceName: process.env.OTEL_SERVICE_NAME || "mobser-frontend",
+    serviceName: process.env.OTEL_SERVICE_NAME || "quran_app-frontend",
     attributes: {
       "service.instance.id": instanceId,
       "service.version": process.env.OTEL_SERVICE_VERSION || "development",
@@ -66,7 +66,7 @@ export function registerServerTelemetry() {
       },
     },
   });
-  const meter = metrics.getMeter("mobser.node");
+  const meter = metrics.getMeter("quran_app.node");
   meter.createObservableGauge("process.memory.usage", { unit: "By" })
     .addCallback((result) => result.observe(process.memoryUsage().rss));
   meter.createObservableGauge("nodejs.memory.heap.used", { unit: "By" })
@@ -79,7 +79,7 @@ export function registerServerTelemetry() {
   meter.createObservableGauge("process.uptime", { unit: "s" })
     .addCallback((result) => result.observe(process.uptime()));
   let shutdown: Promise<void> | undefined;
-  state.mobserTelemetryShutdown = () => shutdown ??= (async () => {
+  state.quranAppTelemetryShutdown = () => shutdown ??= (async () => {
     await Promise.allSettled([processor.shutdown(), metricReader.shutdown()]);
   })();
   for (const signal of ["SIGTERM", "SIGINT"] as const) {

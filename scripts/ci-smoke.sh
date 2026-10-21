@@ -4,11 +4,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 : "${BACKEND_IMAGE:?required}"
 : "${FRONTEND_IMAGE:?required}"
-export COMPOSE_PROJECT_NAME="mobser-ci-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
+export COMPOSE_PROJECT_NAME="quran_app-ci-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
 export EDGE_NETWORK="${COMPOSE_PROJECT_NAME}-edge"
 export EDGE_ALIAS="${COMPOSE_PROJECT_NAME}-gateway"
 export GATEWAY_PORT=18080
-export DB_NAME=mobser_ci DB_USER=mobser_ci DB_PASSWORD=ci-disposable-database-password
+export DB_NAME=quran_app_ci DB_USER=quran_app_ci DB_PASSWORD=ci-disposable-database-password
 if [[ -e deploy/runtime.env ]]; then
     echo 'Refusing to replace an existing runtime.env; smoke requires a disposable checkout.' >&2
     exit 1
@@ -27,8 +27,8 @@ cleanup() {
 trap cleanup EXIT
 cp deploy/runtime.env.example deploy/runtime.env
 cat >> deploy/runtime.env <<'ENV'
-DB_NAME=mobser_ci
-DB_USER=mobser_ci
+DB_NAME=quran_app_ci
+DB_USER=quran_app_ci
 DB_PASSWORD=ci-disposable-database-password
 SECRET_KEY=ci-only-smoke-secret-904b38568f687aa11d0d3ff4d960322234a340
 NEXTAUTH_SECRET=ci-only-nextauth-secret-9130f6b524018185

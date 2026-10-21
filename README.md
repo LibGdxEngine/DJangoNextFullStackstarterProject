@@ -1,4 +1,4 @@
-# Mobser Full-Stack Platform (Next.js + Django)
+# Quran App Full-Stack Platform (Next.js + Django)
 
 A production-ready platform template structured around decoupled reusable platform modules and dedicated product modules. Incorporates a modern Next.js frontend, Django REST Framework backend, Celery task workers, Redis caching, PostgreSQL persistence, and an automated HTTPS reverse proxy via Caddy.
 
@@ -16,7 +16,7 @@ A production-ready platform template structured around decoupled reusable platfo
 ## Project Structure
 
 ```text
-Mobser/
+quran_app/
 ├── backend/                        # Django backend
 │   ├── core/                       # Core configuration & gateways
 │   │   ├── settings/               # Split settings (base, dev, prod)

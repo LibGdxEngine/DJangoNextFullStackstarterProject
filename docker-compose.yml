@@ -1,4 +1,4 @@
-name: mobser-dev
+name: quran_app-dev
 
 x-service-logging: &service-logging
   driver: json-file
@@ -50,7 +50,7 @@ services:
       - ./scripts:/app/scripts:ro
     environment:
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
-      - OTEL_SERVICE_NAME=mobser-backend
+      - OTEL_SERVICE_NAME=quran_app-backend
       - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
@@ -63,8 +63,15 @@ services:
       - DJANGO_SETTINGS_MODULE=core.settings.dev
       - SECRET_KEY=${SECRET_KEY:-django-insecure-dev-secret-key-template-project-1234}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
-      - OTP_SECRET=${OTP_SECRET:-dev-otp-secret-key-32-chars-minimum-mobser}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-no-reply@mobser.local}
+      - OTP_SECRET=${OTP_SECRET:-dev-otp-secret-key-32-chars-minimum-quran_app}
+      - ACADEMY_WHATSAPP_CONNECTIONS=${ACADEMY_WHATSAPP_CONNECTIONS:-}
+      - ACADEMY_WHATSAPP_CHANNELS=${ACADEMY_WHATSAPP_CHANNELS:-}
+      - HIREAGENTS_API_KEY=${HIREAGENTS_API_KEY:-}
+      - HIREAGENTS_BASE_URL=${HIREAGENTS_BASE_URL:-https://hireagents.blinksolutions.tech}
+      - HIREAGENTS_AUTH_CHANNEL_ID=${HIREAGENTS_AUTH_CHANNEL_ID:-}
+      - HIREAGENTS_AUTH_API_KEY=${HIREAGENTS_AUTH_API_KEY:-}
+      - WHATSAPP_AUTH_TEMPLATE=${WHATSAPP_AUTH_TEMPLATE:-auth_verification_otp}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-no-reply@quran_app.local}
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=${DB_NAME:-postgres}
@@ -93,7 +100,7 @@ services:
       - ./backend:/app
     environment:
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
-      - OTEL_SERVICE_NAME=mobser-worker
+      - OTEL_SERVICE_NAME=quran_app-worker
       - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
@@ -106,8 +113,15 @@ services:
       - DJANGO_SETTINGS_MODULE=core.settings.dev
       - SECRET_KEY=${SECRET_KEY:-django-insecure-dev-secret-key-template-project-1234}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
-      - OTP_SECRET=${OTP_SECRET:-dev-otp-secret-key-32-chars-minimum-mobser}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-no-reply@mobser.local}
+      - OTP_SECRET=${OTP_SECRET:-dev-otp-secret-key-32-chars-minimum-quran_app}
+      - ACADEMY_WHATSAPP_CONNECTIONS=${ACADEMY_WHATSAPP_CONNECTIONS:-}
+      - ACADEMY_WHATSAPP_CHANNELS=${ACADEMY_WHATSAPP_CHANNELS:-}
+      - HIREAGENTS_API_KEY=${HIREAGENTS_API_KEY:-}
+      - HIREAGENTS_BASE_URL=${HIREAGENTS_BASE_URL:-https://hireagents.blinksolutions.tech}
+      - HIREAGENTS_AUTH_CHANNEL_ID=${HIREAGENTS_AUTH_CHANNEL_ID:-}
+      - HIREAGENTS_AUTH_API_KEY=${HIREAGENTS_AUTH_API_KEY:-}
+      - WHATSAPP_AUTH_TEMPLATE=${WHATSAPP_AUTH_TEMPLATE:-auth_verification_otp}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-no-reply@quran_app.local}
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=${DB_NAME:-postgres}
@@ -133,7 +147,7 @@ services:
       - ./backend:/app
     environment:
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
-      - OTEL_SERVICE_NAME=mobser-beat
+      - OTEL_SERVICE_NAME=quran_app-beat
       - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
@@ -146,8 +160,15 @@ services:
       - DJANGO_SETTINGS_MODULE=core.settings.dev
       - SECRET_KEY=${SECRET_KEY:-django-insecure-dev-secret-key-template-project-1234}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
-      - OTP_SECRET=${OTP_SECRET:-dev-otp-secret-key-32-chars-minimum-mobser}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-no-reply@mobser.local}
+      - OTP_SECRET=${OTP_SECRET:-dev-otp-secret-key-32-chars-minimum-quran_app}
+      - ACADEMY_WHATSAPP_CONNECTIONS=${ACADEMY_WHATSAPP_CONNECTIONS:-}
+      - ACADEMY_WHATSAPP_CHANNELS=${ACADEMY_WHATSAPP_CHANNELS:-}
+      - HIREAGENTS_API_KEY=${HIREAGENTS_API_KEY:-}
+      - HIREAGENTS_BASE_URL=${HIREAGENTS_BASE_URL:-https://hireagents.blinksolutions.tech}
+      - HIREAGENTS_AUTH_CHANNEL_ID=${HIREAGENTS_AUTH_CHANNEL_ID:-}
+      - HIREAGENTS_AUTH_API_KEY=${HIREAGENTS_AUTH_API_KEY:-}
+      - WHATSAPP_AUTH_TEMPLATE=${WHATSAPP_AUTH_TEMPLATE:-auth_verification_otp}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-no-reply@quran_app.local}
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=${DB_NAME:-postgres}
@@ -176,7 +197,7 @@ services:
       - /app/.next
     environment:
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
-      - OTEL_SERVICE_NAME=mobser-frontend
+      - OTEL_SERVICE_NAME=quran_app-frontend
       - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf

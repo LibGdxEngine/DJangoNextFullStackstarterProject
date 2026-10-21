@@ -107,7 +107,7 @@ export function ArchitectureGuide() {
                   <Badge variant="neutral" size="sm">Product</Badge>
                 </div>
                 <p className="text-zinc-400">
-                  Reserved namespace for Mobser domain-specific business logic, kept decoupled from reusable SaaS infrastructure.
+                  Reserved namespace for Quran App domain-specific business logic, kept decoupled from reusable SaaS infrastructure.
                 </p>
               </div>
             </div>

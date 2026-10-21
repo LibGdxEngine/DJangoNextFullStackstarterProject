@@ -28,14 +28,14 @@ default_network = f'{project}_default'
 ingest_network = f'{project}_telemetry-ingest'
 storage_network = f'{project}_telemetry-storage'
 suffix = uuid.uuid4().hex[:8]
-backend_name = f'mobser-smoke-backend-{suffix}'
-frontend_name = f'mobser-smoke-frontend-{suffix}'
+backend_name = f'quran_app-smoke-backend-{suffix}'
+frontend_name = f'quran_app-smoke-frontend-{suffix}'
 collector = address(run('compose', 'ps', '-q', 'otel-collector'), ingest_network)
 tempo = address(run('compose', 'ps', '-q', 'tempo'), storage_network)
-with tempfile.TemporaryDirectory(prefix='mobser-chain-') as tmp:
+with tempfile.TemporaryDirectory(prefix='quran_app-chain-') as tmp:
     files = Path(tmp)
     env = dict(item.split('=', 1) for item in inspect(backend)['Config']['Env'] if '=' in item)
-    env.update(OTEL_SERVICE_NAME='mobser-backend', OTEL_TRACES_SAMPLER_ARG='1', OTEL_ENABLED='true', OTEL_EXPORTER_OTLP_ENDPOINT=f'http://{collector}:4318')
+    env.update(OTEL_SERVICE_NAME='quran_app-backend', OTEL_TRACES_SAMPLER_ARG='1', OTEL_ENABLED='true', OTEL_EXPORTER_OTLP_ENDPOINT=f'http://{collector}:4318')
     env_file = files / 'backend.env'
     env_file.write_text('\n'.join(f'{key}={value}' for key,value in env.items())+'\n')
     env_file.chmod(0o600)
@@ -84,7 +84,7 @@ export async function GET() {
                 time.sleep(1)
         else:
             raise RuntimeError('Backend did not start: '+run('logs','--tail','12',backend_name))
-        frontend_env = dict(OTEL_ENABLED='true',OTEL_SERVICE_NAME='mobser-frontend',OTEL_TRACES_SAMPLER_ARG='1',OTEL_EXPORTER_OTLP_ENDPOINT=f'http://{collector}:4318',OTEL_RESOURCE_ATTRIBUTES='deployment.environment.name=development',BACKEND_API_URL=f'http://{backend_ip}:8000/api',NEXT_TELEMETRY_DISABLED='1')
+        frontend_env = dict(OTEL_ENABLED='true',OTEL_SERVICE_NAME='quran_app-frontend',OTEL_TRACES_SAMPLER_ARG='1',OTEL_EXPORTER_OTLP_ENDPOINT=f'http://{collector}:4318',OTEL_RESOURCE_ATTRIBUTES='deployment.environment.name=development',BACKEND_API_URL=f'http://{backend_ip}:8000/api',NEXT_TELEMETRY_DISABLED='1')
         args=[]
         for key,value in frontend_env.items(): args.extend(['--env',f'{key}={value}'])
         run('create','--name',frontend_name,'--network',default_network,*args,inspect(frontend)['Config']['Image'],'npx','next','dev','--hostname','0.0.0.0')
@@ -110,7 +110,7 @@ export async function GET() {
                 trace_payload=run('exec',prometheus,'wget','-qO-',f'http://{tempo}:3200/api/traces/{trace_id}',stderr=subprocess.DEVNULL)
                 trace_data=json.loads(trace_payload)
                 services={a['value'].get('stringValue') for batch in trace_data.get('batches',[]) for a in batch.get('resource',{}).get('attributes',[]) if a['key']=='service.name'}
-                if {'mobser-frontend','mobser-backend','mobser-worker'} <= services: break
+                if {'quran_app-frontend','quran_app-backend','quran_app-worker'} <= services: break
             except (subprocess.CalledProcessError,json.JSONDecodeError): pass
             time.sleep(2)
         else: raise RuntimeError('Missing full trace services: '+str(services))
@@ -123,8 +123,8 @@ export async function GET() {
                 for span in group['spans']:
                     span_services[span['spanId']] = service
                     edges.append((span.get('parentSpanId'), service))
-        assert any(span_services.get(parent) == 'mobser-frontend' and child == 'mobser-backend' for parent, child in edges)
-        assert any(span_services.get(parent) == 'mobser-backend' and child == 'mobser-worker' for parent, child in edges)
+        assert any(span_services.get(parent) == 'quran_app-frontend' and child == 'quran_app-backend' for parent, child in edges)
+        assert any(span_services.get(parent) == 'quran_app-backend' and child == 'quran_app-worker' for parent, child in edges)
         print(json.dumps({'status':'passed','trace_id':trace_id,'request_id':request_id,'task_id':result['task_id'],'services':sorted(services),'sentinel_exported':False}),flush=True)
     finally:
         for name in reversed(containers): run('rm','--force',name)

@@ -1,26 +1,106 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Quran Academy design tokens (Foundation v0.1).
+ * Brand green + terracotta attention accent; status colors always pair text with color.
+ */
+@theme {
+  --font-sans: var(--font-plex-sans), var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: var(--font-plex-arabic), var(--font-plex-sans), ui-sans-serif, sans-serif;
+
+  /* Brand */
+  --color-brand-950: #051f20;
+  --color-brand-900: #0b2b26;
+  --color-brand-800: #163832;
+  --color-brand-700: #235347;
+  --color-brand-300: #8eb69b;
+  --color-brand-100: #daf1de;
+  --color-brand-50: #eef7f0;
+
+  /* Neutrals */
+  --color-page: #f5f7f6;
+  --color-surface: #ffffff;
+  --color-subtle: #ebefed;
+  --color-line: #d7deda;
+  --color-line-soft: #e3e8e5;
+  --color-line-dashed: #b8c2bd;
+  --color-muted: #6b7a74;
+  --color-secondary: #3c4845;
+  --color-ink: #15201d;
+  --color-disabled: #9aa6a1;
+
+  /* Accent: terracotta for "needs attention" — never destructive */
+  --color-accent-600: #b85c34;
+  --color-accent-400: #d97a4e;
+  --color-accent-50: #fbede6;
+  --color-accent-border: #fbd5bf;
+  --color-accent-ink: #8a3f1e;
+
+  /* Semantic */
+  --color-danger: #b91c1c;
+  --color-danger-bg: #fff5f5;
+  --color-danger-border: #fecaca;
+  --color-warning: #b45309;
+  --color-info: #1d4ed8;
+  --color-success: #166534;
+
+  /* Status pairs (fg on tint, AA) */
+  --color-st-scheduled: #1e40af;
+  --color-st-scheduled-bg: #dbeafe;
+  --color-st-completed: #166534;
+  --color-st-completed-bg: #dcfce7;
+  --color-st-review: #9a3412;
+  --color-st-review-bg: #ffedd5;
+  --color-st-cancelled: #374151;
+  --color-st-cancelled-bg: #e5e7eb;
+  --color-st-pending: #854d0e;
+  --color-st-pending-bg: #fef3c7;
+  --color-st-approved: #115e59;
+  --color-st-approved-bg: #ccfbf1;
+  --color-st-action: #991b1b;
+  --color-st-action-bg: #fee2e2;
+
+  /* Radii */
+  --radius-input: 6px;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-class: 24px;
+
+  /* Elevation */
+  --shadow-popover: 0 1px 2px rgba(5, 31, 32, 0.06), 0 4px 12px rgba(5, 31, 32, 0.08);
+  --shadow-dialog: 0 8px 24px rgba(5, 31, 32, 0.14), 0 24px 48px rgba(5, 31, 32, 0.12);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  body {
+    background: var(--color-page);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Arabic sizes run +1px at body and get roomier line height. */
+  :root[lang="ar"] body {
+    font-family: var(--font-arabic);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* Visible focus ring on every control. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-info);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  dialog::backdrop {
+    background: rgba(5, 31, 32, 0.45);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility tabular {
+  font-variant-numeric: tabular-nums;
 }

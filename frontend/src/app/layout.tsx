@@ -1,36 +1,45 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "../components/SessionProvider";
+import { I18nProvider } from "@/i18n/I18nProvider";
+import { getLocale } from "@/i18n/server";
+import { dirOf } from "@/i18n/config";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const plexSans = IBM_Plex_Sans({
+  variable: "--font-plex-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const plexArabic = IBM_Plex_Sans_Arabic({
+  variable: "--font-plex-arabic",
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Dockerized Full-Stack Template",
-  description: "Next.js & Django starter boilerplate with Postgres, Redis, Celery, and Caddy",
+  title: "Quran Academy",
+  description: "Academy management, teacher and family workspaces",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang={locale}
+      dir={dirOf(locale)}
+      className={`${plexSans.variable} ${plexArabic.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <SessionProvider>
-          {children}
+          <I18nProvider locale={locale}>
+            {children}
+          </I18nProvider>
         </SessionProvider>
       </body>
     </html>

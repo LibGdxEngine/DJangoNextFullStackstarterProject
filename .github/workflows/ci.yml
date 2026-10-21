@@ -19,19 +19,19 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: mobser_ci
-          POSTGRES_USER: mobser_ci
+          POSTGRES_DB: quran_app_ci
+          POSTGRES_USER: quran_app_ci
           POSTGRES_PASSWORD: ci-only-password
         ports: ['5432:5432']
-        options: --health-cmd="pg_isready -U mobser_ci" --health-interval=5s --health-timeout=5s --health-retries=10
+        options: --health-cmd="pg_isready -U quran_app_ci" --health-interval=5s --health-timeout=5s --health-retries=10
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
         options: --health-cmd="redis-cli ping" --health-interval=5s --health-timeout=5s --health-retries=10
     env:
       DJANGO_SETTINGS_MODULE: core.settings.dev
-      DB_NAME: mobser_ci
-      DB_USER: mobser_ci
+      DB_NAME: quran_app_ci
+      DB_USER: quran_app_ci
       DB_PASSWORD: ci-only-password
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -109,13 +109,13 @@ jobs:
         with:
           persist-credentials: false
       - name: Build production backend
-        run: docker build -f backend/Dockerfile.prod -t mobser-ci-backend:check backend
+        run: docker build -f backend/Dockerfile.prod -t quran_app-ci-backend:check backend
       - name: Build production frontend
-        run: docker build -f frontend/Dockerfile.prod --build-arg NEXT_PUBLIC_API_URL=/api -t mobser-ci-frontend:check frontend
+        run: docker build -f frontend/Dockerfile.prod --build-arg NEXT_PUBLIC_API_URL=/api -t quran_app-ci-frontend:check frontend
       - name: Exercise production containers
         env:
-          BACKEND_IMAGE: mobser-ci-backend:check
-          FRONTEND_IMAGE: mobser-ci-frontend:check
+          BACKEND_IMAGE: quran_app-ci-backend:check
+          FRONTEND_IMAGE: quran_app-ci-frontend:check
           CI_SMOKE_PULL: 'false'
         run: bash scripts/ci-smoke.sh
 

@@ -18,3 +18,9 @@ class WhatsAppProvider(Protocol):
         Send a templated WhatsApp message to the specified recipient.
         """
         ...
+
+    def send_text(self, *, to: str, text: str) -> Dict[str, Any]:
+        """
+        Send a free-form text message to the specified recipient.
+        """
+        ...

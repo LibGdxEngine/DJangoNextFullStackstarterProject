@@ -11,7 +11,7 @@ from apps.messaging.tasks import send_verification_message
 
 logger = logging.getLogger(__name__)
 
-PASSWORD_RESET_SALT = "mobser.accounts.password_reset"
+PASSWORD_RESET_SALT = "quran_app.accounts.password_reset"
 PASSWORD_RESET_TOKEN_MAX_AGE = 600  # 10 minutes
 
 

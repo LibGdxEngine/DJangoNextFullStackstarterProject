@@ -36,6 +36,8 @@ urlpatterns = [
     path('api/token/refresh/', SessionTokenRefreshView.as_view(), name='api_token_refresh'),
     path('api/token/verify/', TokenVerifyView.as_view(), name='api_token_verify'),
 
+    path('api/product/academy/', include('product.academy.urls')),
+
     # Modular Platform App Routes
     path('api/v1/auth/', include('apps.accounts.api.urls', namespace='auth')),
     path('api/v1/webhooks/hireagents/', include('apps.integrations.hireagents.urls', namespace='hireagents-webhooks')),
