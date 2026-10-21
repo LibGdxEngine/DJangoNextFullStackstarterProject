@@ -6,7 +6,7 @@ export const site = {
     ar: "إدارة الأكاديمية ومساحات المعلمين والأسر لتحفيظ القرآن الكريم",
   },
   domain: "malek.ic-mobile.tech",
-  teacher: { name: "Ahmed Fathy", role: "Founder & lead teacher", photo: "/landing/ahmed-fathy.jpg" },
+  teacher: { name: "Ahmed Fathy", role: "Founder & lead teacher", photo: "/landing/ahmed-fathy-portrait.jpg" },
   /** Private one-to-one lessons, 30 minutes, USD per student per four weeks. Starting prices. */
   packages: [
     { name: "Essential", perWeek: 2, lessons: 8, hours: 4, price: 59, recommended: false },

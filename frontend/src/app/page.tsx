@@ -26,7 +26,7 @@ import cover from "../../public/landing/cover.png";
  * Always English and left-to-right, whatever locale the app workspaces use.
  */
 
-// The teacher portrait is optional: until public/landing/ahmed-fathy.jpg exists, the arch shows the cover art.
+// The teacher portrait is optional: until the photo in site.teacher exists, the arch shows the cover art.
 const hasTeacherPhoto = fs.existsSync(path.join(process.cwd(), "public", site.teacher.photo));
 
 const programs = [
@@ -94,7 +94,7 @@ function TeacherArch() {
       <div className="relative rounded-t-full border border-accent-border bg-brand-50 p-3 shadow-dialog">
         <div className="relative aspect-[4/5] overflow-hidden rounded-t-full bg-brand-100">
           {hasTeacherPhoto ? (
-            <Image src={site.teacher.photo} alt={`${site.teacher.name}, ${site.teacher.role}`} fill priority sizes="(min-width: 768px) 384px, 90vw" className="object-cover object-[50%_45%]" />
+            <Image src={site.teacher.photo} alt={`${site.teacher.name}, ${site.teacher.role}`} fill priority sizes="(min-width: 768px) 384px, 90vw" className="object-cover object-center" />
           ) : (
             <Image src={cover} alt="" fill priority sizes="(min-width: 768px) 384px, 90vw" className="object-cover object-[8%_50%]" />
           )}
