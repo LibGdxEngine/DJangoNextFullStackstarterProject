@@ -94,7 +94,7 @@ function TeacherArch() {
       <div className="relative rounded-t-full border border-accent-border bg-brand-50 p-3 shadow-dialog">
         <div className="relative aspect-[4/5] overflow-hidden rounded-t-full bg-brand-100">
           {hasTeacherPhoto ? (
-            <Image src={site.teacher.photo} alt={`${site.teacher.name}, ${site.teacher.role}`} fill priority sizes="(min-width: 768px) 384px, 90vw" className="object-cover object-top" />
+            <Image src={site.teacher.photo} alt={`${site.teacher.name}, ${site.teacher.role}`} fill priority sizes="(min-width: 768px) 384px, 90vw" className="object-cover object-[50%_45%]" />
           ) : (
             <Image src={cover} alt="" fill priority sizes="(min-width: 768px) 384px, 90vw" className="object-cover object-[8%_50%]" />
           )}
