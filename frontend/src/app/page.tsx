@@ -89,7 +89,8 @@ function Divider({ className }: { className?: string }) {
 
 function TeacherArch() {
   return (
-    <figure className="relative mx-auto w-full max-w-sm">
+    // On phones the portrait comes first and smaller; from md up it sits beside the copy.
+    <figure className="relative order-first mx-auto w-full max-w-[15rem] md:order-none md:max-w-sm">
       <div className="absolute -inset-5 rounded-t-full bg-accent-400/20 blur-2xl" aria-hidden />
       <div className="relative rounded-t-full border border-accent-border bg-brand-50 p-3 shadow-dialog">
         <div className="relative aspect-[4/5] overflow-hidden rounded-t-full bg-brand-100">
@@ -141,7 +142,7 @@ export default function LandingPage() {
         {/* Hero */}
         <section className="relative overflow-hidden bg-gradient-to-b from-brand-50 via-brand-50 to-brand-100">
           <Pattern id="hero-pattern" className="absolute inset-0 h-full w-full text-accent-400/15" />
-          <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-16 md:grid-cols-[1.15fr_1fr] md:py-24">
+          <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-10 md:grid-cols-[1.15fr_1fr] md:gap-14 md:py-24">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full border border-accent-border bg-surface/80 px-3 py-1 text-xs font-medium text-accent-ink">
                 <Globe2 aria-hidden className="size-3.5" />For non-Arabic speakers worldwide
