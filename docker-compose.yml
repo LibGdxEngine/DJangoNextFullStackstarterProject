@@ -48,7 +48,9 @@ services:
     volumes:
       - ./backend:/app
       - ./scripts:/app/scripts:ro
+      - agent_data:/app/agent_data
     environment:
+      - AGENT_DATA_ROOT=/app/agent_data
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
       - OTEL_SERVICE_NAME=mobser-backend
       - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
@@ -116,6 +118,60 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - CACHE_URL=redis://redis:6379/1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Runs product.browser_agent jobs. Chromium needs RAM and /dev/shm, so it has its own
+  # image and queue, and stays at low concurrency.
+  celery_browser:
+    logging: *service-logging
+    networks: [default, telemetry-ingest]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.browser
+    command: celery -A core worker -l info -Q browser -c 2 -n browser@%h
+    shm_size: 1gb
+    volumes:
+      - ./backend:/app
+      - agent_data:/app/agent_data
+    environment:
+      - OTEL_ENABLED=${OTEL_ENABLED:-true}
+      - OTEL_SERVICE_NAME=mobser-browser-worker
+      - OTEL_SERVICE_VERSION=${APP_VERSION:-development}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-1}
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=development
+      - DEPLOYMENT_ENVIRONMENT=development
+      - OTEL_METRIC_EXPORT_INTERVAL=30000
+      - OTEL_EXPORTER_OTLP_TIMEOUT=5
+      - DJANGO_SETTINGS_MODULE=core.settings.dev
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-dev-secret-key-template-project-1234}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
+      - OTP_SECRET=${OTP_SECRET:-dev-otp-secret-key-32-chars-minimum-mobser}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-no-reply@mobser.local}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-postgres}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CACHE_URL=redis://redis:6379/1
+      - AGENT_DATA_ROOT=/app/agent_data
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - MODEL=${AGENT_MODEL:-openrouter:anthropic/claude-sonnet-4.6}
+      - HEADLESS=true
+      - ALLOW_ANY_EXIT_IP=${AGENT_ALLOW_ANY_EXIT_IP:-true}
+      - STATIC_IP=${AGENT_STATIC_IP:-}
+      - PROXY_SERVER=${AGENT_PROXY_SERVER:-}
+      - PROXY_USERNAME=${AGENT_PROXY_USERNAME:-}
+      - PROXY_PASSWORD=${AGENT_PROXY_PASSWORD:-}
+      - ALLOWED_DOMAINS=${AGENT_ALLOWED_DOMAINS:-}
     depends_on:
       db:
         condition: service_healthy
@@ -367,6 +423,7 @@ services:
     - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
 
 volumes:
+  agent_data:
   postgres_data:
   redis_data:
   caddy_data:
