@@ -24,7 +24,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const load = async (attempt: number) => {
       try {
         const existing = await organizationsApi.list();
         const organization =
@@ -32,11 +34,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           (await organizationsApi.create({ name: "مساحة عملي", slug: personalWorkspaceSlug() }));
         if (!cancelled) setState({ status: "ready", organization });
       } catch (error) {
-        if (!cancelled) setState({ status: "error", message: describeApiError(error).message });
+        if (cancelled) return;
+        setState({ status: "error", message: describeApiError(error).message });
+        // The backend may be restarting; keep trying with a growing delay.
+        timer = setTimeout(() => void load(attempt + 1), Math.min(2000 * 2 ** attempt, 30_000));
       }
-    })();
+    };
+
+    void load(0);
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, []);
 

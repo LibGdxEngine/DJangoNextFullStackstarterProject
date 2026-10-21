@@ -10,8 +10,11 @@ from rest_framework.throttling import ScopedRateThrottle
 
 from apps.organizations.models import Organization
 
+from .live import get_frame
 from .models import AgentRun
-from .serializers import AgentArtifactSerializer, AgentRunEventSerializer, AgentRunSerializer
+from .serializers import (
+    AgentArtifactSerializer, AgentLiveFrameSerializer, AgentRunEventSerializer, AgentRunSerializer,
+)
 from .services import run_directory
 from .tasks import run_agent
 
@@ -70,6 +73,23 @@ class AgentRunViewSet(mixins.CreateModelMixin, mixins.ListModelMixin,
         run.cancel_requested = True
         run.save(update_fields=['cancel_requested', 'updated_at'])
         return Response(self.get_serializer(run).data, status=status.HTTP_202_ACCEPTED)
+
+    @extend_schema(
+        parameters=[OpenApiParameter('after', int, description='Return a frame only if it is newer than this seq.')],
+        responses={200: AgentLiveFrameSerializer, 204: None},
+    )
+    @action(detail=True, methods=['get'])
+    def live(self, request, pk=None):
+        """Latest frame of the run's browser, for watching it live."""
+        run = self.get_object()
+        frame = get_frame(run.id)
+        try:
+            after = int(request.query_params.get('after', -1))
+        except ValueError:
+            raise ValidationError({'after': 'Must be an integer.'})
+        if frame is None or frame['seq'] <= after:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(AgentLiveFrameSerializer(frame).data)
 
     @extend_schema(responses=AgentArtifactSerializer(many=True))
     @action(detail=True, methods=['get'])

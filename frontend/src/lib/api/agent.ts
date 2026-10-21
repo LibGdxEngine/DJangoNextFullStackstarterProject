@@ -9,6 +9,7 @@ export type AgentRun = Schemas["AgentRun"];
 export type AgentRunEvent = Schemas["AgentRunEvent"];
 export type AgentArtifact = Schemas["AgentArtifact"];
 export type AgentRunStatus = Schemas["AgentRunStatusEnum"];
+export type AgentLiveFrame = Schemas["AgentLiveFrame"];
 
 const BASE = "/product/browser_agent/runs";
 
@@ -28,4 +29,7 @@ export const agentApi = {
   cancel: (id: string) => apiClient.post<AgentRun>(`${BASE}/${encodeURIComponent(id)}/cancel/`),
   artifacts: (id: string) =>
     apiClient.get<AgentArtifact[]>(`${BASE}/${encodeURIComponent(id)}/artifacts/`),
+  /** Newest browser frame after `after`, or undefined (HTTP 204) when there is none. */
+  liveFrame: (id: string, after?: number) =>
+    apiClient.get<AgentLiveFrame | undefined>(`${BASE}/${encodeURIComponent(id)}/live/`, { query: { after } }),
 };

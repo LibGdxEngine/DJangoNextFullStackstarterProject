@@ -5857,6 +5857,161 @@
                 }
             }
         },
+        "/api/product/browser_agent/runs/{id}/live/": {
+            "get": {
+                "operationId": "product_browser_agent_runs_live_retrieve",
+                "description": "Latest frame of the run's browser, for watching it live.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "after",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Return a frame only if it is newer than this seq."
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "description": "A UUID string identifying this agent run.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "product"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "basicAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentLiveFrame"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or session expired.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied or required verification.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "406": {
+                        "description": "Response format not acceptable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported media type.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request throttled.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected internal error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "A required service is unavailable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/status/": {
             "get": {
                 "operationId": "status_retrieve",
@@ -9619,6 +9774,36 @@
                 ],
                 "type": "string",
                 "description": "* `screenshot` - Screenshot\n* `file` - File"
+            },
+            "AgentLiveFrame": {
+                "type": "object",
+                "properties": {
+                    "seq": {
+                        "type": "integer"
+                    },
+                    "image": {
+                        "type": "string",
+                        "description": "Base64-encoded JPEG of the browser viewport."
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "captured_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "live": {
+                        "type": "boolean",
+                        "description": "False once the run has closed its browser."
+                    }
+                },
+                "required": [
+                    "captured_at",
+                    "image",
+                    "live",
+                    "seq",
+                    "url"
+                ]
             },
             "AgentRun": {
                 "type": "object",

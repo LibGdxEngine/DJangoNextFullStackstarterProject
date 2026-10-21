@@ -19,6 +19,14 @@ class AgentRunEventSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class AgentLiveFrameSerializer(serializers.Serializer):
+    seq = serializers.IntegerField()
+    image = serializers.CharField(help_text='Base64-encoded JPEG of the browser viewport.')
+    url = serializers.CharField(allow_blank=True)
+    captured_at = serializers.DateTimeField()
+    live = serializers.BooleanField(help_text='False once the run has closed its browser.')
+
+
 class AgentRunSerializer(serializers.ModelSerializer):
     organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all())
     profile = serializers.PrimaryKeyRelatedField(

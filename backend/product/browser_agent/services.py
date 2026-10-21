@@ -9,6 +9,7 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.utils import timezone
 
+from .live import LiveScreencast
 from .models import AgentArtifact, AgentRun, AgentRunEvent, BrowserProfile
 
 logger = logging.getLogger(__name__)
@@ -140,8 +141,10 @@ async def execute_run(run_id) -> None:
     usage = Usage()
     status, error, final_text = AgentRun.Status.SUCCEEDED, '', ''
     seq = seen = 0
+    live = LiveScreencast(session, run.id)
     try:
         await session.start()
+        live.start()
         await session.verify_ip()
         tools = make_browser_tools(
             session, screenshot_dir=str(root / 'screenshots'), files_dir=str(workspace))
@@ -177,6 +180,7 @@ async def execute_run(run_id) -> None:
         logger.exception('Agent run %s failed', run.id)
         status, error = AgentRun.Status.FAILED, f'{type(exc).__name__}: {exc}'[:500]
     finally:
+        await live.stop()
         try:
             await session.stop()
         except Exception:
