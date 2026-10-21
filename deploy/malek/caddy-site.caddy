@@ -1,0 +1,8 @@
+
+# malek-academy: managed by /srv/malek-academy/caddy-ensure.sh; do not edit by hand.
+malek.ic-mobile.tech {
+	encode gzip zstd
+	reverse_proxy malek-academy-gateway:8080 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

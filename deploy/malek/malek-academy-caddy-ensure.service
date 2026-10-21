@@ -1,0 +1,8 @@
+[Unit]
+Description=Keep the company Caddy wired to the Imam Malek Academy
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/srv/malek-academy/caddy-ensure.sh

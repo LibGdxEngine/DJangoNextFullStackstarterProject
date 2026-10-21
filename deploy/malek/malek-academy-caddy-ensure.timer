@@ -1,0 +1,10 @@
+[Unit]
+Description=Repair Imam Malek Academy Caddy wiring every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

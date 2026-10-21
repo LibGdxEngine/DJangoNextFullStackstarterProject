@@ -528,7 +528,7 @@ export const ar: Dictionary = {
     workspaceTitle: "اختر مساحة العمل",
     workspaceSubtitle: "رقمك مرتبط بأكثر من دور.",
     workspaceHint: {
-      management: "المالك · أكاديمية النور",
+      management: "المالك · أكاديمية الإمام مالك",
       teacher: "حصصك وتقاريرك ومستحقاتك",
       family: "عائلة أحمد · طفلان",
     },

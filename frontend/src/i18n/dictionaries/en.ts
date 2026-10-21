@@ -518,7 +518,7 @@ export const en = {
     workspaceTitle: "Choose a workspace",
     workspaceSubtitle: "Your number is linked to more than one role.",
     workspaceHint: {
-      management: "Owner · Al-Noor Academy",
+      management: "Owner · Imam Malek Academy",
       teacher: "Your classes, reports and earnings",
       family: "Ahmed family · 2 children",
     },

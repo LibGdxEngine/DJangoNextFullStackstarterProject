@@ -32,6 +32,7 @@ import type {
   WhatsAppConnection,
 } from "./types";
 import { zonedTimeToUtc } from "@/lib/format";
+import { site } from "@/config/site";
 
 const DAY = 86_400_000;
 const now = new Date();
@@ -46,7 +47,7 @@ function isoAt(offsetDays: number, utcHour: number, utcMinute = 0): string {
 }
 
 export const settings: AcademySettings = {
-  name: { en: "Al-Noor Academy", ar: "أكاديمية النور" },
+  name: { ...site.name },
   timezone: "Africa/Cairo",
   language: "ar",
   cancellationHours: 24,

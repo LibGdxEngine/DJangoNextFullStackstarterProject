@@ -5,6 +5,7 @@ import SessionProvider from "../components/SessionProvider";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { getLocale } from "@/i18n/server";
 import { dirOf } from "@/i18n/config";
+import { site } from "@/config/site";
 
 const plexSans = IBM_Plex_Sans({
   variable: "--font-plex-sans",
@@ -19,8 +20,9 @@ const plexArabic = IBM_Plex_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "Quran Academy",
-  description: "Academy management, teacher and family workspaces",
+  title: `${site.name.ar} | ${site.name.en}`,
+  description: site.description.ar,
+  applicationName: site.name.en,
 };
 
 export default async function RootLayout({
