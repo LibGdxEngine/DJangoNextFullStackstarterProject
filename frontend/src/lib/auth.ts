@@ -98,6 +98,8 @@ export const authOptions: NextAuthOptions = {
         token.requiresPhone = false;
       }
       // Access tokens live 15 minutes; rotate shortly before expiry so long sessions keep working.
+      // Only the /api/auth routes can save the rotated cookie, so server components must read
+      // the session with readSessionToken (lib/session-cookie.ts), never getServerSession.
       if (needsRefresh(token)) return refreshAccessToken(token);
       return token;
     },

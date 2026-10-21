@@ -468,6 +468,44 @@ export interface paths {
         patch: operations["organizations_partial_update"];
         trace?: never;
     };
+    "/api/product/browser_agent/roles/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Roles the agent can work as: built-in ones, and custom ones an organization hires. */
+        get: operations["product_browser_agent_roles_list"];
+        put?: never;
+        /** @description Roles the agent can work as: built-in ones, and custom ones an organization hires. */
+        post: operations["product_browser_agent_roles_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/product/browser_agent/roles/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Roles the agent can work as: built-in ones, and custom ones an organization hires. */
+        get: operations["product_browser_agent_roles_retrieve"];
+        /** @description Roles the agent can work as: built-in ones, and custom ones an organization hires. */
+        put: operations["product_browser_agent_roles_update"];
+        post?: never;
+        /** @description Roles the agent can work as: built-in ones, and custom ones an organization hires. */
+        delete: operations["product_browser_agent_roles_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Roles the agent can work as: built-in ones, and custom ones an organization hires. */
+        patch: operations["product_browser_agent_roles_partial_update"];
+        trace?: never;
+    };
     "/api/product/browser_agent/runs/": {
         parameters: {
             query?: never;
@@ -554,6 +592,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/product/browser_agent/runs/{id}/control/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Take the browser over from the agent, or hand it back. Taking it again refreshes
+         *     the claim; control returns to the agent after two quiet minutes.
+         */
+        post: operations["product_browser_agent_runs_control_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/product/browser_agent/runs/{id}/events/": {
         parameters: {
             query?: never;
@@ -571,6 +629,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/product/browser_agent/runs/{id}/input/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Clicks, scrolling and keystrokes for the browser while the user drives it. */
+        post: operations["product_browser_agent_runs_input_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/product/browser_agent/runs/{id}/live/": {
         parameters: {
             query?: never;
@@ -578,8 +653,42 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Latest frame of the run's browser, for watching it live. */
+        /** @description Latest frame of the run's browser and who is driving it, for watching it live. */
         get: operations["product_browser_agent_runs_live_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/product/browser_agent/task-templates/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Ready-made requests for the task library. ``?search=`` matches title, description and prompt. */
+        get: operations["product_browser_agent_task_templates_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/product/browser_agent/task-templates/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Ready-made requests for the task library. ``?search=`` matches title, description and prompt. */
+        get: operations["product_browser_agent_task_templates_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1021,6 +1130,64 @@ export interface components {
          * @enum {string}
          */
         AgentArtifactKindEnum: "screenshot" | "file";
+        /**
+         * @description * `take` - Take
+         *     * `release` - Release
+         * @enum {string}
+         */
+        AgentControlActionEnum: "take" | "release";
+        /**
+         * @description * `agent` - Agent
+         *     * `waiting` - Waiting for the agent to pause
+         *     * `user` - User
+         * @enum {string}
+         */
+        AgentControlEnum: "agent" | "waiting" | "user";
+        AgentControlRequestRequest: {
+            action: components["schemas"]["AgentControlActionEnum"];
+        };
+        AgentControlState: {
+            /**
+             * @description Who drives the browser: the agent, the user, or the user waiting for the agent to pause.
+             *
+             *     * `agent` - Agent
+             *     * `waiting` - Waiting for the agent to pause
+             *     * `user` - User
+             */
+            control: components["schemas"]["AgentControlEnum"];
+            /** @description Why the agent asked the user to take over, if it did. */
+            help: string;
+        };
+        AgentInputEventRequest: {
+            type: components["schemas"]["AgentInputTypeEnum"];
+            /** Format: double */
+            x?: number;
+            /** Format: double */
+            y?: number;
+            count?: number;
+            /** Format: double */
+            dy?: number;
+            text?: string;
+            key?: string;
+            modifiers?: number;
+        };
+        AgentInputRequest: {
+            events: components["schemas"]["AgentInputEventRequest"][];
+        };
+        /**
+         * @description * `click` - Click
+         *     * `move` - Move
+         *     * `wheel` - Wheel
+         *     * `text` - Text
+         *     * `key` - Key
+         * @enum {string}
+         */
+        AgentInputTypeEnum: "click" | "move" | "wheel" | "text" | "key";
+        AgentLive: {
+            /** @description Null when there is no newer frame. */
+            frame: components["schemas"]["AgentLiveFrame"] | null;
+            state: components["schemas"]["AgentControlState"];
+        };
         AgentLiveFrame: {
             seq: number;
             /** @description Base64-encoded JPEG of the browser viewport. */
@@ -1031,6 +1198,56 @@ export interface components {
             /** @description False once the run has closed its browser. */
             live: boolean;
         };
+        AgentRole: {
+            /** Format: uuid */
+            readonly id: string;
+            /**
+             * Format: uuid
+             * @description Owner of a custom role; null for built-in roles. Cannot be changed.
+             */
+            organization: string;
+            readonly slug: string;
+            name: string;
+            /** @description What the role does, shown under its name. */
+            title: string;
+            summary?: string;
+            skills?: string[];
+            readonly avatar: string;
+            readonly tint: string;
+            /** @description Added to the agent system prompt. */
+            instructions?: string;
+            readonly is_builtin: boolean;
+            /**
+             * @description Runs of this role still queued or running in the caller's organizations.
+             * @default 0
+             */
+            readonly active_runs: number;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        AgentRoleRequest: {
+            /**
+             * Format: uuid
+             * @description Owner of a custom role; null for built-in roles. Cannot be changed.
+             */
+            organization: string;
+            name: string;
+            /** @description What the role does, shown under its name. */
+            title: string;
+            summary?: string;
+            skills?: string[];
+            /** @description Added to the agent system prompt. */
+            instructions?: string;
+        };
+        AgentRoleSummary: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            /** @description What the role does, shown under its name. */
+            readonly title: string;
+            readonly avatar: string;
+            readonly tint: string;
+        };
         AgentRun: {
             /** Format: uuid */
             readonly id: string;
@@ -1038,6 +1255,12 @@ export interface components {
             organization: string;
             /** Format: uuid */
             profile?: string | null;
+            /**
+             * Format: uuid
+             * @description The role the agent works as; a built-in role or one of the organization.
+             */
+            role?: string | null;
+            readonly role_detail: components["schemas"]["AgentRoleSummary"] | null;
             task: string;
             readonly status: components["schemas"]["AgentRunStatusEnum"];
             readonly final_text: string;
@@ -1070,6 +1293,11 @@ export interface components {
             organization: string;
             /** Format: uuid */
             profile?: string | null;
+            /**
+             * Format: uuid
+             * @description The role the agent works as; a built-in role or one of the organization.
+             */
+            role?: string | null;
             task: string;
         };
         /**
@@ -1105,6 +1333,17 @@ export interface components {
             /** Format: date-time */
             last_seen: string | null;
         };
+        /**
+         * @description * `leads` - عملاء ومبيعات
+         *     * `mk` - تسويق وحملات
+         *     * `sup` - خدمة العملاء
+         *     * `fin` - تقارير وأنظمة
+         *     * `video` - فيديو ومحتوى
+         *     * `pres` - عروض تقديمية
+         *     * `study` - دراسة وبحث
+         * @enum {string}
+         */
+        CategoryEnum: "leads" | "mk" | "sup" | "fin" | "video" | "pres" | "study";
         EmailChangeRequest: {
             /** Format: email */
             new_email: string;
@@ -1200,6 +1439,20 @@ export interface components {
             challenge_id: string;
             code: string;
         };
+        PatchedAgentRoleRequest: {
+            /**
+             * Format: uuid
+             * @description Owner of a custom role; null for built-in roles. Cannot be changed.
+             */
+            organization?: string;
+            name?: string;
+            /** @description What the role does, shown under its name. */
+            title?: string;
+            summary?: string;
+            skills?: string[];
+            /** @description Added to the agent system prompt. */
+            instructions?: string;
+        };
         PatchedOrganizationRequest: {
             name?: string;
             slug?: string;
@@ -1290,6 +1543,21 @@ export interface components {
             redis: string;
             celery: string;
             beat: components["schemas"]["BeatStatus"];
+        };
+        TaskTemplate: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly organization: string | null;
+            readonly category: components["schemas"]["CategoryEnum"];
+            readonly category_label: string;
+            readonly title: string;
+            readonly description: string;
+            /** @description The request placed in the chat box. */
+            readonly prompt: string;
+            readonly image: string;
+            /** Format: uuid */
+            readonly role: string | null;
         };
         TokenPair: {
             access: string;
@@ -5139,6 +5407,707 @@ export interface operations {
             };
         };
     };
+    product_browser_agent_roles_list: {
+        parameters: {
+            query?: {
+                /** @description Built-in roles plus the roles of this organization. */
+                organization?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRole"][];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    product_browser_agent_roles_create: {
+        parameters: {
+            query?: {
+                /** @description Built-in roles plus the roles of this organization. */
+                organization?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRoleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AgentRoleRequest"];
+                "multipart/form-data": components["schemas"]["AgentRoleRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRole"];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    product_browser_agent_roles_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Built-in roles plus the roles of this organization. */
+                organization?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this agent role. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRole"];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    product_browser_agent_roles_update: {
+        parameters: {
+            query?: {
+                /** @description Built-in roles plus the roles of this organization. */
+                organization?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this agent role. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRoleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AgentRoleRequest"];
+                "multipart/form-data": components["schemas"]["AgentRoleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRole"];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    product_browser_agent_roles_destroy: {
+        parameters: {
+            query?: {
+                /** @description Built-in roles plus the roles of this organization. */
+                organization?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this agent role. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    product_browser_agent_roles_partial_update: {
+        parameters: {
+            query?: {
+                /** @description Built-in roles plus the roles of this organization. */
+                organization?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this agent role. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedAgentRoleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedAgentRoleRequest"];
+                "multipart/form-data": components["schemas"]["PatchedAgentRoleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRole"];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     product_browser_agent_runs_list: {
         parameters: {
             query?: never;
@@ -5812,6 +6781,124 @@ export interface operations {
             };
         };
     };
+    product_browser_agent_runs_control_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this agent run. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentControlRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AgentControlRequestRequest"];
+                "multipart/form-data": components["schemas"]["AgentControlRequestRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentControlState"];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     product_browser_agent_runs_events_list: {
         parameters: {
             query?: {
@@ -5927,10 +7014,127 @@ export interface operations {
             };
         };
     };
+    product_browser_agent_runs_input_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this agent run. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentInputRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AgentInputRequest"];
+                "multipart/form-data": components["schemas"]["AgentInputRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     product_browser_agent_runs_live_retrieve: {
         parameters: {
             query?: {
-                /** @description Return a frame only if it is newer than this seq. */
+                /** @description Include the frame only if it is newer than this seq. */
                 after?: number;
             };
             header?: never;
@@ -5947,15 +7151,239 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AgentLiveFrame"];
+                    "application/json": components["schemas"]["AgentLive"];
                 };
             };
-            /** @description No response body */
-            204: {
+            /** @description Invalid request or validation error. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    product_browser_agent_task_templates_list: {
+        parameters: {
+            query?: {
+                category?: "fin" | "leads" | "mk" | "pres" | "study" | "sup" | "video";
+                /** @description Built-in templates plus the templates of this organization. */
+                organization?: string;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplate"][];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    product_browser_agent_task_templates_retrieve: {
+        parameters: {
+            query?: {
+                category?: "fin" | "leads" | "mk" | "pres" | "study" | "sup" | "video";
+                /** @description Built-in templates plus the templates of this organization. */
+                organization?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this task template. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplate"];
+                };
             };
             /** @description Invalid request or validation error. */
             400: {

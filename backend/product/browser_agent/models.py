@@ -23,6 +23,64 @@ class BrowserProfile(BaseModel):
         return settings.AGENT_PROFILES_ROOT / str(self.organization_id) / str(self.id)
 
 
+class AgentRole(BaseModel):
+    """A persona the agent works as. Without an organization it is built in and offered to everyone."""
+    organization = models.ForeignKey(
+        Organization, null=True, blank=True, on_delete=models.CASCADE, related_name='agent_roles')
+    slug = models.SlugField(max_length=50)
+    name = models.CharField(max_length=60)
+    title = models.CharField(max_length=100, help_text='What the role does, shown under its name.')
+    summary = models.CharField(max_length=300, blank=True, default='')
+    skills = models.JSONField(default=list, blank=True)
+    avatar = models.CharField(max_length=200, default='/agents/team.png')
+    tint = models.CharField(max_length=20, default='#F2F0F8')
+    instructions = models.TextField(blank=True, default='', help_text='Added to the agent system prompt.')
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['organization', 'slug'], name='agent_role_org_slug'),
+            models.UniqueConstraint(fields=['slug'], condition=models.Q(organization__isnull=True),
+                                    name='agent_role_builtin_slug'),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.title})'
+
+    @property
+    def is_builtin(self):
+        return self.organization_id is None
+
+
+class TaskTemplate(BaseModel):
+    """A ready-made request from the task library. Without an organization it is built in."""
+    class Category(models.TextChoices):
+        LEADS = 'leads', 'عملاء ومبيعات'
+        MARKETING = 'mk', 'تسويق وحملات'
+        SUPPORT = 'sup', 'خدمة العملاء'
+        REPORTS = 'fin', 'تقارير وأنظمة'
+        VIDEO = 'video', 'فيديو ومحتوى'
+        PRESENTATIONS = 'pres', 'عروض تقديمية'
+        RESEARCH = 'study', 'دراسة وبحث'
+
+    organization = models.ForeignKey(
+        Organization, null=True, blank=True, on_delete=models.CASCADE, related_name='task_templates')
+    category = models.CharField(max_length=20, choices=Category.choices, db_index=True)
+    title = models.CharField(max_length=120)
+    description = models.CharField(max_length=400, blank=True, default='')
+    prompt = models.TextField(help_text='The request placed in the chat box.')
+    image = models.CharField(max_length=200, default='/agents/team.png')
+    role = models.ForeignKey(AgentRole, null=True, blank=True, on_delete=models.SET_NULL, related_name='templates')
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'created_at']
+
+    def __str__(self):
+        return self.title
+
+
 class AgentRun(BaseModel):
     class Status(models.TextChoices):
         QUEUED = 'queued', 'Queued'
@@ -39,6 +97,8 @@ class AgentRun(BaseModel):
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name='agent_runs')
     profile = models.ForeignKey(
         BrowserProfile, null=True, blank=True, on_delete=models.SET_NULL, related_name='runs')
+    role = models.ForeignKey(
+        AgentRole, null=True, blank=True, on_delete=models.SET_NULL, related_name='runs')
     task = models.TextField()
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True)
     final_text = models.TextField(blank=True, default='')

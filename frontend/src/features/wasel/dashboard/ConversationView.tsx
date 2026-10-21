@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { agents } from "@/features/wasel/data";
 import { isTerminal, type AgentRunEvent } from "@/lib/api/agent";
 import { LiveBrowser } from "./LiveBrowser";
 import { runStatusLabel } from "./run-format";
+import { DEFAULT_ROLE } from "./useCatalog";
 import { useRun } from "./useRun";
 
-const agent = agents[0];
+/** Tools with which the agent asks the user to take over the browser. */
+const HANDOFF_TOOLS = new Set(["hand_over_to_user", "manual_captcha_handoff"]);
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -26,6 +27,17 @@ function EventRow({ event }: { event: AgentRunEvent }) {
   const payload = asRecord(event.payload);
   if (event.kind === "message") {
     return <div className="text-base leading-loose whitespace-pre-wrap">{String(payload.text ?? "")}</div>;
+  }
+  if (event.kind === "tool_call" && HANDOFF_TOOLS.has(String(payload.name))) {
+    const reason = asRecord(payload.args).reason;
+    return (
+      <div className="flex items-start gap-3 rounded-[16px] bg-[#FFF6E6] px-3 py-2.5">
+        <span className="text-base">🙋</span>
+        <span dir="auto" className="text-[15px] leading-relaxed">
+          طلبت مساعدتك في المتصفح{typeof reason === "string" && reason ? `: ${reason}` : "."}
+        </span>
+      </div>
+    );
   }
   if (event.kind === "tool_call") {
     return (
@@ -59,18 +71,24 @@ export function ConversationView({ runId }: { runId: string }) {
     );
   }
 
+  const agent = run?.role_detail ?? DEFAULT_ROLE;
   const status = run ? runStatusLabel(run.status) : undefined;
   const active = run ? !isTerminal(run.status) : true;
   const stepCount = events.filter((e) => e.kind === "tool_call").length;
+  // The agent asked for the user (a login or CAPTCHA): the browser must be on screen.
+  const lastEvent = events[events.length - 1];
+  const awaitingUser =
+    active && lastEvent?.kind === "tool_call" && HANDOFF_TOOLS.has(String(asRecord(lastEvent.payload).name));
+  const browserVisible = showBrowser || awaitingUser;
 
   return (
     <div className="flex min-h-screen flex-col">
       <div className="flex items-center justify-between gap-4 border-b border-line bg-white px-6 py-4 md:px-8">
         <div className="flex items-center gap-3">
-          <Image src={agent.img} alt="" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
+          <Image src={agent.avatar} alt="" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
           <div>
             <div className="text-[17px] font-bold">
-              {agent.name} · {agent.role}
+              {agent.name} · {agent.title}
             </div>
             <div className="text-xs" style={{ color: status?.color ?? "#9A97AB" }}>
               {status?.text ?? "جارٍ التحميل…"}
@@ -114,7 +132,7 @@ export function ConversationView({ runId }: { runId: string }) {
             ) : null}
 
             <div className="flex items-start gap-3">
-              <Image src={agent.img} alt="" width={34} height={34} className="h-[34px] w-[34px] flex-shrink-0 rounded-full object-cover" />
+              <Image src={agent.avatar} alt="" width={34} height={34} className="h-[34px] w-[34px] flex-shrink-0 rounded-full object-cover" />
               <div className="flex min-w-0 flex-1 flex-col gap-3.5">
                 {events.map((event) => (
                   <EventRow key={event.seq} event={event} />
@@ -178,9 +196,9 @@ export function ConversationView({ runId }: { runId: string }) {
           </div>
         </div>
 
-        {showBrowser ? (
+        {browserVisible ? (
           <aside className="order-first border-b border-line p-6 xl:sticky xl:top-0 xl:order-none xl:h-screen xl:w-[46%] xl:flex-shrink-0 xl:border-r xl:border-b-0">
-            <LiveBrowser runId={runId} active={active} />
+            <LiveBrowser runId={runId} active={active} agentName={agent.name} />
           </aside>
         ) : null}
       </div>

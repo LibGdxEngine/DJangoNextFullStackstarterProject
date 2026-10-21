@@ -10,7 +10,7 @@ vi.mock("@/lib/api/agent", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/api/agent")>();
   return {
     ...real,
-    agentApi: { getRun: vi.fn(), events: vi.fn(), artifacts: vi.fn(), cancel: vi.fn(), liveFrame: vi.fn() },
+    agentApi: { getRun: vi.fn(), events: vi.fn(), artifacts: vi.fn(), cancel: vi.fn(), live: vi.fn(), control: vi.fn(), sendInput: vi.fn() },
   };
 });
 

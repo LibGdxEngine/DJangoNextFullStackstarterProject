@@ -48,7 +48,13 @@ export function ConversationListSidebar() {
         className="flex items-center gap-2.5 rounded-xl p-2.5"
         style={{ background: pathname === href ? "#EEE8FF" : "transparent" }}
       >
-        <Image src="/agents/team.png" alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
+        <Image
+          src={run.role_detail?.avatar ?? "/agents/team.png"}
+          alt=""
+          width={32}
+          height={32}
+          className="h-8 w-8 rounded-full object-cover"
+        />
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{runTitle(run.task)}</div>
           <div className="text-xs" style={{ color: status.color }}>

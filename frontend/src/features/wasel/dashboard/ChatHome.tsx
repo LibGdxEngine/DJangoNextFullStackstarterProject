@@ -5,22 +5,26 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { agents, allTasks } from "@/features/wasel/data";
 import { agentApi } from "@/lib/api/agent";
 import { describeApiError } from "@/lib/api/errors";
+import { useRoles, useTaskTemplates } from "./useCatalog";
 import { useWorkspace } from "./workspace";
 
-const QUICK_TASKS = [allTasks[0], allTasks[3], allTasks[5]];
 const GOAL_PREFIX = "متابعة مستمرة: ";
 
-export function ChatHome({ initialTask = "" }: { initialTask?: string }) {
+export function ChatHome({ initialTask = "", initialRole = "" }: { initialTask?: string; initialRole?: string }) {
   const router = useRouter();
   const { data: session } = useSession();
   const workspace = useWorkspace();
+  const roles = useRoles();
+  const templates = useTaskTemplates();
   const [mode, setMode] = useState<"task" | "goal">("task");
   const [task, setTask] = useState(initialTask);
+  const [roleId, setRoleId] = useState(initialRole);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
+  const role = roles.data?.find((r) => r.id === roleId);
+  const quickTasks = templates.data?.slice(0, 3) ?? [];
 
   const userName = session?.user?.name || session?.username || "";
   const placeholder = useMemo(
@@ -40,6 +44,7 @@ export function ChatHome({ initialTask = "" }: { initialTask?: string }) {
       const run = await agentApi.createRun({
         organization: workspace.organization.id,
         task: mode === "goal" ? `${GOAL_PREFIX}${text}` : text,
+        ...(roleId ? { role: roleId } : {}),
       });
       router.push(`/dashboard/conversations/${run.id}`);
     } catch (err) {
@@ -55,11 +60,11 @@ export function ChatHome({ initialTask = "" }: { initialTask?: string }) {
       <div className="text-center">
         <div className="mb-[18px] flex justify-center">
           <div className="flex">
-            {agents.map((a) => (
+            {(roles.data ?? []).filter((r) => r.is_builtin).map((r) => (
               <Image
-                key={a.id}
-                src={a.img}
-                alt={a.name}
+                key={r.id}
+                src={r.avatar}
+                alt={r.name}
                 width={52}
                 height={52}
                 className="-ml-3.5 h-[52px] w-[52px] rounded-full border-[3px] border-paper object-cover"
@@ -110,10 +115,19 @@ export function ChatHome({ initialTask = "" }: { initialTask?: string }) {
           className="min-h-[84px] w-full resize-none bg-transparent text-[17px] leading-relaxed outline-none"
         />
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-violet-tint px-3.5 py-2 text-[13px] font-medium text-violet">
               🌐 يعمل في متصفح حقيقي باسمك
             </span>
+            {role ? (
+              <span className="flex items-center gap-1.5 rounded-full bg-[#F2F0F8] py-1 ps-1 pe-2 text-[13px]">
+                <Image src={role.avatar} alt="" width={24} height={24} className="h-6 w-6 rounded-full object-cover" />
+                {role.name} · {role.title}
+                <button onClick={() => setRoleId("")} aria-label="بدون دور محدد" className="text-muted hover:text-ink">
+                  ✕
+                </button>
+              </span>
+            ) : null}
           </div>
           <button
             onClick={() => void handleSubmit()}
@@ -149,17 +163,20 @@ export function ChatHome({ initialTask = "" }: { initialTask?: string }) {
         </Link>
       </div>
       <div className="mt-[18px] grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {QUICK_TASKS.map((idea) => (
+        {quickTasks.map((idea) => (
           <button
-            key={idea.title}
-            onClick={() => setTask(idea.title)}
+            key={idea.id}
+            onClick={() => {
+              setTask(idea.prompt);
+              setRoleId(idea.role ?? "");
+            }}
             className="overflow-hidden rounded-[22px] border border-line bg-white text-start hover:border-[#B9A3FF]"
           >
             <div className="aspect-[16/10] overflow-hidden">
-              <Image src={idea.img} alt="" width={320} height={200} className="h-full w-full object-cover" />
+              <Image src={idea.image} alt="" width={320} height={200} className="h-full w-full object-cover" />
             </div>
             <div className="px-4 pt-3.5 pb-[18px]">
-              <div className="text-xs font-semibold text-violet">{idea.cat}</div>
+              <div className="text-xs font-semibold text-violet">{idea.category_label}</div>
               <div className="mt-1 text-base font-semibold">{idea.title}</div>
             </div>
           </button>

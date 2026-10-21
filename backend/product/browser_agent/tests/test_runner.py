@@ -56,7 +56,7 @@ class ExecuteRunTests(TransactionTestCase):
         with patch(f'{engine}.browser_tools.BrowserSession.from_env', return_value=session), \
                 patch(f'{engine}.browser_tools.make_browser_tools', return_value=[]), \
                 patch(f'{engine}.agent.build_agent',
-                      side_effect=lambda s, tools, workspace: agent_factory(workspace)):
+                      side_effect=lambda s, tools, workspace, **kw: agent_factory(workspace)):
             async_to_sync(execute_run)(self.run.id)
         self.run.refresh_from_db()
         return session

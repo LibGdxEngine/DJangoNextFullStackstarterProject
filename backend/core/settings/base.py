@@ -154,6 +154,9 @@ SPECTACULAR_SETTINGS = {
         'UserStatusEnum': 'apps.accounts.models.UserStatus.choices',
         'VerificationPurposeEnum': 'apps.accounts.models.VerificationPurpose.choices',
         'SubscriptionStatusEnum': 'apps.billing.models.Subscription.Status',
+        'AgentInputTypeEnum': 'product.browser_agent.serializers.INPUT_TYPES',
+        'AgentControlActionEnum': 'product.browser_agent.serializers.CONTROL_ACTIONS',
+        'AgentControlEnum': 'product.browser_agent.serializers.CONTROL_STATES',
     },
 }
 
@@ -394,7 +397,8 @@ LOGGING = {
 AGENT_DATA_ROOT = Path(os.environ.get('AGENT_DATA_ROOT', BASE_DIR / 'agent_data'))
 AGENT_RUNS_ROOT = AGENT_DATA_ROOT / 'runs'
 AGENT_PROFILES_ROOT = AGENT_DATA_ROOT / 'profiles'
-AGENT_RUN_TIMEOUT = int(os.environ.get('AGENT_RUN_TIMEOUT', 900))
+# Includes time the user spends driving the browser during a handoff.
+AGENT_RUN_TIMEOUT = int(os.environ.get('AGENT_RUN_TIMEOUT', 1800))
 AGENT_MAX_ACTIVE_RUNS_PER_ORG = int(os.environ.get('AGENT_MAX_ACTIVE_RUNS_PER_ORG', 2))
 AGENT_ARTIFACT_RETENTION_DAYS = int(os.environ.get('AGENT_ARTIFACT_RETENTION_DAYS', 14))
 AGENT_RECURSION_LIMIT = int(os.environ.get('AGENT_RECURSION_LIMIT', 150))

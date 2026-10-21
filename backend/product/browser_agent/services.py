@@ -59,7 +59,7 @@ def _finish(run: AgentRun, status: str, *, final_text: str = '', error: str = ''
 @sync_to_async
 def _claim(run_id) -> AgentRun | None:
     """Move a queued run to running; None if it was cancelled or already picked up."""
-    run = AgentRun.objects.select_related('profile').get(pk=run_id)
+    run = AgentRun.objects.select_related('profile', 'role').get(pk=run_id)
     if run.status != AgentRun.Status.QUEUED:
         return None
     if run.cancel_requested:
@@ -115,6 +115,57 @@ class RunCancelled(Exception):
     pass
 
 
+HANDOFF_TIMEOUT_S = 10 * 60
+
+HANDOFF_PROMPT = """
+
+Working with the user (they watch your browser live in the app and can take it over):
+- When a page needs the user's own sign-in (password, one-time code, passkey) or shows
+  a CAPTCHA you must not solve, call `hand_over_to_user` with a short reason written in
+  the user's language. They act in the live browser and hand it back; then read the page
+  again and continue. This replaces stopping and reporting for those cases.
+- Never ask for a password or code in your messages, and never type one yourself.
+- If the user does not come back in time, stop and report what is blocking you.
+"""
+
+
+def with_user_handoff(tools: list, live: LiveScreencast) -> list:
+    """Swap the console-only CAPTCHA handoff for one that works through the live view."""
+    from langchain_core.tools import tool
+
+    async def handoff(reason: str) -> str:
+        outcome = await live.wait_for_user(reason, HANDOFF_TIMEOUT_S)
+        if outcome == 'returned':
+            return ('The user finished and handed the browser back. Read the current page to '
+                    'see what changed before continuing; do not assume they succeeded.')
+        return (f'Nobody took over within {HANDOFF_TIMEOUT_S // 60} minutes. Stop and report '
+                'what is blocking you.')
+
+    @tool
+    async def hand_over_to_user(reason: str) -> str:
+        """Ask the user to take over the live browser, for example to sign in or solve a
+        CAPTCHA, and wait until they hand it back. `reason` tells them what to do."""
+        return await handoff(reason)
+
+    @tool
+    async def manual_captcha_handoff() -> str:
+        """Pause for the user to complete a CAPTCHA in the live browser, then continue."""
+        return await handoff('CAPTCHA')
+
+    kept = [t for t in tools if t.name != 'manual_captcha_handoff']
+    return kept + [hand_over_to_user, manual_captcha_handoff]
+
+
+def role_prompt(role) -> str:
+    """The part of the system prompt that tells the agent which role it works as."""
+    if role is None:
+        return ''
+    prompt = f'\n\nYour role: you are {role.name}, {role.title}.'
+    if role.instructions:
+        prompt += f'\n{role.instructions.strip()}'
+    return prompt
+
+
 async def execute_run(run_id) -> None:
     """Run the agent for ``run_id`` to completion. Agent failures are recorded, not raised."""
     run = await _claim(run_id)
@@ -123,7 +174,7 @@ async def execute_run(run_id) -> None:
 
     from langgraph.errors import GraphRecursionError
 
-    from .engine.agent import Usage, _text, build_agent
+    from .engine.agent import SYSTEM_PROMPT, Usage, _text, build_agent
     from .engine.browser_tools import BrowserSession, make_browser_tools
 
     recursion_limit = settings.AGENT_RECURSION_LIMIT
@@ -148,7 +199,9 @@ async def execute_run(run_id) -> None:
         await session.verify_ip()
         tools = make_browser_tools(
             session, screenshot_dir=str(root / 'screenshots'), files_dir=str(workspace))
-        agent = build_agent(session, tools=tools, workspace=str(workspace))
+        tools = with_user_handoff(tools, live)
+        agent = build_agent(session, tools=tools, workspace=str(workspace),
+                            system_prompt=SYSTEM_PROMPT + role_prompt(run.role) + HANDOFF_PROMPT)
 
         async def consume():
             nonlocal seq, seen, final_text

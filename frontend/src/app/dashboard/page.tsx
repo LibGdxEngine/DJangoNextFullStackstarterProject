@@ -6,8 +6,10 @@ export const metadata: Metadata = { title: "طلب جديد" };
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ task?: string | string[] }>;
+  searchParams: Promise<{ task?: string | string[]; role?: string | string[] }>;
 }) {
-  const { task } = await searchParams;
-  return <ChatHome key={typeof task === "string" ? task : ""} initialTask={typeof task === "string" ? task : ""} />;
+  const params = await searchParams;
+  const task = typeof params.task === "string" ? params.task : "";
+  const role = typeof params.role === "string" ? params.role : "";
+  return <ChatHome key={`${task}|${role}`} initialTask={task} initialRole={role} />;
 }

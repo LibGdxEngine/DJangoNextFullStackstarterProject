@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { readSessionToken } from "@/lib/session-cookie";
 import { DashboardShell } from "@/features/wasel/dashboard/DashboardShell";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.sessionExpired) redirect("/login");
+  // Not getServerSession: see readSessionToken. Expired access tokens are refreshed by the
+  // client's /api/auth/session calls, which can save the rotated cookie.
+  const token = await readSessionToken();
+  if (!token || token.sessionExpired || !token.refreshToken) redirect("/login");
 
-  const name = session.user?.name || session.username || session.email || "";
+  const name = token.username || token.name || token.email || "";
   return <DashboardShell user={{ name }}>{children}</DashboardShell>;
 }

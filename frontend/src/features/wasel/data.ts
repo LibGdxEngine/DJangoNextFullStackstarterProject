@@ -287,31 +287,6 @@ export const applications = [
   { initials: "س", company: "سويفل — مصمم واجهات", source: "LinkedIn · اليوم", status: "جارٍ الكتابة", bg: "#F2F0F8", fg: "#6B6880" },
 ];
 
-export type Task = { key: string; cat: string; img: string; title: string; desc: string };
-
-export const allTasks: Task[] = [
-  { cat: "عملاء محتملين", key: "leads", img: "/agents/sales.png", title: "٥٠ عميلًا محتملًا", desc: "٥٠ نشاطًا تجاريًا في مدينتك برقم الهاتف والموقع وحساب إنستجرام، في جدول." },
-  { cat: "فيديو ومحتوى", key: "video", img: "/agents/marketer.png", title: "فيديو ريلز من فكرة", desc: "سيناريو، ولقطات، وصوت، وموسيقى، وترجمة — فيديو جاهز للنشر." },
-  { cat: "دراسة وبحث", key: "study", img: "/agents/finance.png", title: "بحث موثّق", desc: "يجمع المصادر الموثوقة، ويكتب البحث، وينسّق المراجع." },
-  { cat: "تسويق", key: "mk", img: "/agents/marketer.png", title: "أطلق حملة واختبر ٣ تصاميم", desc: "يطلق الحملة، ويقارن التصاميم أسبوعيًا، ويوقف غير المجدي منها." },
-  { cat: "تسويق", key: "mk", img: "/agents/marketer.png", title: "خطة محتوى الشهر", desc: "٣٠ منشورًا بالنصوص والوسوم، مصمّمة ومجدولة على صفحتك." },
-  { cat: "خدمة العملاء", key: "sup", img: "/agents/support.png", title: "الرد على رسائل العملاء", desc: "يفرز الرسائل، ويرد على المتكرر، ويحيل إليك المهم فقط." },
-  { cat: "خدمة العملاء", key: "sup", img: "/agents/support.png", title: "متابعة العملاء المتوقفين", desc: "رسالة متابعة لكل عميل سأل عن السعر ولم يرد منذ أسبوع." },
-  { cat: "عروض تقديمية", key: "pres", img: "/agents/finance.png", title: "عرض لمحاضرة أو مؤتمر", desc: "حدّد الموضوع، ويعود إليك بـ ١٥ شريحة مصمّمة مع المراجع." },
-  { cat: "تقارير", key: "fin", img: "/agents/finance.png", title: "مراقبة المخزون", desc: "يتابع المخزون كل ساعة وينبّهك قبل نفاد أي صنف." },
-];
-
-export const taskCategories = [
-  { key: "all", label: "الكل", count: 140 },
-  { key: "leads", label: "عملاء ومبيعات", count: 34 },
-  { key: "mk", label: "تسويق وحملات", count: 26 },
-  { key: "sup", label: "خدمة العملاء", count: 14 },
-  { key: "fin", label: "تقارير وأنظمة", count: 18 },
-  { key: "video", label: "فيديو ومحتوى", count: 22 },
-  { key: "pres", label: "عروض تقديمية", count: 14 },
-  { key: "study", label: "دراسة وبحث", count: 12 },
-];
-
 export const milestones = [
   { day: "٢", text: "كُتبت الخطة", tag: "تم", done: true },
   { day: "٥", text: "٣٢٠ عميلًا في القائمة", tag: "تم", done: true },
