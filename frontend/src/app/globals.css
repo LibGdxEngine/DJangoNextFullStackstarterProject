@@ -1,40 +1,41 @@
 @import "tailwindcss";
 
 /*
- * Quran Academy design tokens (Foundation v0.1).
- * Brand green + terracotta attention accent; status colors always pair text with color.
+ * Imam Malek Academy design tokens, warm palette taken from the academy cover art.
+ * Brand brown + copper attention accent; status colors always pair text with color.
  */
 @theme {
   --font-sans: var(--font-plex-sans), var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
   --font-arabic: var(--font-plex-arabic), var(--font-plex-sans), ui-sans-serif, sans-serif;
+  --font-serif: var(--font-cinzel), ui-serif, Georgia, serif;
 
   /* Brand */
-  --color-brand-950: #051f20;
-  --color-brand-900: #0b2b26;
-  --color-brand-800: #163832;
-  --color-brand-700: #235347;
-  --color-brand-300: #8eb69b;
-  --color-brand-100: #daf1de;
-  --color-brand-50: #eef7f0;
+  --color-brand-950: #2a1408;
+  --color-brand-900: #3f1d0c;
+  --color-brand-800: #5b2a12;
+  --color-brand-700: #7a3f1d;
+  --color-brand-300: #d9b48c;
+  --color-brand-100: #f3e4cf;
+  --color-brand-50: #fbf5ec;
 
   /* Neutrals */
-  --color-page: #f5f7f6;
+  --color-page: #fbf7f1;
   --color-surface: #ffffff;
-  --color-subtle: #ebefed;
-  --color-line: #d7deda;
-  --color-line-soft: #e3e8e5;
-  --color-line-dashed: #b8c2bd;
-  --color-muted: #6b7a74;
-  --color-secondary: #3c4845;
-  --color-ink: #15201d;
-  --color-disabled: #9aa6a1;
+  --color-subtle: #f3ece1;
+  --color-line: #e6d9c6;
+  --color-line-soft: #efe5d6;
+  --color-line-dashed: #c9b7a0;
+  --color-muted: #7d6a5b;
+  --color-secondary: #4e3d31;
+  --color-ink: #2b1b12;
+  --color-disabled: #b0a294;
 
-  /* Accent: terracotta for "needs attention" — never destructive */
-  --color-accent-600: #b85c34;
-  --color-accent-400: #d97a4e;
-  --color-accent-50: #fbede6;
-  --color-accent-border: #fbd5bf;
-  --color-accent-ink: #8a3f1e;
+  /* Accent: copper for "needs attention" — never destructive */
+  --color-accent-600: #a0582a;
+  --color-accent-400: #c4844a;
+  --color-accent-50: #fbefe2;
+  --color-accent-border: #f0d3b0;
+  --color-accent-ink: #7a4416;
 
   /* Semantic */
   --color-danger: #b91c1c;
@@ -67,8 +68,8 @@
   --radius-class: 24px;
 
   /* Elevation */
-  --shadow-popover: 0 1px 2px rgba(5, 31, 32, 0.06), 0 4px 12px rgba(5, 31, 32, 0.08);
-  --shadow-dialog: 0 8px 24px rgba(5, 31, 32, 0.14), 0 24px 48px rgba(5, 31, 32, 0.12);
+  --shadow-popover: 0 1px 2px rgba(42, 20, 8, 0.06), 0 4px 12px rgba(42, 20, 8, 0.08);
+  --shadow-dialog: 0 8px 24px rgba(42, 20, 8, 0.14), 0 24px 48px rgba(42, 20, 8, 0.12);
 }
 
 @layer base {
@@ -97,7 +98,7 @@
   }
 
   dialog::backdrop {
-    background: rgba(5, 31, 32, 0.45);
+    background: rgba(42, 20, 8, 0.45);
   }
 }
 

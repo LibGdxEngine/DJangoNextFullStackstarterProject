@@ -12,8 +12,8 @@ import { Menu } from "@/components/ds/Menu";
 import { Avatar } from "@/components/ds/DetailHeader";
 
 export function LogoMark({ inverted, className }: { inverted?: boolean; className?: string }) {
-  const bg = inverted ? "#DAF1DE" : "#163832";
-  const fg = inverted ? "#163832" : "#DAF1DE";
+  const bg = inverted ? "#F3E4CF" : "#5B2A12";
+  const fg = inverted ? "#5B2A12" : "#F3E4CF";
   return (
     <svg role="img" aria-label="Academy logo" width="32" height="32" viewBox="0 0 32 32" fill="none" className={className}>
       <rect width="32" height="32" rx="9" fill={bg} />

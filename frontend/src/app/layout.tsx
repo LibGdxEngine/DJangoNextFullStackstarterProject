@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans, IBM_Plex_Sans_Arabic } from "next/font/google";
+import { Cinzel, IBM_Plex_Sans, IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "../components/SessionProvider";
 import { I18nProvider } from "@/i18n/I18nProvider";
@@ -19,9 +19,15 @@ const plexArabic = IBM_Plex_Sans_Arabic({
   weight: ["400", "500", "600", "700"],
 });
 
+const cinzel = Cinzel({
+  variable: "--font-cinzel",
+  subsets: ["latin"],
+  weight: ["600", "700"],
+});
+
 export const metadata: Metadata = {
-  title: `${site.name.ar} | ${site.name.en}`,
-  description: site.description.ar,
+  title: `${site.name.en} | Learn Qur'an & Arabic Online`,
+  description: "Private one-to-one online Quran and Arabic lessons for non-Arabic-speaking children and adults worldwide.",
   applicationName: site.name.en,
 };
 
@@ -35,7 +41,7 @@ export default async function RootLayout({
     <html
       lang={locale}
       dir={dirOf(locale)}
-      className={`${plexSans.variable} ${plexArabic.variable} h-full antialiased`}
+      className={`${plexSans.variable} ${plexArabic.variable} ${cinzel.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <SessionProvider>

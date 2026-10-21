@@ -20,9 +20,9 @@ import { MultiZoneTimes, MoneyByCurrency } from "@/components/ds/Time";
 import { DialogVariants } from "../dialogs/DialogVariants";
 
 const swatches: { group: string; items: [string, string][] }[] = [
-  { group: "brand", items: [["brand-950", "#051F20"], ["brand-900", "#0B2B26"], ["brand-800", "#163832"], ["brand-700", "#235347"], ["brand-300", "#8EB69B"], ["brand-100", "#DAF1DE"], ["brand-50", "#EEF7F0"]] },
-  { group: "neutral", items: [["page", "#F5F7F6"], ["subtle", "#EBEFED"], ["line", "#D7DEDA"], ["muted", "#6B7A74"], ["secondary", "#3C4845"], ["ink", "#15201D"]] },
-  { group: "accent", items: [["accent-600", "#B85C34"], ["accent-400", "#D97A4E"], ["accent-50", "#FBEDE6"], ["danger", "#B91C1C"], ["info", "#1D4ED8"], ["success", "#166534"]] },
+  { group: "brand", items: [["brand-950", "#2A1408"], ["brand-900", "#3F1D0C"], ["brand-800", "#5B2A12"], ["brand-700", "#7A3F1D"], ["brand-300", "#D9B48C"], ["brand-100", "#F3E4CF"], ["brand-50", "#FBF5EC"]] },
+  { group: "neutral", items: [["page", "#FBF7F1"], ["subtle", "#F3ECE1"], ["line", "#E6D9C6"], ["muted", "#7D6A5B"], ["secondary", "#4E3D31"], ["ink", "#2B1B12"]] },
+  { group: "accent", items: [["accent-600", "#A0582A"], ["accent-400", "#C4844A"], ["accent-50", "#FBEFE2"], ["danger", "#B91C1C"], ["info", "#1D4ED8"], ["success", "#166534"]] },
 ];
 
 const statuses: StatusKey[] = ["scheduled", "completed", "needs_review", "cancelled", "pending", "approved", "action_required", "not_connected", "connected", "renewal_due", "paused", "archived"];
