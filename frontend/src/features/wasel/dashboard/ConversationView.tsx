@@ -4,9 +4,11 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { isTerminal, type AgentRunEvent } from "@/lib/api/agent";
+import { ArtifactList } from "./ArtifactList";
 import { LiveBrowser } from "./LiveBrowser";
 import { runStatusLabel } from "./run-format";
 import { DEFAULT_ROLE } from "./useCatalog";
+import { useResizablePanel } from "./useResizablePanel";
 import { useRun } from "./useRun";
 
 /** Tools with which the agent asks the user to take over the browser. */
@@ -59,6 +61,7 @@ function EventRow({ event }: { event: AgentRunEvent }) {
 export function ConversationView({ runId }: { runId: string }) {
   const { run, events, artifacts, error, notFound, cancel } = useRun(runId);
   const [showBrowser, setShowBrowser] = useState(true);
+  const { containerRef: panelRef, pct: panelPct, dragging, handleProps } = useResizablePanel();
 
   if (notFound) {
     return (
@@ -119,7 +122,11 @@ export function ConversationView({ runId }: { runId: string }) {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col xl:flex-row">
+      <div
+        ref={panelRef}
+        style={{ "--browser-w": `${panelPct}%` } as React.CSSProperties}
+        className={`flex flex-1 flex-col xl:flex-row ${dragging ? "cursor-col-resize select-none" : ""}`}
+      >
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="mx-auto flex w-full max-w-[900px] flex-1 flex-col gap-[22px] px-6 py-8 md:px-8">
             {run ? (
@@ -166,16 +173,14 @@ export function ConversationView({ runId }: { runId: string }) {
                       </div>
                     ) : null}
                     {artifacts.length > 0 ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {artifacts.map((artifact) => (
-                          <span key={artifact.id} dir="ltr" className="rounded-full bg-[#F2F0F8] px-3 py-1.5 text-xs">
-                            {artifact.kind === "screenshot" ? "🖼" : "📄"} {artifact.path.split("/").pop()}
-                          </span>
-                        ))}
+                      <div className="mt-4">
+                        <ArtifactList runId={runId} artifacts={artifacts} />
                       </div>
                     ) : null}
                   </div>
                 ) : null}
+
+                {active && artifacts.length > 0 ? <ArtifactList runId={runId} artifacts={artifacts} /> : null}
 
                 {error ? (
                   <div role="alert" className="rounded-xl bg-[#FEE2E2] px-4 py-3 text-sm text-[#B91C1C]">
@@ -197,7 +202,18 @@ export function ConversationView({ runId }: { runId: string }) {
         </div>
 
         {browserVisible ? (
-          <aside className="order-first border-b border-line p-6 xl:sticky xl:top-0 xl:order-none xl:h-screen xl:w-[46%] xl:flex-shrink-0 xl:border-r xl:border-b-0">
+          <aside className="relative order-first border-b border-line p-6 xl:sticky xl:top-0 xl:order-none xl:h-screen xl:w-[var(--browser-w)] xl:flex-shrink-0 xl:overflow-y-auto xl:border-r xl:border-b-0">
+            {/* Drag (or use the arrow keys) to resize; double-click resets. */}
+            <div
+              {...handleProps}
+              className="group absolute inset-y-0 -right-1.5 z-10 hidden w-3 cursor-col-resize outline-none xl:block"
+            >
+              <span
+                className={`absolute inset-y-0 right-1 w-1 rounded-full transition-colors group-hover:bg-violet/40 group-focus-visible:bg-violet ${
+                  dragging ? "bg-violet" : ""
+                }`}
+              />
+            </div>
             <LiveBrowser runId={runId} active={active} agentName={agent.name} />
           </aside>
         ) : null}

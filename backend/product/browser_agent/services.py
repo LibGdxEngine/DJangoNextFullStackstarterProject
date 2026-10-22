@@ -91,18 +91,27 @@ def _cancel_requested(run_id) -> bool:
     return AgentRun.objects.filter(pk=run_id, cancel_requested=True).exists()
 
 
-@sync_to_async
-def _collect_artifacts(run: AgentRun) -> None:
+def collect_artifacts(run: AgentRun) -> None:
+    """Record the run's screenshots and workspace files. Safe to call repeatedly while the
+    run is still writing: sizes are refreshed for files that keep growing."""
     root = run_directory(run)
+    known = {a.path: a for a in run.artifacts.all()}
     for sub, kind in (('screenshots', AgentArtifact.Kind.SCREENSHOT), ('workspace', AgentArtifact.Kind.FILE)):
         folder = root / sub
         if not folder.exists():
             continue
         for path in sorted(folder.rglob('*')):
-            if path.is_file():
-                AgentArtifact.objects.get_or_create(
-                    run=run, path=path.relative_to(root).as_posix(),
-                    defaults={'kind': kind, 'size': path.stat().st_size})
+            if not path.is_file():
+                continue
+            relative, size = path.relative_to(root).as_posix(), path.stat().st_size
+            artifact = known.get(relative)
+            if artifact is None:
+                AgentArtifact.objects.get_or_create(run=run, path=relative, defaults={'kind': kind, 'size': size})
+            elif artifact.size != size:
+                AgentArtifact.objects.filter(pk=artifact.pk).update(size=size)
+
+
+_collect_artifacts = sync_to_async(collect_artifacts)
 
 
 @sync_to_async

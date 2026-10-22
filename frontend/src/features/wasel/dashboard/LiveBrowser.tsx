@@ -15,6 +15,9 @@ const DRIVING_POLL_MS = 250;
 /** Re-claim control this often; the worker gives it back after two quiet minutes. */
 const HEARTBEAT_MS = 30_000;
 
+/** Fall back to the in-page overlay if real full screen hasn't started by then. */
+const FULLSCREEN_TIMEOUT_MS = 1000;
+
 const IDLE_STATE: AgentControlState = { control: "agent", help: "" };
 
 /** Keys forwarded as key presses; everything else printable is sent as text. */
@@ -143,6 +146,44 @@ export function LiveBrowser({
     return () => clearInterval(timer);
   }, [driving, runId]);
 
+  // Full screen: the real Fullscreen API where it exists, an in-page overlay otherwise
+  // (iPhone Safari only allows full-screen video).
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [overlay, setOverlay] = useState(false);
+  const expanded = fullscreen || overlay;
+
+  useEffect(() => {
+    const sync = () => setFullscreen(document.fullscreenElement === containerRef.current);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+
+  useEffect(() => {
+    // Esc leaves the overlay, unless the user is driving and Esc belongs to the remote page.
+    if (!overlay || driving) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOverlay(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [overlay, driving]);
+
+  async function toggleExpanded() {
+    if (expanded) {
+      if (document.fullscreenElement) await document.exitFullscreen().catch(() => undefined);
+      setOverlay(false);
+      return;
+    }
+    const element = containerRef.current;
+    let entered = false;
+    if (element?.requestFullscreen) {
+      // Some embedded browsers neither grant nor refuse the request; don't wait on them forever.
+      const timeout = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), FULLSCREEN_TIMEOUT_MS));
+      entered = await Promise.race([element.requestFullscreen().then(() => true, () => false), timeout]);
+    }
+    if (!entered) setOverlay(true);
+    if (driving) screenRef.current?.focus();
+  }
+
   function pointer(e: React.MouseEvent) {
     const rect = e.currentTarget.getBoundingClientRect();
     return {
@@ -168,7 +209,14 @@ export function LiveBrowser({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      ref={containerRef}
+      className={
+        expanded
+          ? `flex h-screen w-screen flex-col gap-3 bg-ink p-4 ${overlay ? "fixed inset-0 z-50" : ""}`
+          : "flex flex-col gap-3"
+      }
+    >
       {state.help && !driving ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-amber bg-[#FFF6E6] px-4 py-3 text-sm">
           <span>
@@ -185,7 +233,11 @@ export function LiveBrowser({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-[22px] border border-line bg-white shadow-[0_20px_50px_rgba(14,11,31,.06)]">
+      <div
+        className={`overflow-hidden rounded-[22px] border border-line bg-white shadow-[0_20px_50px_rgba(14,11,31,.06)] ${
+          expanded ? "flex min-h-0 flex-1 flex-col" : ""
+        }`}
+      >
         <div className="flex items-center gap-3 border-b border-line bg-[#FBFAFE] px-4 py-2.5">
           <div className="flex gap-1.5" aria-hidden>
             <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
@@ -201,42 +253,60 @@ export function LiveBrowser({
           >
             {driving ? "✋ أنت تتحكم" : streaming ? "● مباشر" : "آخر لقطة"}
           </span>
+          <button
+            onClick={() => void toggleExpanded()}
+            aria-label={expanded ? "إغلاق ملء الشاشة" : "ملء الشاشة"}
+            title={expanded ? "إغلاق ملء الشاشة" : "ملء الشاشة"}
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm text-muted hover:bg-violet-tint hover:text-violet"
+          >
+            {expanded ? "✕" : "⛶"}
+          </button>
         </div>
 
-        <div
-          ref={screenRef}
-          tabIndex={driving ? 0 : -1}
-          aria-label={driving ? "المتصفح: انقر واكتب للتحكم" : "المتصفح"}
-          onClick={driving ? (e) => push({ type: "click", ...pointer(e), count: Math.min(3, Math.max(1, e.detail)) }) : undefined}
-          onWheel={driving ? (e) => push({ type: "wheel", ...pointer(e), dy: e.deltaY }) : undefined}
-          onKeyDown={driving ? handleKeyDown : undefined}
-          onPaste={
-            driving
-              ? (e) => {
-                  const text = e.clipboardData.getData("text").slice(0, 2000);
-                  if (text) push({ type: "text", text });
-                  e.preventDefault();
-                }
-              : undefined
-          }
-          className={`relative select-none bg-[#F2F0F8] outline-none ${
-            driving ? "cursor-pointer ring-4 ring-violet/60 ring-inset" : ""
-          }`}
-        >
-          {frame ? (
-            // A data: URL frame changes several times a second; next/image would only add overhead.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={`data:image/jpeg;base64,${frame.image}`}
-              alt="متصفح واصل الآن"
-              draggable={false}
-              className="pointer-events-none block h-auto w-full"
-            />
-          ) : (
-            <div className="flex aspect-[1366/900] items-center justify-center text-sm text-muted-soft">
-              {active ? "يجري تشغيل المتصفح…" : "لا توجد لقطة لهذا الطلب."}
-            </div>
-          )}
+        {/* In full screen the frame is scaled to fit; the clickable box still wraps the image
+            exactly, so pointer positions map straight onto the agent's viewport. */}
+        <div className={expanded ? "flex min-h-0 flex-1 items-start justify-center overflow-hidden bg-black" : ""}>
+          <div
+            ref={screenRef}
+            tabIndex={driving ? 0 : -1}
+            aria-label={driving ? "المتصفح: انقر واكتب للتحكم" : "المتصفح"}
+            onClick={driving ? (e) => push({ type: "click", ...pointer(e), count: Math.min(3, Math.max(1, e.detail)) }) : undefined}
+            onWheel={driving ? (e) => push({ type: "wheel", ...pointer(e), dy: e.deltaY }) : undefined}
+            onKeyDown={driving ? handleKeyDown : undefined}
+            onPaste={
+              driving
+                ? (e) => {
+                    const text = e.clipboardData.getData("text").slice(0, 2000);
+                    if (text) push({ type: "text", text });
+                    e.preventDefault();
+                  }
+                : undefined
+            }
+            className={`relative select-none bg-[#F2F0F8] outline-none ${expanded ? "w-fit max-w-full" : ""} ${
+              driving ? "cursor-pointer ring-4 ring-violet/60 ring-inset" : ""
+            }`}
+          >
+            {frame ? (
+              // A data: URL frame changes several times a second; next/image would only add overhead.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`data:image/jpeg;base64,${frame.image}`}
+                alt="متصفح واصل الآن"
+                draggable={false}
+                className={`pointer-events-none block ${
+                  expanded ? "h-auto max-h-[calc(100vh-150px)] w-auto max-w-full" : "h-auto w-full"
+                }`}
+              />
+            ) : (
+              <div
+                className={`flex aspect-[1366/900] items-center justify-center text-sm text-muted-soft ${
+                  expanded ? "h-[calc(100vh-150px)]" : ""
+                }`}
+              >
+                {active ? "يجري تشغيل المتصفح…" : "لا توجد لقطة لهذا الطلب."}
+              </div>
+            )}
+          </div>
         </div>
 
         {active ? (

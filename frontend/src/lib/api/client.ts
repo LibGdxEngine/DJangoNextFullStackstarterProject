@@ -19,6 +19,8 @@ export interface RequestOptions {
   headers?: HeadersInit;
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** "blob" returns the raw body of a successful response (file downloads); errors are still parsed as JSON. */
+  responseType?: "json" | "blob";
 }
 
 interface ClientOptions {
@@ -103,6 +105,7 @@ export function createApiClient(config: ClientOptions) {
         cache: "no-store",
       });
       if (response.status === 204) return undefined as T;
+      if (options.responseType === "blob" && response.ok) return (await response.blob()) as T;
       const text = await response.text();
       let data: unknown;
       try {

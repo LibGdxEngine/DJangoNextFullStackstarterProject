@@ -21,7 +21,7 @@ from .serializers import (
     AgentInputSerializer, AgentLiveSerializer, AgentRoleSerializer, AgentRunEventSerializer,
     AgentRunSerializer, TaskTemplateSerializer,
 )
-from .services import run_directory
+from .services import collect_artifacts, run_directory
 from .tasks import run_agent
 
 
@@ -196,7 +196,11 @@ class AgentRunViewSet(mixins.CreateModelMixin, mixins.ListModelMixin,
     @extend_schema(responses=AgentArtifactSerializer(many=True))
     @action(detail=True, methods=['get'])
     def artifacts(self, request, pk=None):
+        """Files the run saved. While it is still running, newly written files are picked up
+        from disk on each call, so they can be downloaded before the run ends."""
         run = self.get_object()
+        if run.status == AgentRun.Status.RUNNING:
+            collect_artifacts(run)
         return Response(AgentArtifactSerializer(run.artifacts.all(), many=True).data)
 
     @extend_schema(responses={(200, 'application/octet-stream'): OpenApiTypes.BINARY})

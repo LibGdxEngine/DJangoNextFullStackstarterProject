@@ -548,7 +548,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Create, watch and cancel browser-agent runs, scoped to the caller's organizations. */
+        /**
+         * @description Files the run saved. While it is still running, newly written files are picked up
+         *     from disk on each call, so they can be downloaded before the run ends.
+         */
         get: operations["product_browser_agent_runs_artifacts_list"];
         put?: never;
         post?: never;

@@ -36,6 +36,11 @@ export const agentApi = {
   cancel: (id: string) => apiClient.post<AgentRun>(`${BASE}/${encodeURIComponent(id)}/cancel/`),
   artifacts: (id: string) =>
     apiClient.get<AgentArtifact[]>(`${BASE}/${encodeURIComponent(id)}/artifacts/`),
+  downloadArtifact: (id: string, artifactId: string) =>
+    apiClient.get<Blob>(
+      `${BASE}/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/download/`,
+      { responseType: "blob", timeoutMs: 120_000 },
+    ),
   /** Who drives the browser, plus its newest frame if it is newer than `after`. */
   live: (id: string, after?: number) =>
     apiClient.get<AgentLive>(`${BASE}/${encodeURIComponent(id)}/live/`, { query: { after } }),

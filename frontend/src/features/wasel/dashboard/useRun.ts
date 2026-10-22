@@ -28,13 +28,15 @@ export function useRun(runId: string) {
       try {
         const run = await agentApi.getRun(runId);
         const fresh = await agentApi.events(runId, nextSeq.current);
-        const artifacts = isTerminal(run.status) ? await agentApi.artifacts(runId) : [];
+        // Files appear when the agent does something; re-list them after new steps and at the end.
+        const refreshFiles = isTerminal(run.status) || fresh.length > 0;
+        const artifacts = refreshFiles ? await agentApi.artifacts(runId) : undefined;
         if (cancelled) return;
         if (fresh.length > 0) nextSeq.current = fresh[fresh.length - 1].seq + 1;
         setState((prev) => ({
           run,
           events: fresh.length > 0 ? [...prev.events, ...fresh] : prev.events,
-          artifacts: isTerminal(run.status) ? artifacts : prev.artifacts,
+          artifacts: artifacts ?? prev.artifacts,
           error: undefined,
           notFound: false,
         }));

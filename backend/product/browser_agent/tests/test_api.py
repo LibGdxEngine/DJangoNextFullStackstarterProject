@@ -105,6 +105,27 @@ class AgentRunApiTests(APITestCase):
             self.assertEqual(blocked.status_code, 404)
 
 
+    def test_artifacts_of_a_running_run_are_picked_up_from_disk(self):
+        with tempfile.TemporaryDirectory() as tmp, override_settings(AGENT_RUNS_ROOT=Path(tmp)):
+            run = AgentRun.objects.create(organization=self.org, task="t", status=AgentRun.Status.RUNNING)
+            report = Path(tmp) / str(run.id) / "workspace" / "report.csv"
+            report.parent.mkdir(parents=True)
+            report.write_text("a,b\n")
+            url = reverse("browser_agent:run-artifacts", args=[run.id])
+
+            listed = self.client.get(url).data
+            self.assertEqual([(a["path"], a["size"]) for a in listed], [("workspace/report.csv", 4)])
+
+            report.write_text("a,b\n1,2\n")  # the agent keeps writing
+            self.assertEqual(self.client.get(url).data[0]["size"], 8)
+
+            run.status = AgentRun.Status.SUCCEEDED
+            run.save()
+            (report.parent / "late.txt").write_text("x")
+            # Finished runs list what was recorded at the end, without rescanning.
+            self.assertEqual(len(self.client.get(url).data), 1)
+
+
 class ReapStaleRunsTests(APITestCase):
     def test_fails_stale_runs_and_frees_profile(self):
         org = Organization.objects.create(name="Acme", slug="acme")
