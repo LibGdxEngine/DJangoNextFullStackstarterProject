@@ -6202,6 +6202,170 @@
                 }
             }
         },
+        "/api/product/browser_agent/runs/{id}/answer/": {
+            "post": {
+                "operationId": "product_browser_agent_runs_answer_create",
+                "description": "Answer the question a waiting run asked; the run is queued again and carries on.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "description": "A UUID string identifying this agent run.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "product"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AgentAnswerRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AgentAnswerRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AgentAnswerRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "basicAuth": []
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentRun"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or session expired.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied or required verification.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "406": {
+                        "description": "Response format not acceptable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported media type.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request throttled.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected internal error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "A required service is unavailable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/product/browser_agent/runs/{id}/artifacts/": {
             "get": {
                 "operationId": "product_browser_agent_runs_artifacts_list",
@@ -11331,6 +11495,20 @@
                     "password"
                 ]
             },
+            "AgentAnswerRequest": {
+                "type": "object",
+                "properties": {
+                    "answer": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Reply to the run's question; one of its options or free text.",
+                        "maxLength": 4000
+                    }
+                },
+                "required": [
+                    "answer"
+                ]
+            },
             "AgentArtifact": {
                 "type": "object",
                 "properties": {
@@ -11753,6 +11931,11 @@
                         ],
                         "readOnly": true
                     },
+                    "question": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "What the agent asked while waiting: kind, question, options."
+                    },
                     "final_text": {
                         "type": "string",
                         "readOnly": true
@@ -11767,6 +11950,11 @@
                     "cancel_requested": {
                         "type": "boolean",
                         "readOnly": true
+                    },
+                    "recoveries": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "Times the run was resumed after its worker stopped."
                     },
                     "created_at": {
                         "type": "string",
@@ -11794,6 +11982,8 @@
                     "finished_at",
                     "id",
                     "organization",
+                    "question",
+                    "recoveries",
                     "role_detail",
                     "started_at",
                     "status",
@@ -11836,10 +12026,12 @@
                 "enum": [
                     "message",
                     "tool_call",
-                    "tool_result"
+                    "tool_result",
+                    "question",
+                    "answer"
                 ],
                 "type": "string",
-                "description": "* `message` - Agent message\n* `tool_call` - Tool call\n* `tool_result` - Tool result"
+                "description": "* `message` - Agent message\n* `tool_call` - Tool call\n* `tool_result` - Tool result\n* `question` - Question to the user\n* `answer` - User's answer"
             },
             "AgentRunRequest": {
                 "type": "object",
@@ -11874,13 +12066,14 @@
                 "enum": [
                     "queued",
                     "running",
+                    "waiting",
                     "succeeded",
                     "failed",
                     "cancelled",
                     "timeout"
                 ],
                 "type": "string",
-                "description": "* `queued` - Queued\n* `running` - Running\n* `succeeded` - Succeeded\n* `failed` - Failed\n* `cancelled` - Cancelled\n* `timeout` - Timed out"
+                "description": "* `queued` - Queued\n* `running` - Running\n* `waiting` - Waiting for the user\n* `succeeded` - Succeeded\n* `failed` - Failed\n* `cancelled` - Cancelled\n* `timeout` - Timed out"
             },
             "AuditLog": {
                 "type": "object",

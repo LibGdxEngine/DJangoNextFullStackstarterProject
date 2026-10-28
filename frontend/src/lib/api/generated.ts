@@ -541,6 +541,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/product/browser_agent/runs/{id}/answer/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Answer the question a waiting run asked; the run is queued again and carries on. */
+        post: operations["product_browser_agent_runs_answer_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/product/browser_agent/runs/{id}/artifacts/": {
         parameters: {
             query?: never;
@@ -1117,6 +1134,10 @@ export interface components {
         AccountDeletionInitiateRequest: {
             password: string;
         };
+        AgentAnswerRequest: {
+            /** @description Reply to the run's question; one of its options or free text. */
+            answer: string;
+        };
         AgentArtifact: {
             /** Format: uuid */
             readonly id: string;
@@ -1266,10 +1287,14 @@ export interface components {
             readonly role_detail: components["schemas"]["AgentRoleSummary"] | null;
             task: string;
             readonly status: components["schemas"]["AgentRunStatusEnum"];
+            /** @description What the agent asked while waiting: kind, question, options. */
+            readonly question: unknown;
             readonly final_text: string;
             readonly error: string;
             readonly usage: unknown;
             readonly cancel_requested: boolean;
+            /** @description Times the run was resumed after its worker stopped. */
+            readonly recoveries: number;
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
@@ -1288,9 +1313,11 @@ export interface components {
          * @description * `message` - Agent message
          *     * `tool_call` - Tool call
          *     * `tool_result` - Tool result
+         *     * `question` - Question to the user
+         *     * `answer` - User's answer
          * @enum {string}
          */
-        AgentRunEventKindEnum: "message" | "tool_call" | "tool_result";
+        AgentRunEventKindEnum: "message" | "tool_call" | "tool_result" | "question" | "answer";
         AgentRunRequest: {
             /** Format: uuid */
             organization: string;
@@ -1306,13 +1333,14 @@ export interface components {
         /**
          * @description * `queued` - Queued
          *     * `running` - Running
+         *     * `waiting` - Waiting for the user
          *     * `succeeded` - Succeeded
          *     * `failed` - Failed
          *     * `cancelled` - Cancelled
          *     * `timeout` - Timed out
          * @enum {string}
          */
-        AgentRunStatusEnum: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "timeout";
+        AgentRunStatusEnum: "queued" | "running" | "waiting" | "succeeded" | "failed" | "cancelled" | "timeout";
         AuditLog: {
             /** Format: uuid */
             readonly id: string;
@@ -6348,6 +6376,124 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRun"];
+                };
+            };
+            /** @description Invalid request or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication failed or session expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Permission denied or required verification. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Method not allowed. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Response format not acceptable. */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported media type. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request throttled. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description A required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    product_browser_agent_runs_answer_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this agent run. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentAnswerRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AgentAnswerRequest"];
+                "multipart/form-data": components["schemas"]["AgentAnswerRequest"];
+            };
+        };
+        responses: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };

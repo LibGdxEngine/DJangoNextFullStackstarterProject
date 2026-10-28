@@ -69,5 +69,17 @@ export function useRun(runId: string) {
     }
   }, [runId]);
 
-  return { ...state, cancel };
+  const answer = useCallback(
+    async (reply: string) => {
+      try {
+        const run = await agentApi.answer(runId, reply);
+        setState((prev) => ({ ...prev, run }));
+      } catch (error) {
+        setState((prev) => ({ ...prev, error: describeApiError(error).message }));
+      }
+    },
+    [runId],
+  );
+
+  return { ...state, cancel, answer };
 }

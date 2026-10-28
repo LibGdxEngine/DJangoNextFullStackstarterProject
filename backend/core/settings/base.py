@@ -402,3 +402,8 @@ AGENT_RUN_TIMEOUT = int(os.environ.get('AGENT_RUN_TIMEOUT', 1800))
 AGENT_MAX_ACTIVE_RUNS_PER_ORG = int(os.environ.get('AGENT_MAX_ACTIVE_RUNS_PER_ORG', 2))
 AGENT_ARTIFACT_RETENTION_DAYS = int(os.environ.get('AGENT_ARTIFACT_RETENTION_DAYS', 14))
 AGENT_RECURSION_LIMIT = int(os.environ.get('AGENT_RECURSION_LIMIT', 150))
+# A running run's worker beats every AGENT_HEARTBEAT_S; one silent for AGENT_STALE_AFTER_S
+# is resumed by the reaper from its last finished step, at most AGENT_MAX_RECOVERIES times.
+AGENT_HEARTBEAT_S = int(os.environ.get('AGENT_HEARTBEAT_S', 30))
+AGENT_STALE_AFTER_S = int(os.environ.get('AGENT_STALE_AFTER_S', 180))
+AGENT_MAX_RECOVERIES = int(os.environ.get('AGENT_MAX_RECOVERIES', 2))
