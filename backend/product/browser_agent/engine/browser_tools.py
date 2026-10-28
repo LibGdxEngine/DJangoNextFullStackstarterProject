@@ -165,6 +165,29 @@ _INDEX_ELEMENTS_JS = """
 # Finds the element a page read described as `role "label"` again and gives it back
 # its number, for when the site re-rendered it after the read (Gmail redraws inbox
 # rows), so the old data-agent-id is gone. True if exactly one element matches.
+# What an element is, for the task policy (policy.py): its tag and type, a label,
+# and the form it belongs to with that form's method and field types.
+_DESCRIBE_JS = r"""
+el => {
+  const tag = el.tagName.toLowerCase();
+  const form = el.form || el.closest('form');
+  const fieldType = e => e.tagName.toLowerCase() === 'input'
+    ? (e.getAttribute('type') || 'text').toLowerCase() : e.tagName.toLowerCase();
+  return {
+    tag,
+    type: (el.getAttribute('type') || '').toLowerCase(),
+    role: (el.getAttribute('role') || '').toLowerCase(),
+    label: (el.getAttribute('aria-label') || el.innerText || el.value
+            || el.getAttribute('title') || el.getAttribute('placeholder') || '')
+           .trim().replace(/\s+/g, ' ').slice(0, 80),
+    in_form: !!form,
+    form_method: form ? (form.getAttribute('method') || 'get').toLowerCase() : '',
+    form_role: form ? (form.getAttribute('role') || '').toLowerCase() : '',
+    form_fields: form ? Array.from(form.elements).map(fieldType) : [],
+  };
+}
+"""
+
 _REFIND_JS = r"""
 ([n, role, label]) => {""" + _ELEMENT_HELPERS_JS + r"""
   const found = [...document.querySelectorAll(SEL)].filter(el => usable(el)
@@ -610,9 +633,29 @@ class BrowserSession:
         self.snapshot_mode = SNAPSHOT_MODE
         # (url, digest) of the previous page read, to notice an unchanged page.
         self._last_read: tuple[str, int] | None = None
+        # async (target or None) -> dict | None, set by make_browser_tools: what the
+        # element a tool call targets is (None: the focused element). PolicyGuard uses it.
+        self.describe_element = None
 
     @classmethod
     def from_env(cls) -> "BrowserSession":
+        return cls(**cls._env_kwargs())
+
+    @classmethod
+    def from_config(cls, config: dict) -> "BrowserSession":
+        """A session for one user or task: keys in `config` (proxy, expected_ip,
+        profile_dir, allowed_domains, ...) replace the .env value; the rest
+        (timezone, locale, vision, ...) still come from .env. A key set to None
+        means "none", e.g. profile_dir=None is a throwaway profile."""
+        kwargs = cls._env_kwargs()
+        unknown = set(config) - set(kwargs)
+        if unknown:
+            raise TypeError(f"unknown BrowserSession settings: {sorted(unknown)}")
+        kwargs.update(config)
+        return cls(**kwargs)
+
+    @staticmethod
+    def _env_kwargs() -> dict:
         proxy = None
         server = os.getenv("PROXY_SERVER")  # e.g. http://203.0.113.10:8080
         if server:
@@ -620,7 +663,7 @@ class BrowserSession:
             if os.getenv("PROXY_USERNAME"):
                 proxy["username"] = os.getenv("PROXY_USERNAME")
                 proxy["password"] = os.getenv("PROXY_PASSWORD", "")
-        return cls(
+        return dict(
             proxy=proxy,
             expected_ip=os.getenv("STATIC_IP") or None,
             headless=os.getenv("HEADLESS", "true").lower() != "false",
@@ -817,8 +860,10 @@ class BrowserSession:
         return ip
 
     async def stop(self) -> None:
-        await self.settle_gmail_sends()
-        await self._save_session_cookies()
+        """Safe to call after a start() that failed part way."""
+        if self.context:
+            await self.settle_gmail_sends()
+            await self._save_session_cookies()
         # Closing the context first flushes site data to the profile folder.
         for closer in (self.context, self.browser):
             try:
@@ -1000,9 +1045,12 @@ def make_browser_tools(
     session: BrowserSession,
     screenshot_dir: str = "screenshots",
     files_dir: str = "workspace",
+    ask_human=None,
 ):
     """Build LangChain tools bound to one BrowserSession. `upload_file` can only
-    read files inside `files_dir` (the agent's workspace)."""
+    read files inside `files_dir` (the agent's workspace). `ask_human(kind,
+    question, options)` (see human.py) replaces the terminal prompt for steps that
+    need a person, such as manual_captcha_handoff."""
 
     Path(screenshot_dir).mkdir(parents=True, exist_ok=True)
 
@@ -1616,6 +1664,16 @@ def make_browser_tools(
         if session.headless:
             return ("The browser is headless, so a person cannot interact with it. "
                     "Restart with HEADLESS=false, then call this tool again.")
+        if ask_human is not None:
+            page_url = session.page.url if session.page and not session.page.is_closed() else ""
+            answer = ask_human(
+                "captcha",
+                f"Complete the CAPTCHA in the browser window ({page_url}), then answer "
+                "'done', or 'give up' to stop.", ["done", "give up"])
+            if "give up" in str(answer).lower():
+                return "The user gave up on the CAPTCHA. Stop and report that the site is blocked."
+            return ("The user says the CAPTCHA is done. Completion was not verified; "
+                    "read the page and stop if the challenge remains.")
         try:
             await asyncio.to_thread(
                 input,
@@ -2089,6 +2147,28 @@ def make_browser_tools(
             if session.expected_ip:
                 note = " (matches STATIC_IP)" if ip == session.expected_ip else " (DOES NOT match STATIC_IP!)"
             return f"Browser exit IP: {ip}{note}"
+
+    async def describe_element(target: str | int | None) -> dict | None:
+        """_DESCRIBE_JS for the element `target` names (as the tools would find it),
+        or the focused element when target is None; None if there is no such element."""
+        async with session.lock:
+            page = session.page
+            if page is None or page.is_closed():
+                return None
+            try:
+                if target is None:
+                    handle = await page.evaluate_handle("document.activeElement")
+                    el = handle.as_element()
+                    return await el.evaluate(_DESCRIBE_JS) if el else None
+                loc, err = await _locate(page, target, roles=("button", "link", "textbox",
+                                                              "searchbox", "combobox"))
+                if loc is None:
+                    return None
+                return await loc.evaluate(_DESCRIBE_JS, timeout=3000)
+            except Exception:
+                return None
+
+    session.describe_element = describe_element
 
     return [
         browse,
