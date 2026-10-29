@@ -34,6 +34,9 @@ export const agentApi = {
   events: (id: string, after?: number) =>
     apiClient.get<AgentRunEvent[]>(`${BASE}/${encodeURIComponent(id)}/events/`, { query: { after } }),
   cancel: (id: string) => apiClient.post<AgentRun>(`${BASE}/${encodeURIComponent(id)}/cancel/`),
+  /** Reply to the question a waiting run asked; the run carries on with it. */
+  answer: (id: string, answer: string) =>
+    apiClient.post<AgentRun>(`${BASE}/${encodeURIComponent(id)}/answer/`, { answer }),
   artifacts: (id: string) =>
     apiClient.get<AgentArtifact[]>(`${BASE}/${encodeURIComponent(id)}/artifacts/`),
   downloadArtifact: (id: string, artifactId: string) =>

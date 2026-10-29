@@ -119,6 +119,10 @@ class AgentInputSerializer(serializers.Serializer):
     events = AgentInputEventSerializer(many=True, max_length=100, min_length=1)
 
 
+class AgentAnswerSerializer(serializers.Serializer):
+    answer = serializers.CharField(max_length=4000, help_text="Reply to the run's question; one of its options or free text.")
+
+
 class AgentRunSerializer(serializers.ModelSerializer):
     organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all())
     profile = serializers.PrimaryKeyRelatedField(
@@ -132,11 +136,11 @@ class AgentRunSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentRun
         fields = [
-            'id', 'organization', 'profile', 'role', 'role_detail', 'task', 'status', 'final_text', 'error',
-            'usage', 'cancel_requested', 'created_at', 'started_at', 'finished_at',
+            'id', 'organization', 'profile', 'role', 'role_detail', 'task', 'status', 'question', 'final_text',
+            'error', 'usage', 'cancel_requested', 'recoveries', 'created_at', 'started_at', 'finished_at',
         ]
         read_only_fields = [
-            'id', 'status', 'final_text', 'error', 'usage', 'cancel_requested',
+            'id', 'status', 'question', 'final_text', 'error', 'usage', 'cancel_requested', 'recoveries',
             'created_at', 'started_at', 'finished_at',
         ]
 

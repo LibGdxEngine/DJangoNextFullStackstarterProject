@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db.models import Count, F, Q
 from django.http import FileResponse, Http404
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, permissions, status, viewsets
@@ -17,11 +18,11 @@ from apps.organizations.models import Organization
 from .live import get_frame, get_state, push_input, release_control, request_control
 from .models import AgentRole, AgentRun, TaskTemplate
 from .serializers import (
-    AgentArtifactSerializer, AgentControlRequestSerializer, AgentControlStateSerializer,
+    AgentAnswerSerializer, AgentArtifactSerializer, AgentControlRequestSerializer, AgentControlStateSerializer,
     AgentInputSerializer, AgentLiveSerializer, AgentRoleSerializer, AgentRunEventSerializer,
     AgentRunSerializer, TaskTemplateSerializer,
 )
-from .services import collect_artifacts, run_directory
+from .services import cancel_waiting_run, collect_artifacts, run_directory
 from .tasks import run_agent
 
 
@@ -146,6 +147,23 @@ class AgentRunViewSet(mixins.CreateModelMixin, mixins.ListModelMixin,
             raise ValidationError({'status': 'Run has already finished.'})
         run.cancel_requested = True
         run.save(update_fields=['cancel_requested', 'updated_at'])
+        cancel_waiting_run(run)   # no worker holds a waiting run, so it ends here
+        run.refresh_from_db()
+        return Response(self.get_serializer(run).data, status=status.HTTP_202_ACCEPTED)
+
+    @extend_schema(request=AgentAnswerSerializer, responses={202: AgentRunSerializer})
+    @action(detail=True, methods=['post'])
+    def answer(self, request, pk=None):
+        """Answer the question a waiting run asked; the run is queued again and carries on."""
+        run = self.get_object()
+        serializer = AgentAnswerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        resumed = AgentRun.objects.filter(pk=run.pk, status=AgentRun.Status.WAITING, cancel_requested=False).update(
+            status=AgentRun.Status.QUEUED, answer=serializer.validated_data['answer'], updated_at=timezone.now())
+        if not resumed:
+            raise ValidationError({'status': 'Run is not waiting for an answer.'})
+        run_agent.delay_on_commit(str(run.id))
+        run.refresh_from_db()
         return Response(self.get_serializer(run).data, status=status.HTTP_202_ACCEPTED)
 
     @extend_schema(

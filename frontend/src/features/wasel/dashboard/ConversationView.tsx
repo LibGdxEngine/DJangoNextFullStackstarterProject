@@ -41,6 +41,21 @@ function EventRow({ event }: { event: AgentRunEvent }) {
       </div>
     );
   }
+  if (event.kind === "question") {
+    return (
+      <div className="flex items-start gap-3 rounded-[16px] bg-[#FFF6E6] px-3 py-2.5">
+        <span className="text-base">❓</span>
+        <span dir="auto" className="text-[15px] leading-relaxed">{String(payload.question ?? "")}</span>
+      </div>
+    );
+  }
+  if (event.kind === "answer") {
+    return (
+      <div dir="auto" className="self-start rounded-[16px] bg-violet-tint px-3 py-2 text-[15px] text-violet">
+        ردّك: {String(payload.answer ?? "")}
+      </div>
+    );
+  }
   if (event.kind === "tool_call") {
     return (
       <div className="flex items-start gap-3">
@@ -58,8 +73,70 @@ function EventRow({ event }: { event: AgentRunEvent }) {
   );
 }
 
+/** The question a waiting run asked, with its choices and a free-text reply. */
+function QuestionCard({ question, onAnswer }: { question: unknown; onAnswer: (reply: string) => Promise<void> }) {
+  const { question: text, options } = asRecord(question);
+  const choices = Array.isArray(options) ? options.map(String) : [];
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const send = async (value: string) => {
+    if (!value.trim() || sending) return;
+    setSending(true);
+    try {
+      await onAnswer(value.trim());
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 rounded-[20px] border border-[#F5C77A] bg-[#FFF6E6] p-5">
+      <div className="text-xs text-[#B45309]">⏸ ينتظر ردّك</div>
+      <div dir="auto" className="text-base leading-relaxed">{String(text ?? "")}</div>
+      {choices.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {choices.map((choice) => (
+            <button
+              key={choice}
+              onClick={() => void send(choice)}
+              disabled={sending}
+              className="rounded-full border border-violet bg-white px-4 py-1.5 text-sm text-violet hover:bg-violet hover:text-white disabled:opacity-50"
+            >
+              {choice}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send(reply);
+        }}
+        className="flex gap-2"
+      >
+        <input
+          dir="auto"
+          value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          placeholder="اكتب ردّك…"
+          maxLength={4000}
+          className="min-w-0 flex-1 rounded-full border border-line bg-white px-4 py-2 text-sm outline-none focus:border-violet"
+        />
+        <button
+          type="submit"
+          disabled={sending || !reply.trim()}
+          className="rounded-full bg-violet px-4 py-2 text-sm text-white disabled:opacity-50"
+        >
+          إرسال
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export function ConversationView({ runId }: { runId: string }) {
-  const { run, events, artifacts, error, notFound, cancel } = useRun(runId);
+  const { run, events, artifacts, error, notFound, cancel, answer } = useRun(runId);
   const [showBrowser, setShowBrowser] = useState(true);
   const { containerRef: panelRef, pct: panelPct, dragging, handleProps } = useResizablePanel();
 
@@ -145,7 +222,11 @@ export function ConversationView({ runId }: { runId: string }) {
                   <EventRow key={event.seq} event={event} />
                 ))}
 
-                {active ? (
+                {run?.status === "waiting" && run.question ? (
+                  <QuestionCard question={run.question} onAnswer={answer} />
+                ) : null}
+
+                {active && run?.status !== "waiting" ? (
                   <div className="flex flex-col gap-2.5 rounded-[20px] bg-ink p-5 text-sm text-white">
                     <div className="flex justify-between">
                       <span className="text-amber">

@@ -126,19 +126,76 @@ class AgentRunApiTests(APITestCase):
             self.assertEqual(len(self.client.get(url).data), 1)
 
 
+class AnswerApiTests(APITestCase):
+    def setUp(self):
+        self.user = make_user("owner@example.com")
+        self.org = Organization.objects.create(name="Acme", slug="acme")
+        OrganizationMember.objects.create(organization=self.org, user=self.user)
+        self.client.force_authenticate(self.user)
+        self.run = AgentRun.objects.create(
+            organization=self.org, task="t", status=AgentRun.Status.WAITING,
+            question={"kind": "approve_action", "question": "Send it?", "options": ["yes", "no"]})
+
+    @patch("product.browser_agent.views.run_agent.delay_on_commit")
+    def test_answer_queues_the_run_again(self, enqueue):
+        with self.captureOnCommitCallbacks(execute=True):
+            res = self.client.post(reverse("browser_agent:run-answer", args=[self.run.id]), {"answer": "yes"},
+                                   format="json")
+        self.assertEqual(res.status_code, 202, res.data)
+        self.assertEqual(res.data["status"], AgentRun.Status.QUEUED)
+        self.run.refresh_from_db()
+        self.assertEqual(self.run.answer, "yes")
+        enqueue.assert_called_once_with(str(self.run.id))
+
+    @patch("product.browser_agent.views.run_agent.delay_on_commit")
+    def test_only_a_waiting_run_takes_an_answer(self, enqueue):
+        AgentRun.objects.filter(pk=self.run.pk).update(status=AgentRun.Status.RUNNING)
+        res = self.client.post(reverse("browser_agent:run-answer", args=[self.run.id]), {"answer": "yes"},
+                               format="json")
+        self.assertEqual(res.status_code, 400)
+        res = self.client.post(reverse("browser_agent:run-answer", args=[self.run.id]), {}, format="json")
+        self.assertEqual(res.status_code, 400)
+        enqueue.assert_not_called()
+
+    def test_cancel_ends_a_waiting_run_at_once(self):
+        res = self.client.post(reverse("browser_agent:run-cancel", args=[self.run.id]))
+        self.assertEqual(res.status_code, 202)
+        self.assertEqual(res.data["status"], AgentRun.Status.CANCELLED)
+        self.assertIsNone(res.data["question"])
+
+
 class ReapStaleRunsTests(APITestCase):
-    def test_fails_stale_runs_and_frees_profile(self):
-        org = Organization.objects.create(name="Acme", slug="acme")
-        profile = BrowserProfile.objects.create(organization=org, name="p", in_use=True)
-        stale = AgentRun.objects.create(
-            organization=org, task="t", status=AgentRun.Status.RUNNING, profile=profile,
-            started_at=timezone.now() - timedelta(days=1))
-        fresh = AgentRun.objects.create(
-            organization=org, task="t", status=AgentRun.Status.RUNNING, started_at=timezone.now())
-        self.assertEqual(reap_stale_runs(), 1)
-        stale.refresh_from_db()
-        fresh.refresh_from_db()
+    def setUp(self):
+        self.org = Organization.objects.create(name="Acme", slug="acme")
+
+    def _running(self, **fields):
+        return AgentRun.objects.create(organization=self.org, task="t", status=AgentRun.Status.RUNNING, **fields)
+
+    @patch("product.browser_agent.tasks.run_agent.delay_on_commit")
+    def test_resumes_runs_whose_worker_stopped_and_frees_profile(self, enqueue):
+        profile = BrowserProfile.objects.create(organization=self.org, name="p", in_use=True)
+        silent = self._running(profile=profile, started_at=timezone.now(),
+                               heartbeat_at=timezone.now() - timedelta(minutes=10))
+        legacy = self._running(started_at=timezone.now() - timedelta(days=1))
+        beating = self._running(started_at=timezone.now() - timedelta(days=1), heartbeat_at=timezone.now())
+        with self.captureOnCommitCallbacks(execute=True):
+            self.assertEqual(reap_stale_runs(), 2)
+        for run in (silent, legacy, beating):
+            run.refresh_from_db()
         profile.refresh_from_db()
-        self.assertEqual(stale.status, AgentRun.Status.FAILED)
-        self.assertEqual(fresh.status, AgentRun.Status.RUNNING)
+        self.assertEqual((silent.status, silent.recoveries), (AgentRun.Status.QUEUED, 1))
+        self.assertEqual((legacy.status, legacy.recoveries), (AgentRun.Status.QUEUED, 1))
+        self.assertEqual(beating.status, AgentRun.Status.RUNNING)
         self.assertFalse(profile.in_use)
+        self.assertEqual(sorted(c.args[0] for c in enqueue.call_args_list), sorted([str(silent.id), str(legacy.id)]))
+
+    @override_settings(AGENT_MAX_RECOVERIES=2)
+    @patch("product.browser_agent.tasks.run_agent.delay_on_commit")
+    def test_fails_a_run_after_too_many_resumes(self, enqueue):
+        run = self._running(started_at=timezone.now(), recoveries=2,
+                            heartbeat_at=timezone.now() - timedelta(minutes=10))
+        self.assertEqual(reap_stale_runs(), 1)
+        run.refresh_from_db()
+        self.assertEqual(run.status, AgentRun.Status.FAILED)
+        self.assertIn("3 times", run.error)
+        enqueue.assert_not_called()

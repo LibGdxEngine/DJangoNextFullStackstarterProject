@@ -85,12 +85,13 @@ class AgentRun(BaseModel):
     class Status(models.TextChoices):
         QUEUED = 'queued', 'Queued'
         RUNNING = 'running', 'Running'
+        WAITING = 'waiting', 'Waiting for the user'
         SUCCEEDED = 'succeeded', 'Succeeded'
         FAILED = 'failed', 'Failed'
         CANCELLED = 'cancelled', 'Cancelled'
         TIMEOUT = 'timeout', 'Timed out'
 
-    ACTIVE = (Status.QUEUED, Status.RUNNING)
+    ACTIVE = (Status.QUEUED, Status.RUNNING, Status.WAITING)
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='agent_runs')
     created_by = models.ForeignKey(
@@ -105,6 +106,14 @@ class AgentRun(BaseModel):
     error = models.TextField(blank=True, default='')
     usage = models.JSONField(default=dict, blank=True)
     cancel_requested = models.BooleanField(default=False)
+    question = models.JSONField(
+        null=True, blank=True, help_text='What the agent asked while waiting: kind, question, options.')
+    answer = models.TextField(blank=True, default='', help_text="The user's answer, until the run resumes with it.")
+    last_url = models.URLField(max_length=2000, blank=True, default='',
+                               help_text='Page the browser was on, reopened when the run resumes.')
+    heartbeat_at = models.DateTimeField(null=True, blank=True)
+    recoveries = models.PositiveSmallIntegerField(
+        default=0, help_text='Times the run was resumed after its worker stopped.')
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 
@@ -121,6 +130,8 @@ class AgentRunEvent(BaseModel):
         MESSAGE = 'message', 'Agent message'
         TOOL_CALL = 'tool_call', 'Tool call'
         TOOL_RESULT = 'tool_result', 'Tool result'
+        QUESTION = 'question', 'Question to the user'
+        ANSWER = 'answer', "User's answer"
 
     run = models.ForeignKey(AgentRun, on_delete=models.CASCADE, related_name='events')
     seq = models.PositiveIntegerField()

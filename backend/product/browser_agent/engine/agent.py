@@ -4,13 +4,18 @@ LangChain Deep Agent with a Patchright browser that exits through a static IP.
 Usage:
     python agent.py "Find the pricing tiers on https://example.com and summarize them"
     python agent.py            # chat: ask follow-ups in the same browser session
+    python agent.py --pack lead_generation --input leads_input.json
+
+A plain task runs the `general` pack; --pack runs any pack in packs/ with its
+prompt, tools and policy. Background tasks go through worker.py instead.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
+import json
 import os
-import sys
 import uuid
 
 from deepagents import (
@@ -25,9 +30,12 @@ from langchain.chat_models import init_chat_model
 from langchain_core.messages import ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
+# Load .env before importing browser_tools, which reads its settings at import time.
 
 from .agent_middleware import RepeatGuard, StepTimer, TrimOldSnapshots, model_retry  # noqa: E402
 from .browser_tools import BrowserSession, make_browser_tools  # noqa: E402
+from .packs import Pack, load_pack  # noqa: E402
+from .policy import PolicyGuard  # noqa: E402
 
 MODEL = os.getenv("MODEL", "openrouter:anthropic/claude-sonnet-4.6")
 WORKSPACE = os.getenv("AGENT_WORKSPACE", "workspace")
@@ -141,13 +149,20 @@ def make_model(model: str = MODEL, *, max_tokens: int = 0, reasoning_effort: str
     return init_chat_model(model, **kwargs)
 
 
+def default_middleware(session: BrowserSession) -> list:
+    """Point out repeated actions, show only the URL/title of old page reads, time
+    every model and tool call, and retry passing model errors."""
+    return [RepeatGuard(session), TrimOldSnapshots(), StepTimer(session), model_retry()]
+
+
 def build_agent(session: BrowserSession, *, model: str = MODEL,
                 system_prompt: str = SYSTEM_PROMPT, tools: list | None = None,
                 middleware: list | None = None, workspace: str = WORKSPACE,
-                model_settings: dict | None = None):
+                model_settings: dict | None = None, checkpointer=None):
     """The browsing agent. The keyword arguments let the evaluator (evals/) swap the
     model, prompt, tools, middleware or model settings (see make_model) one at a
-    time; the defaults are what `python agent.py` runs."""
+    time; the defaults are what `python agent.py` runs. `checkpointer` defaults to
+    an in-memory one; pass a durable one (SQLite, Postgres) to resume a task."""
     # One shared tab means parallel subagents would fight over it, so turn off the
     # `task` tool. `execute` needs a sandbox backend this project doesn't use.
     register_harness_profile(
@@ -160,9 +175,7 @@ def build_agent(session: BrowserSession, *, model: str = MODEL,
     if tools is None:
         tools = make_browser_tools(session, files_dir=workspace)
     if middleware is None:
-        # Point out repeated actions, show only the URL/title of old page reads, and
-        # time every model and tool call.
-        middleware = [RepeatGuard(session), TrimOldSnapshots(), StepTimer(session), model_retry()]
+        middleware = default_middleware(session)
     return create_deep_agent(
         model=make_model(model, **(model_settings or {})),
         tools=tools,
@@ -171,7 +184,32 @@ def build_agent(session: BrowserSession, *, model: str = MODEL,
         # Files the agent writes land in ./workspace instead of vanishing with the run.
         backend=FilesystemBackend(root_dir=workspace, virtual_mode=True),
         # Keeps the conversation between follow-up questions.
-        checkpointer=InMemorySaver(),
+        checkpointer=checkpointer if checkpointer is not None else InMemorySaver(),
+    )
+
+
+def build_pack_agent(session: BrowserSession, pack: Pack, input: dict, *,
+                     workspace: str = WORKSPACE, shared_prompt: str = SYSTEM_PROMPT,
+                     ask_human=None, approve=None, extra_tools: tuple = (),
+                     outer_middleware: tuple = (), checkpointer=None,
+                     background: bool = False):
+    """The agent for one task of `pack`: the shared prompt plus the pack's, the
+    pack's browser tools and connectors, and a PolicyGuard enforcing the pack's
+    policy for this input. `ask_human` goes to the tools that need a person
+    (human.py); `approve` is what PolicyGuard asks before an action the policy does
+    not allow (None: refuse it). `outer_middleware` (e.g. EventLogger) runs first.
+    `background` picks the pack's policy for unwatched tasks (worker.py)."""
+    tools = make_browser_tools(session, files_dir=workspace, ask_human=ask_human)
+    tools = pack.select_tools(tools) + pack.connector_tools(session, workspace) + list(extra_tools)
+    guard = PolicyGuard(pack.policy_for(input, background=background), session,
+                        ask_human=approve)
+    return build_agent(
+        session,
+        system_prompt=pack.system_prompt(shared_prompt),
+        tools=tools,
+        middleware=[*outer_middleware, guard, *default_middleware(session)],
+        workspace=workspace,
+        checkpointer=checkpointer,
     )
 
 
@@ -261,17 +299,29 @@ async def ask(agent, task: str, config: dict, usage: Usage) -> None:
     print(f"[timing] session: {Usage.describe_timing(usage.calls, *usage.timing())}")
 
 
-async def run(task: str | None) -> None:
+async def _approve_in_terminal(kind: str, question: str, options: list[str]) -> str:
+    answer = await asyncio.to_thread(input, f"\n[approval needed] {question} [y/N] ")
+    return "approve" if answer.strip().lower() in ("y", "yes") else "deny"
+
+
+async def run(task: str | None, pack_name: str = "general", pack_input: dict | None = None) -> None:
+    pack = load_pack(pack_name)
+    if pack_input is not None:
+        task = pack.task_text(pack_input)  # validates the input before the browser starts
     session = BrowserSession.from_env()
+    if pack.allowed_domains:
+        session.allowed_domains = list(pack.allowed_domains)
     await session.start()
     try:
         ip = await session.verify_ip()
         print(f"[browser] exit IP: {ip}")
         if session.allowed_domains:
             print(f"[browser] allowed domains: {', '.join(session.allowed_domains)}")
+        print(f"[pack] {pack.name}: {pack.description}")
         print(f"[files] agent workspace: {os.path.abspath(WORKSPACE)}\n")
 
-        agent = build_agent(session)
+        agent = build_pack_agent(session, pack, pack_input or {"task": task or "chat"},
+                                 approve=_approve_in_terminal)
         config = {
             "configurable": {"thread_id": str(uuid.uuid4())},
             "recursion_limit": int(os.getenv("RECURSION_LIMIT", "150")),
@@ -286,9 +336,28 @@ async def run(task: str | None) -> None:
             if one_shot:
                 break
             task = (await asyncio.to_thread(input, "\nFollow-up (Enter to quit): ")).strip()
+        if pack.output_file:
+            rows, problem = pack.read_output(WORKSPACE)
+            print(f"[output] {problem}" if problem else
+                  f"[output] {len(rows)} rows in {os.path.join(WORKSPACE, pack.output_file)}")
     finally:
         await session.stop()
 
 
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run the browsing agent on one task.")
+    parser.add_argument("task", nargs="*", help="the task in plain words (general pack)")
+    parser.add_argument("--pack", default="general", help="task pack in packs/")
+    parser.add_argument("--input", help="JSON file with the pack's input")
+    args = parser.parse_args()
+    pack_input = None
+    if args.input:
+        with open(args.input, encoding="utf-8") as f:
+            pack_input = json.load(f)
+    elif args.pack != "general":
+        parser.error(f"--pack {args.pack} needs --input")
+    asyncio.run(run(" ".join(args.task).strip() or None, args.pack, pack_input))
+
+
 if __name__ == "__main__":
-    asyncio.run(run(" ".join(sys.argv[1:]).strip() or None))
+    main()

@@ -8,6 +8,7 @@ Middleware that keeps the browsing agent from going in circles.
   history is left complete.
 - StepTimer records how long every model call and tool call took, on the messages
   themselves, so a run can be split into model time and browser time.
+- EventLogger writes every tool and model call of a background task to its event log.
 - model_retry() retries a model call that failed for a passing reason (rate limit,
   OpenRouter's "could not verify credits in time", a 5xx), never a real error such
   as an exhausted balance.
@@ -16,6 +17,7 @@ Middleware that keeps the browsing agent from going in circles.
 from __future__ import annotations
 
 import json
+import re
 import time
 from urllib.parse import urldefrag
 
@@ -178,6 +180,79 @@ class StepTimer(AgentMiddleware):
                 result.additional_kwargs["waits"] = [
                     (name, round(s, 3)) for name, s in self.session.waits[start:]]
         return result
+
+
+_SCREENSHOT_PATH = re.compile(r"[\w./\\:-]+\.png")
+
+
+class EventLogger(AgentMiddleware):
+    """Writes every tool call and model call of a task to its event log (taskstore):
+    the audit trail and the live view. Put it first in the middleware list so it
+    sees StepTimer's timings and the result the agent actually got. A tool that
+    pauses for a person (human.py) is logged when it completes after the resume."""
+
+    def __init__(self, store, task_id: str, session: BrowserSession | None = None,
+                 excerpt_chars: int = 500):
+        super().__init__()
+        self.store = store
+        self.task_id = task_id
+        self.session = session
+        self.excerpt_chars = excerpt_chars
+
+    def _label(self, args: dict) -> str | None:
+        """The element a click/type hit, from the page read the number came from."""
+        element = args.get("element")
+        if element is None or self.session is None:
+            return None
+        desc = self.session.element_descs.get(str(element))
+        if desc:
+            return f'{desc[0]} "{desc[1]}"'
+        return None if str(element).isdigit() else str(element)
+
+    def _url(self) -> str | None:
+        page = self.session.page if self.session is not None else None
+        if page is None or page.is_closed() or not page.url.startswith("http"):
+            return None
+        return page.url
+
+    async def awrap_tool_call(self, request, handler):
+        name = request.tool_call["name"]
+        args = request.tool_call.get("args") or {}
+        label = self._label(args)  # before the call: the call may read a new page
+        result = await handler(request)
+        content = result.content if isinstance(result, ToolMessage) else str(result)
+        if not isinstance(content, str):  # a vision screenshot
+            content = " ".join(p.get("text", "") for p in content
+                               if isinstance(p, dict) and p.get("type") == "text")
+        extra = result.additional_kwargs if isinstance(result, ToolMessage) else {}
+        shot = _SCREENSHOT_PATH.search(content) if name == "screenshot" else None
+        self.store.append_event(
+            self.task_id, "tool_call", name, args=args, label=label,
+            excerpt=content[:self.excerpt_chars], url=self._url(),
+            screenshot=shot.group(0) if shot else None,
+            tool_s=float(extra.get("tool_s") or 0),
+            wait_s=sum(float(s) for _, s in extra.get("waits") or []))
+        return result
+
+    async def awrap_model_call(self, request, handler):
+        response = await handler(request)
+        messages = getattr(response, "result", None)
+        if messages is None:
+            messages = [response]
+        for msg in messages:
+            if not isinstance(msg, AIMessage):
+                continue
+            usage = msg.usage_metadata or {}
+            meta = msg.response_metadata or {}
+            calls = [c["name"] for c in msg.tool_calls]
+            text = msg.content if isinstance(msg.content, str) else ""
+            self.store.append_event(
+                self.task_id, "model_call", meta.get("model_name"),
+                excerpt=(", ".join(calls) if calls else text)[:self.excerpt_chars],
+                input_tokens=int(usage.get("input_tokens") or 0),
+                output_tokens=int(usage.get("output_tokens") or 0),
+                cost=float(meta.get("cost") or 0), llm_s=float(meta.get("llm_s") or 0))
+        return response
 
 
 def _transient(exc: Exception) -> bool:
