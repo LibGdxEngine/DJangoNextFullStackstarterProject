@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { useSession } from "next-auth/react";
 import SessionProvider from "@/components/SessionProvider";
-import Home from "@/app/page";
+import Home from "@/app/dev/page";
 import { registerSessionExpiry } from "../browser";
 
 vi.mock("next-auth/react", () => ({

@@ -5,6 +5,7 @@ import { formatUserName } from "@/lib/backend-auth";
 import { authApi } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { logServerEvent } from "@/lib/telemetry/logger";
+import { needsRefresh, refreshAccessToken } from "@/lib/token-refresh";
 
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
@@ -66,6 +67,9 @@ export const authOptions: NextAuthOptions = {
       // Updates carry the failed token; a late 401 cannot clear a different login.
       if (trigger === "update" && typeof session?.invalidateAccessToken === "string"
         && session.invalidateAccessToken === token.accessToken) {
+        // The backend rejected this access token; a valid refresh token can still replace it.
+        const refreshed = token.refreshToken ? await refreshAccessToken(token) : undefined;
+        if (refreshed?.accessToken && refreshed.accessToken !== token.accessToken) return refreshed;
         return { ...token, accessToken: undefined, refreshToken: undefined, sessionExpired: true };
       }
       if (account && account.provider !== "credentials") {
@@ -93,6 +97,10 @@ export const authOptions: NextAuthOptions = {
         token.phone = user.phone;
         token.requiresPhone = false;
       }
+      // Access tokens live 15 minutes; rotate shortly before expiry so long sessions keep working.
+      // Only the /api/auth routes can save the rotated cookie, so server components must read
+      // the session with readSessionToken (lib/session-cookie.ts), never getServerSession.
+      if (needsRefresh(token)) return refreshAccessToken(token);
       return token;
     },
     async session({ session, token }) {
@@ -107,7 +115,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: "/",
+    signIn: "/login",
   },
   session: {
     strategy: "jwt",

@@ -29,6 +29,9 @@ INSTALLED_APPS = [
     'apps.billing.apps.BillingConfig',
     'apps.notifications.apps.NotificationsConfig',
     'apps.audit.apps.AuditConfig',
+
+    # Product apps
+    'product.browser_agent.apps.BrowserAgentConfig',
 ]
 
 MIDDLEWARE = [
@@ -131,6 +134,9 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',
     ],
     'DEFAULT_SCHEMA_CLASS': 'core.schema.ContractAutoSchema',
+    'DEFAULT_THROTTLE_RATES': {
+        'agent_runs': os.environ.get('AGENT_RUN_THROTTLE', '20/hour'),
+    },
 }
 
 # OpenAPI / Swagger configuration
@@ -148,6 +154,9 @@ SPECTACULAR_SETTINGS = {
         'UserStatusEnum': 'apps.accounts.models.UserStatus.choices',
         'VerificationPurposeEnum': 'apps.accounts.models.VerificationPurpose.choices',
         'SubscriptionStatusEnum': 'apps.billing.models.Subscription.Status',
+        'AgentInputTypeEnum': 'product.browser_agent.serializers.INPUT_TYPES',
+        'AgentControlActionEnum': 'product.browser_agent.serializers.CONTROL_ACTIONS',
+        'AgentControlEnum': 'product.browser_agent.serializers.CONTROL_STATES',
     },
 }
 
@@ -249,6 +258,9 @@ CELERY_TASK_ROUTES = {
     'apps.common.tasks.cleanup_temp_uploads': {'queue': 'maintenance'},
     'apps.common.tasks.cleanup_task_records': {'queue': 'maintenance'},
     'apps.notifications.tasks.send_scheduled_reports': {'queue': 'maintenance'},
+    # Browser runs need Chromium and plenty of memory, so only the browser worker takes them.
+    'product.browser_agent.tasks.run_agent': {'queue': 'browser'},
+    'product.browser_agent.tasks.reap_stale_runs': {'queue': 'maintenance'},
 }
 
 # Defaults for the shared task base class in apps.common.tasks.
@@ -288,6 +300,10 @@ CELERY_BEAT_SCHEDULE = {
     'cleanup-task-records': {
         'task': 'apps.common.tasks.cleanup_task_records',
         'schedule': crontab(hour='4', minute='0'),
+    },
+    'reap-stale-agent-runs': {
+        'task': 'product.browser_agent.tasks.reap_stale_runs',
+        'schedule': crontab(minute='*/10'),
     },
     'expire-pending-invitations': {
         'task': 'apps.organizations.tasks.expire_pending_invitations',
@@ -373,3 +389,21 @@ LOGGING = {
         },
     },
 }
+
+
+# Browser agent (product.browser_agent). The engine reads its own provider and browser
+# tuning from the environment: OPENROUTER_API_KEY, MODEL, HEADLESS, PROXY_*,
+# ALLOW_ANY_EXIT_IP, ALLOWED_DOMAINS (see .env.example).
+AGENT_DATA_ROOT = Path(os.environ.get('AGENT_DATA_ROOT', BASE_DIR / 'agent_data'))
+AGENT_RUNS_ROOT = AGENT_DATA_ROOT / 'runs'
+AGENT_PROFILES_ROOT = AGENT_DATA_ROOT / 'profiles'
+# Includes time the user spends driving the browser during a handoff.
+AGENT_RUN_TIMEOUT = int(os.environ.get('AGENT_RUN_TIMEOUT', 1800))
+AGENT_MAX_ACTIVE_RUNS_PER_ORG = int(os.environ.get('AGENT_MAX_ACTIVE_RUNS_PER_ORG', 2))
+AGENT_ARTIFACT_RETENTION_DAYS = int(os.environ.get('AGENT_ARTIFACT_RETENTION_DAYS', 14))
+AGENT_RECURSION_LIMIT = int(os.environ.get('AGENT_RECURSION_LIMIT', 150))
+# A running run's worker beats every AGENT_HEARTBEAT_S; one silent for AGENT_STALE_AFTER_S
+# is resumed by the reaper from its last finished step, at most AGENT_MAX_RECOVERIES times.
+AGENT_HEARTBEAT_S = int(os.environ.get('AGENT_HEARTBEAT_S', 30))
+AGENT_STALE_AFTER_S = int(os.environ.get('AGENT_STALE_AFTER_S', 180))
+AGENT_MAX_RECOVERIES = int(os.environ.get('AGENT_MAX_RECOVERIES', 2))

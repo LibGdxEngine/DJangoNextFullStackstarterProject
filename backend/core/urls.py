@@ -45,4 +45,5 @@ urlpatterns = [
     path('api/billing/', include('apps.billing.urls', namespace='billing')),
     path('api/notifications/', include('apps.notifications.urls', namespace='notifications')),
     path('api/audit/', include('apps.audit.urls', namespace='audit')),
+    path('api/product/browser_agent/', include('product.browser_agent.urls', namespace='browser_agent')),
 ]

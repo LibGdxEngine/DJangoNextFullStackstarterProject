@@ -25,6 +25,16 @@ describe("API transport", () => {
     expect(init?.cache).toBe("no-store");
   });
 
+  it("returns file downloads as blobs but still parses their errors", async () => {
+    mockFetch.mockResolvedValueOnce(new Response("a,b\n1,2\n", { status: 200, headers: { "Content-Type": "text/csv" } }));
+    const blob = await client.get<Blob>("files/1/", { responseType: "blob" });
+    expect(await blob.text()).toBe("a,b\n1,2\n");
+    expect(new Headers(mockFetch.mock.calls[0][1]?.headers).get("Authorization")).toBe("Bearer access");
+
+    mockFetch.mockResolvedValueOnce(response({ error: { code: "not_found", message: "Gone." } }, 404));
+    await expect(client.get("files/2/", { responseType: "blob" })).rejects.toMatchObject({ status: 404, code: "not_found" });
+  });
+
   it("encodes queries and bodies and allows request headers", async () => {
     mockFetch.mockResolvedValue(response({ ok: true }));
     await client.post("items/", { name: "A" }, {
