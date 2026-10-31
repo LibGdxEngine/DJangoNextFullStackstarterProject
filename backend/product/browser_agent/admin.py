@@ -31,5 +31,12 @@ class TaskTemplateAdmin(admin.ModelAdmin):
     search_fields = ('title', 'prompt')
 
 
-admin.site.register(BrowserProfile)
+@admin.register(BrowserProfile)
+class BrowserProfileAdmin(admin.ModelAdmin):
+    list_display = ('name', 'organization', 'user', 'in_use', 'created_at')
+    list_filter = ('in_use',)
+    search_fields = ('name', 'user__email', 'organization__name')
+    raw_id_fields = ('organization', 'user')
+
+
 admin.site.register(AgentRunEvent)

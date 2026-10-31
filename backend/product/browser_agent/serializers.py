@@ -126,7 +126,9 @@ class AgentAnswerSerializer(serializers.Serializer):
 class AgentRunSerializer(serializers.ModelSerializer):
     organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all())
     profile = serializers.PrimaryKeyRelatedField(
-        queryset=BrowserProfile.objects.all(), required=False, allow_null=True)
+        queryset=BrowserProfile.objects.all(), required=False, allow_null=True,
+        help_text='A browser profile shared by the organization. Left out, the run uses your own '
+                  'profile there, which keeps the sites you signed in to signed in across your runs.')
     role = serializers.PrimaryKeyRelatedField(
         queryset=AgentRole.objects.all(), required=False, allow_null=True,
         help_text='The role the agent works as; a built-in role or one of the organization.')
@@ -149,6 +151,9 @@ class AgentRunSerializer(serializers.ModelSerializer):
         profile = attrs.get('profile')
         if profile and profile.organization_id != attrs['organization'].id:
             raise serializers.ValidationError({'profile': 'Profile belongs to another organization.'})
+        request = self.context.get('request')
+        if profile and profile.user_id and (request is None or profile.user_id != request.user.pk):
+            raise serializers.ValidationError({'profile': 'Profile belongs to another user.'})
         role = attrs.get('role')
         if role and not role.is_builtin and role.organization_id != attrs['organization'].id:
             raise serializers.ValidationError({'role': 'Role belongs to another organization.'})

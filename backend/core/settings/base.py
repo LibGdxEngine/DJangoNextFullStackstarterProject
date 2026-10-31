@@ -407,3 +407,6 @@ AGENT_RECURSION_LIMIT = int(os.environ.get('AGENT_RECURSION_LIMIT', 150))
 AGENT_HEARTBEAT_S = int(os.environ.get('AGENT_HEARTBEAT_S', 30))
 AGENT_STALE_AFTER_S = int(os.environ.get('AGENT_STALE_AFTER_S', 180))
 AGENT_MAX_RECOVERIES = int(os.environ.get('AGENT_MAX_RECOVERIES', 2))
+# Each member's runs share one browser profile (their sign-ins), which one run at a time
+# may open; a run that finds it open is queued again every AGENT_PROFILE_RETRY_S.
+AGENT_PROFILE_RETRY_S = int(os.environ.get('AGENT_PROFILE_RETRY_S', 15))

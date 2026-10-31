@@ -11902,7 +11902,8 @@
                     "profile": {
                         "type": "string",
                         "format": "uuid",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "A browser profile shared by the organization. Left out, the run uses your own profile there, which keeps the sites you signed in to signed in across your runs."
                     },
                     "role": {
                         "type": "string",
@@ -12049,7 +12050,8 @@
                     "profile": {
                         "type": "string",
                         "format": "uuid",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "A browser profile shared by the organization. Left out, the run uses your own profile there, which keeps the sites you signed in to signed in across your runs."
                     },
                     "role": {
                         "type": "string",

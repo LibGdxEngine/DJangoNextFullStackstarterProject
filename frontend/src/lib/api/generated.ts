@@ -1277,7 +1277,10 @@ export interface components {
             readonly id: string;
             /** Format: uuid */
             organization: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description A browser profile shared by the organization. Left out, the run uses your own profile there, which keeps the sites you signed in to signed in across your runs.
+             */
             profile?: string | null;
             /**
              * Format: uuid
@@ -1323,7 +1326,10 @@ export interface components {
         AgentRunRequest: {
             /** Format: uuid */
             organization: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description A browser profile shared by the organization. Left out, the run uses your own profile there, which keeps the sites you signed in to signed in across your runs.
+             */
             profile?: string | null;
             /**
              * Format: uuid

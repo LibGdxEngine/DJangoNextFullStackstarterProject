@@ -12,7 +12,8 @@ from langgraph.graph import START, MessagesState, StateGraph
 from apps.organizations.models import Organization
 from product.browser_agent.engine.human import ask_human
 from product.browser_agent.models import AgentRun, AgentRunEvent, BrowserProfile
-from product.browser_agent.services import execute_run
+from product.browser_agent.services import CHROMIUM_LOCK_FILES, ProfileBusy, execute_run
+from product.browser_agent.tasks import run_agent
 
 
 class FakeAgent:
@@ -105,16 +106,49 @@ class ExecuteRunTests(TransactionTestCase):
             self._execute(lambda ws: Hang(ws))
         self.assertEqual(self.run.status, AgentRun.Status.TIMEOUT)
 
-    def test_busy_profile_fails_run_without_starting_browser(self):
+    def test_busy_profile_keeps_run_queued_without_starting_browser(self):
         profile = BrowserProfile.objects.create(organization=self.org, name='p', in_use=True)
         self.run.profile = profile
         self.run.save()
-        session = self._execute(lambda ws: FakeAgent(ws))
-        self.assertEqual(self.run.status, AgentRun.Status.FAILED)
+        session = fake_session()
+        with self.assertRaises(ProfileBusy):
+            self._execute(lambda ws: FakeAgent(ws), session=session)
+        self.assertEqual(self.run.status, AgentRun.Status.QUEUED)   # waits for its turn
         session.start.assert_not_awaited()
         profile.refresh_from_db()
         # The other run still owns the profile; this run must not release it.
         self.assertTrue(profile.in_use)
+
+    def test_run_fails_after_waiting_too_long_for_its_profile(self):
+        profile = BrowserProfile.objects.create(organization=self.org, name='p', in_use=True)
+        self.run.profile = profile
+        self.run.save()
+        with override_settings(AGENT_RUN_TIMEOUT=0):
+            session = self._execute(lambda ws: FakeAgent(ws))
+        self.assertEqual(self.run.status, AgentRun.Status.FAILED)
+        self.assertIn('in use by another run', self.run.error)
+        session.start.assert_not_awaited()
+        profile.refresh_from_db()
+        self.assertTrue(profile.in_use)
+
+    def test_task_retries_later_when_the_profile_is_busy(self):
+        with patch('product.browser_agent.tasks.execute_run', side_effect=ProfileBusy('p')), \
+                patch('product.browser_agent.tasks.run_agent.apply_async') as retry, \
+                override_settings(AGENT_PROFILE_RETRY_S=7):
+            run_agent(str(self.run.id))
+        retry.assert_called_once_with(args=[str(self.run.id)], countdown=7)
+
+    def test_stale_chromium_locks_are_removed_before_launch(self):
+        profile = BrowserProfile.objects.create(organization=self.org, name='p')
+        self.run.profile = profile
+        self.run.save()
+        profile.directory.mkdir(parents=True)
+        for name in CHROMIUM_LOCK_FILES:
+            (profile.directory / name).write_text('left by a dead worker')
+        (profile.directory / 'Cookies').write_text('keep')
+        self._execute(lambda ws: FakeAgent(ws))
+        self.assertEqual(self.run.status, AgentRun.Status.SUCCEEDED)
+        self.assertEqual(sorted(p.name for p in profile.directory.iterdir()), ['Cookies'])
 
     def test_profile_released_after_run(self):
         profile = BrowserProfile.objects.create(organization=self.org, name='p')

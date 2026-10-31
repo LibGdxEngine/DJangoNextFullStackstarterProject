@@ -7,7 +7,7 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from .models import AgentRun, BrowserProfile
-from .services import execute_run, purge_run_files
+from .services import ProfileBusy, execute_run, purge_run_files
 
 
 @shared_task(
@@ -19,7 +19,11 @@ from .services import execute_run, purge_run_files
     time_limit=settings.AGENT_RUN_TIMEOUT + 120,
 )
 def run_agent(run_id: str) -> None:
-    asyncio.run(execute_run(run_id))
+    try:
+        asyncio.run(execute_run(run_id))
+    except ProfileBusy:
+        # Another run has this profile's browser open; try again once it may be free.
+        run_agent.apply_async(args=[run_id], countdown=settings.AGENT_PROFILE_RETRY_S)
 
 
 @shared_task(name='product.browser_agent.tasks.reap_stale_runs', queue='maintenance')

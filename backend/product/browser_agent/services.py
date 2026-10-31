@@ -5,6 +5,7 @@ later one carry on from the last finished step: after the agent asks the user
 something (the run waits, and the answer queues it again) or after its worker died
 (the reaper queues it again)."""
 import asyncio
+import inspect
 import logging
 import shutil
 from contextlib import asynccontextmanager
@@ -20,6 +21,14 @@ from .models import AgentArtifact, AgentRun, AgentRunEvent, BrowserProfile
 logger = logging.getLogger(__name__)
 
 PAYLOAD_LIMIT = 2000
+# Files Chromium leaves in a profile folder to mark it open. A run holds its profile
+# exclusively (BrowserProfile.in_use), so any of these present before launch were left
+# by a worker that died, and Chromium would refuse to open the profile over them.
+CHROMIUM_LOCK_FILES = ('SingletonLock', 'SingletonSocket', 'SingletonCookie')
+
+
+class ProfileBusy(Exception):
+    """The run's browser profile is open in another run; the run stays queued to be retried."""
 
 
 def run_directory(run: AgentRun) -> Path:
@@ -73,9 +82,14 @@ def _claim(run_id) -> AgentRun | None:
     if run.profile_id:
         claimed = BrowserProfile.objects.filter(pk=run.profile_id, in_use=False).update(in_use=True)
         if not claimed:
-            run.error = 'Browser profile is in use by another run.'
-            _finish(run, AgentRun.Status.FAILED, release_profile=False)
-            return None
+            # One Chromium at a time per profile. The run waits its turn (the task retries
+            # it) unless it has already waited as long as a whole run may take.
+            waited = (timezone.now() - run.updated_at).total_seconds()
+            if waited > settings.AGENT_RUN_TIMEOUT:
+                run.error = f'Browser profile was in use by another run for over {int(waited)}s.'
+                _finish(run, AgentRun.Status.FAILED, release_profile=False)
+                return None
+            raise ProfileBusy(str(run.profile_id))
     run.status = AgentRun.Status.RUNNING
     run.started_at = run.started_at or timezone.now()
     run.heartbeat_at = timezone.now()
@@ -114,12 +128,25 @@ def _page_url(session) -> str:
         return ''
 
 
+async def _save_logins(session) -> None:
+    """Write the browser's session cookies into its profile now, not only when the browser
+    closes, so a sign-in made during the run survives this worker dying."""
+    save = getattr(session, '_save_session_cookies', None)
+    if save is None:
+        return
+    result = save()
+    if inspect.isawaitable(result):
+        await result
+
+
 async def _keep_beating(run_id, session) -> None:
-    """Tell the reaper this run's worker is alive, and remember the page to reopen."""
+    """Tell the reaper this run's worker is alive, remember the page to reopen, and keep
+    the profile's saved sign-ins current."""
     while True:
         await asyncio.sleep(settings.AGENT_HEARTBEAT_S)
         try:
             await _beat(run_id, _page_url(session))
+            await _save_logins(session)
         except Exception:
             logger.exception('Heartbeat for run %s failed', run_id)
 
@@ -215,6 +242,17 @@ def _record_events(run_id, start_seq: int, events: list[tuple[str, dict]]) -> in
 @sync_to_async
 def _cancel_requested(run_id) -> bool:
     return AgentRun.objects.filter(pk=run_id, cancel_requested=True).exists()
+
+
+def clear_stale_locks(directory: Path) -> None:
+    """Remove Chromium's lock files from a profile folder before launching in it."""
+    for name in CHROMIUM_LOCK_FILES:
+        path = directory / name
+        try:
+            if path.is_symlink() or path.exists():
+                path.unlink()
+        except OSError:
+            logger.warning('Could not remove stale lock %s', path)
 
 
 def collect_artifacts(run: AgentRun) -> None:
@@ -326,6 +364,8 @@ async def execute_run(run_id) -> None:
 
     session = BrowserSession.from_env()
     if run.profile_id:
+        run.profile.directory.mkdir(parents=True, exist_ok=True)
+        clear_stale_locks(run.profile.directory)
         session.profile_dir = str(run.profile.directory)
     else:
         # Throwaway profile so concurrent runs never fight over one Chromium profile.
