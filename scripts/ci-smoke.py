@@ -34,6 +34,25 @@ def django(code):
     subprocess.run(compose + ['exec', '-T', 'backend', 'python', 'manage.py', 'shell', '-c', code], check=True, timeout=120)
 
 
+# Chromium must start under the browser worker's hardened limits (non-root, no capabilities,
+# capped processes), and the agent engine must import from the production image.
+CHROMIUM_CHECK = '''
+import asyncio
+import product.browser_agent.engine.agent  # noqa: F401
+from patchright.async_api import async_playwright
+
+async def main():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        await page.set_content('<title>browser-ok</title>')
+        assert await page.title() == 'browser-ok'
+        await browser.close()
+
+asyncio.run(main())
+'''
+
+
 request('/healthz')
 request('/api/health/live/')
 request('/api/health/ready/')
@@ -64,6 +83,9 @@ try:
     session = json.loads(request('/api/auth/session'))
     assert session.get('user'), 'NextAuth did not establish a logged-in session'
     django('from apps.common.tasks.health import ping; assert ping.delay().get(timeout=30) == "pong"')
+    django('from core.celery import app; replies = app.control.ping(timeout=10); '
+           'assert any(name.startswith("browser@") for reply in replies for name in reply), replies')
+    subprocess.run(compose + ['exec', '-T', 'celery_browser', 'python', '-c', CHROMIUM_CHECK], check=True, timeout=180)
     # The scheduler must generate a fresh heartbeat; do not enqueue it ourselves.
     django('from django.core.cache import cache; from apps.common.tasks.health import BEAT_HEARTBEAT_CACHE_KEY; cache.delete(BEAT_HEARTBEAT_CACHE_KEY)')
     deadline = time.monotonic() + 100
@@ -76,4 +98,4 @@ try:
         time.sleep(5)
 finally:
     django(f'from django.contrib.auth import get_user_model; get_user_model().objects.filter(email={email!r}).delete()')
-print('Production image smoke passed: health, static assets, API auth, NextAuth session, worker and beat.')
+print('Production image smoke passed: health, static assets, API auth, NextAuth session, workers, browser and beat.')

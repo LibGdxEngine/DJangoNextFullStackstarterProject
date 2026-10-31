@@ -392,8 +392,9 @@ LOGGING = {
 
 
 # Browser agent (product.browser_agent). The engine reads its own provider and browser
-# tuning from the environment: OPENROUTER_API_KEY, MODEL, HEADLESS, PROXY_*,
-# ALLOW_ANY_EXIT_IP, ALLOWED_DOMAINS (see .env.example).
+# tuning from the environment: OPENROUTER_API_KEY, MODEL, MODEL_REASONING_EFFORT,
+# DECIDER_MODEL / DECIDER_PAGE_GATE (page gate), VISION, BROWSER_SNAPSHOT,
+# BROWSER_FAST_WAITS, HEADLESS, PROXY_*, ALLOW_ANY_EXIT_IP, ALLOWED_DOMAINS (see .env.example).
 AGENT_DATA_ROOT = Path(os.environ.get('AGENT_DATA_ROOT', BASE_DIR / 'agent_data'))
 AGENT_RUNS_ROOT = AGENT_DATA_ROOT / 'runs'
 AGENT_PROFILES_ROOT = AGENT_DATA_ROOT / 'profiles'

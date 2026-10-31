@@ -27,13 +27,13 @@ REPOSITORY = 'LibGdxEngine/DJangoNextFullStackstarterProject'
 PACKAGE = 'ghcr.io/libgdxengine/djangonextfullstackstarterproject'
 PROJECT = 'mobser-test'
 MIGRATION_CONTAINER = PROJECT + '-migrate'
-APP_SERVICES = ['backend', 'frontend', 'celery_worker', 'celery_beat', 'gateway']
+APP_SERVICES = ['backend', 'frontend', 'celery_worker', 'celery_browser', 'celery_beat', 'gateway']
 ENV = {'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'HOME': '/root', 'LANG': 'C.UTF-8'}
 MAX_JSON = 1024 * 1024
 MAX_ARCHIVE = 128 * 1024
 # Reserve 1 GiB for existing host services, plus the capped deployment workload.
-INITIAL_MEMORY_MINIMUM = 3 * 1024 ** 3
-UPDATE_MEMORY_MINIMUM = 1536 * 1024 ** 2
+INITIAL_MEMORY_MINIMUM = 4 * 1024 ** 3
+UPDATE_MEMORY_MINIMUM = 2560 * 1024 ** 2
 
 
 class DeployError(Exception):

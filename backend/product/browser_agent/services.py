@@ -290,6 +290,42 @@ class RunCancelled(Exception):
 
 HANDOFF_TIMEOUT_S = 10 * 60
 
+BROWSING_PROMPT = """
+
+Reading pages and finishing actions:
+- Read the page first (`read_current_page`, `find_on_page`); take a `screenshot` only
+  when the text does not explain what is blocking you, such as a control that does not
+  react or a layout question the text cannot answer.
+- When a click is intercepted by a dialog or overlay, do not repeat it. Close the
+  overlay once (`press_key` Escape or `dismiss_overlays`); if the click still fails,
+  `browse` to the direct URL of the action instead (the composer, the settings page,
+  the form) rather than clicking its button on the page that hides it.
+- After posting, submitting, sending or saving anything, open the destination (the
+  profile, the sent folder, the list the item should appear in) and confirm the result
+  is there with the settings you chose before you report success. Returning to the
+  home page is not confirmation.
+- Bot checks: when a page read starts with "(This page is a bot check" it names the tool
+  that clears it (`solve_turnstile` or `solve_recaptcha`). Call that tool once before
+  anything else, including on Google's "unusual traffic" page, where the checkbox
+  appears after a moment. Only if the check remains, or becomes a picture puzzle, hand
+  the browser to the user or report it. Do not switch to another site or search engine
+  to get around a check.
+
+Fetching instead of browsing:
+- Prefer `fetch_page` for static pages: articles, documentation, about/contact/pricing
+  pages, directories, public listings and JSON endpoints. It is several times faster
+  than `browse`, does not move your browser tab, and pages fetched earlier in the run
+  come back instantly from a cache.
+- When you have a list of sites or URLs to check (candidate companies, search results),
+  call `fetch_many` once with all of them and `save_as` a JSON file, then read the file;
+  do not `browse` them one by one.
+- Use `browse` when you need to click, type, scroll, sign in or wait for content, for
+  script-heavy apps (social networks, maps, dashboards, webmail), and whenever a fetch
+  returns a 403, "bot check" or almost no text.
+- `web_search` is an API call; it does not open a tab and never counts as using a site
+  the user named.
+"""
+
 HANDOFF_PROMPT = """
 
 Working with the user (they watch your browser live in the app and can take it over):
@@ -302,14 +338,23 @@ Working with the user (they watch your browser live in the app and can take it o
 - For a decision only the user can make (which account to use, whether to send, post or
   submit something, a detail the request leaves out), call `ask_user` and carry on with
   the answer instead of ending your turn with a question. The run waits for them.
+- Sending a message, posting, submitting a form (other than a search) and uploading a
+  file are held for the user's approval automatically; the run waits for their answer.
+  A result starting with "Not done" means they declined: do not look for another way to
+  do it; carry on without it or stop and tell them.
 """
 
 
 def with_user_handoff(tools: list, live: LiveScreencast) -> list:
-    """Swap the console-only CAPTCHA handoff for one that works through the live view."""
+    """Replace the engine's console-only CAPTCHA handoff with one tool that works through
+    the live view, for CAPTCHAs and sign-ins alike (system_prompt() renames the engine's
+    mentions of the old tool to it)."""
     from langchain_core.tools import tool
 
-    async def handoff(reason: str) -> str:
+    @tool
+    async def hand_over_to_user(reason: str) -> str:
+        """Ask the user to take over the live browser, for example to sign in or solve a
+        CAPTCHA, and wait until they hand it back. `reason` tells them what to do."""
         outcome = await live.wait_for_user(reason, HANDOFF_TIMEOUT_S)
         if outcome == 'returned':
             return ('The user finished and handed the browser back. Read the current page to '
@@ -317,19 +362,7 @@ def with_user_handoff(tools: list, live: LiveScreencast) -> list:
         return (f'Nobody took over within {HANDOFF_TIMEOUT_S // 60} minutes. Stop and report '
                 'what is blocking you.')
 
-    @tool
-    async def hand_over_to_user(reason: str) -> str:
-        """Ask the user to take over the live browser, for example to sign in or solve a
-        CAPTCHA, and wait until they hand it back. `reason` tells them what to do."""
-        return await handoff(reason)
-
-    @tool
-    async def manual_captcha_handoff() -> str:
-        """Pause for the user to complete a CAPTCHA in the live browser, then continue."""
-        return await handoff('CAPTCHA')
-
-    kept = [t for t in tools if t.name != 'manual_captcha_handoff']
-    return kept + [hand_over_to_user, manual_captcha_handoff]
+    return [t for t in tools if t.name != 'manual_captcha_handoff'] + [hand_over_to_user]
 
 
 def role_prompt(role) -> str:
@@ -342,6 +375,26 @@ def role_prompt(role) -> str:
     return prompt
 
 
+def system_prompt(role) -> str:
+    """The engine's shared browsing rules, adapted to a run in the app: its CAPTCHA
+    handoff is `hand_over_to_user` (with_user_handoff), then the role, the product's
+    browsing rules and how to work with the user watching live."""
+    from .engine.agent import SYSTEM_PROMPT
+
+    shared = SYSTEM_PROMPT.replace('`manual_captcha_handoff`', '`hand_over_to_user`')
+    return shared + role_prompt(role) + BROWSING_PROMPT + HANDOFF_PROMPT
+
+
+def run_policy(run: AgentRun):
+    """What the run may do without asking. A run comes in through the API and works on a
+    signed-in profile, so it gets the general pack's policy for unwatched tasks: reading
+    and downloading are free; sending, posting, submitting forms and uploading pause the
+    run with an approve_action question (PolicyGuard's ask_human is human.ask_human)."""
+    from .engine.packs import load_pack
+
+    return load_pack('general').policy_for({'task': run.task}, background=True)
+
+
 async def execute_run(run_id) -> None:
     """Run the agent for ``run_id`` until it finishes or asks the user something, starting
     where an earlier execution of the run stopped. Agent failures are recorded, not raised."""
@@ -352,9 +405,10 @@ async def execute_run(run_id) -> None:
     from langgraph.errors import GraphRecursionError
     from langgraph.types import Command
 
-    from .engine.agent import SYSTEM_PROMPT, Usage, _text, build_agent
+    from .engine.agent import Usage, _text, build_agent, default_middleware
     from .engine.browser_tools import BrowserSession, make_browser_tools
-    from .engine.human import ask_user
+    from .engine.human import ask_human, ask_user
+    from .engine.policy import PolicyGuard
 
     recursion_limit = settings.AGENT_RECURSION_LIMIT
     config = {'configurable': {'thread_id': str(run.id)}, 'recursion_limit': recursion_limit}
@@ -386,8 +440,10 @@ async def execute_run(run_id) -> None:
             tools = make_browser_tools(
                 session, screenshot_dir=str(root / 'screenshots'), files_dir=str(workspace))
             tools = with_user_handoff(tools, live) + [ask_user]
+            guard = PolicyGuard(run_policy(run), session, ask_human=ask_human)
             agent = build_agent(session, tools=tools, workspace=str(workspace), checkpointer=saver,
-                                system_prompt=SYSTEM_PROMPT + role_prompt(run.role) + HANDOFF_PROMPT)
+                                system_prompt=system_prompt(run.role),
+                                middleware=[guard, *default_middleware(session)])
 
             snap = await agent.aget_state(config)
             done = list((snap.values or {}).get('messages', []))

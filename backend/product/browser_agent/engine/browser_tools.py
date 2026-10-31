@@ -10,15 +10,23 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import html
 import json
 import mimetypes
 import os
+import random
 import re
 import time
-from datetime import datetime
+from collections import OrderedDict
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlparse
+from urllib.parse import parse_qs, quote, quote_plus, unquote, urljoin, urlparse
 
+import httpx
 from langchain_core.tools import tool
 
 from . import decider
@@ -41,6 +49,9 @@ MAX_ELEMENTS = int(os.getenv("BROWSER_MAX_ELEMENTS", "80"))
 # How long solve_turnstile waits for the Cloudflare checkbox before deciding there is none.
 TURNSTILE_TIMEOUT_MS = int(os.getenv("BROWSER_TURNSTILE_TIMEOUT_MS", "15000"))
 TURNSTILE_IFRAME = 'iframe[src*="challenges.cloudflare.com"]'
+# reCAPTCHA v2 uses recaptcha.net; reCAPTCHA Enterprise (Google's "sorry" page)
+# uses google.com/recaptcha. Match both.
+RECAPTCHA_IFRAME = 'iframe[src*="recaptcha.net"], iframe[src*="google.com/recaptcha"]'
 # How long a page read waits for the DOM to stop changing: `quiet` ms without a
 # mutation, at most `max` ms. BROWSER_FAST_WAITS=true shortens these, drops the
 # networkidle wait in `browse`, and makes `scroll` / `type_text` return the page so
@@ -69,11 +80,40 @@ CAPTCHA_FRAME_HOSTS = ("challenges.cloudflare.com", "hcaptcha.com", "recaptcha.n
 PROFILE_DIR = os.getenv("BROWSER_PROFILE_DIR", "browser_profile")
 # Largest file download_file will save.
 DOWNLOAD_MAX_MB = float(os.getenv("DOWNLOAD_MAX_MB", "50"))
-# Search engine behind web_search: "bing" (default) or "duckduckgo"; the other is the fallback.
+# Search engine behind web_search when the search API below is not configured or fails:
+# "bing" (default) or "duckduckgo"; the other is the fallback.
 SEARCH_ENGINE = os.getenv("SEARCH_ENGINE", "bing").lower()
 # Language the search tab asks for. Bing returns unrelated results to some system
 # locales, so this defaults to English. Empty = the browser's own language.
 SEARCH_LANGUAGE = os.getenv("SEARCH_LANGUAGE", "en-US")
+
+# ---- Search API ---------------------------------------------------------------------
+# With BRAVE_SEARCH_API_KEY set, web_search asks the Brave Search API over plain HTTPS
+# instead of loading a search page in a tab, which is what gets bot-checked.
+BRAVE_SEARCH_API_KEY = os.getenv("BRAVE_SEARCH_API_KEY", "")
+BRAVE_SEARCH_URL = os.getenv("BRAVE_SEARCH_URL", "https://api.search.brave.com/res/v1/web/search")
+BRAVE_SEARCH_TIMEOUT_S = float(os.getenv("BRAVE_SEARCH_TIMEOUT_S", "8"))
+# Two-letter country the results are for ("us", "eg", ...). Empty = Brave's default.
+SEARCH_COUNTRY = os.getenv("SEARCH_COUNTRY", "").strip().lower()
+
+# ---- Fetching: throttle, retry, cache -----------------------------------------------
+# Delay between requests to one host, adapted to its latency (Scrapy's AutoThrottle):
+# starts at START, moves toward latency / TARGET_CONCURRENCY, stays within [MIN, MAX]
+# and doubles after a 403/429/503. Paces `browse` and the fetch tools; clicks and
+# in-page requests are not counted. 0 / 0 / 0 turns it off.
+THROTTLE_START_S = float(os.getenv("BROWSER_THROTTLE_START_S", "1.0"))
+THROTTLE_MIN_S = float(os.getenv("BROWSER_THROTTLE_MIN_S", "0.3"))
+THROTTLE_MAX_S = float(os.getenv("BROWSER_THROTTLE_MAX_S", "12"))
+THROTTLE_TARGET_CONCURRENCY = float(os.getenv("BROWSER_THROTTLE_TARGET_CONCURRENCY", "1.5"))
+# How long a fetched body is reused within a run when the server sets no max-age.
+HTTP_CACHE_TTL_S = float(os.getenv("BROWSER_HTTP_CACHE_TTL_S", "300"))
+# fetch_page / fetch_many: timeout per request, pages in flight at once (never more
+# than one per host), URLs per fetch_many call and its overall deadline.
+FETCH_TIMEOUT_MS = int(os.getenv("BROWSER_FETCH_TIMEOUT_MS", "20000"))
+FETCH_MAX_PARALLEL = int(os.getenv("FETCH_MAX_PARALLEL", "6"))
+FETCH_MANY_MAX_URLS = 20
+FETCH_MANY_DEADLINE_S = 90
+FETCH_MANY_SAVE_CHARS = 20000
 
 # Used by public_ip(); always reachable, even with an ALLOWED_DOMAINS list.
 IP_SERVICES = [
@@ -582,6 +622,40 @@ def _parse_domains(raw: str | None) -> list[str]:
     return [d.strip().lower().lstrip(".") for d in (raw or "").split(",") if d.strip()]
 
 
+def captcha_solver(frame_url: str) -> str | None:
+    """The tool that clears the CAPTCHA widget served from `frame_url`, or None when
+    only a person can (hCaptcha, Arkose, picture puzzles)."""
+    host = (urlparse(frame_url).hostname or "").lower()
+    if host == "challenges.cloudflare.com":
+        return "solve_turnstile"
+    if host == "recaptcha.net" or host.endswith(".recaptcha.net") or "/recaptcha/" in frame_url:
+        return "solve_recaptcha"
+    return None
+
+
+# How a page read names the CAPTCHA frames it leaves out of the element list.
+_CAPTCHA_FRAME_LINE = re.compile(r"\(CAPTCHA frame from [^:]+: not listed; call (solve_\w+) to clear it\)")
+
+
+def captcha_hint(url: str, elements: str) -> str:
+    """A line to put at the top of a page read when the page is a bot check one of
+    the solver tools handles: a CAPTCHA frame line names the tool, or the page is
+    Google's "unusual traffic" check (google.com/sorry), whose reCAPTCHA often renders
+    only after the read. "" when neither applies."""
+    found = _CAPTCHA_FRAME_LINE.search(elements)
+    if found:
+        tool = found.group(1)
+    else:
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        if not ((host == "google.com" or host.endswith(".google.com")) and parsed.path.startswith("/sorry")):
+            return ""
+        tool = "solve_recaptcha"
+    return (f"(This page is a bot check. Call `{tool}` once to clear it; it waits for the "
+            "checkbox itself. If the check is still there afterwards, or it turns into a "
+            "picture puzzle, do not retry: hand over to the user or stop and report it.)\n")
+
+
 class BrowserSession:
     """A single Chromium instance whose traffic exits through your static IP."""
 
@@ -631,6 +705,11 @@ class BrowserSession:
         self.page_gate = PAGE_GATE
         self.decider_stats = decider.Stats()  # the gate's calls in this session
         self.snapshot_mode = SNAPSHOT_MODE
+        # Per-host pacing, fetched bodies and search API calls, all for this session only.
+        self.throttle = HostThrottle()
+        self.http_cache = HttpCache()
+        self.search_stats = SearchStats()
+        self._fetch_limiter = asyncio.Semaphore(FETCH_MAX_PARALLEL)
         # (url, digest) of the previous page read, to notice an unchanged page.
         self._last_read: tuple[str, int] | None = None
         # async (target or None) -> dict | None, set by make_browser_tools: what the
@@ -943,6 +1022,610 @@ def _fmt_size(n: int) -> str:
     return f"{n / 1000:.0f} KB" if n >= 1000 else f"{n} B"
 
 
+# ---- Fetching: throttle, retry, cache -------------------------------------------------
+# Scrapy's AutoThrottle, RetryMiddleware and HttpCacheMiddleware, reduced to what one
+# browser session needs. Pure helpers first (unit-tested without a browser); the request
+# path that uses them is `_http_get` in make_browser_tools.
+
+TRANSIENT_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
+# Statuses that mean "slow down" for the host, whatever else they mean.
+BLOCK_STATUSES = frozenset({403, 429, 503})
+_TRANSIENT_ERRORS = ("ERR_CONNECTION_RESET", "ERR_CONNECTION_CLOSED", "ERR_EMPTY_RESPONSE",
+                     "ERR_NETWORK_CHANGED", "ERR_TIMED_OUT", "ERR_CONNECTION_REFUSED",
+                     "ERR_HTTP2_PROTOCOL_ERROR", "socket hang up", "ECONNRESET")
+
+
+def throttle_host(url: str) -> str:
+    """The host a request is paced under: lowercased, without a leading "www."."""
+    host = (urlparse(url).hostname or "").lower()
+    return host[4:] if host.startswith("www.") else host
+
+
+def parse_retry_after(value: str | None, now: float | None = None) -> float | None:
+    """Seconds a Retry-After header asks for (a number or an HTTP date), or None."""
+    if not value:
+        return None
+    value = value.strip()
+    if value.isdigit():
+        return float(value)
+    try:
+        when = parsedate_to_datetime(value)
+    except (TypeError, ValueError, IndexError):
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    current = datetime.now(timezone.utc) if now is None else datetime.fromtimestamp(now, timezone.utc)
+    return max(0.0, (when - current).total_seconds())
+
+
+def next_delay(prev: float, latency: float, status: int | None, *,
+               target_concurrency: float = THROTTLE_TARGET_CONCURRENCY,
+               min_delay: float = THROTTLE_MIN_S, max_delay: float = THROTTLE_MAX_S) -> float:
+    """The host's delay after a response that took `latency` seconds: halfway from `prev`
+    toward latency / target_concurrency, or straight to it when that is slower, kept
+    within [min_delay, max_delay]. A response other than 200 may raise the delay but
+    never lowers it, so fast error pages do not speed the crawl up."""
+    target = latency / max(target_concurrency, 1e-6)
+    new = max(target, (prev + target) / 2)
+    new = min(max(new, min_delay), max_delay)
+    if status != 200 and new <= prev:
+        return prev
+    return new
+
+
+def bumped_delay(prev: float, retry_after: str | None = None, *,
+                 start: float = THROTTLE_START_S, max_delay: float = THROTTLE_MAX_S) -> float:
+    """The host's delay after a block (403/429/503) or a dropped connection: at least
+    double, and at least what Retry-After asks for, up to max_delay."""
+    wanted = max(prev * 2, start * 2, parse_retry_after(retry_after) or 0.0)
+    return min(wanted, max_delay)
+
+
+def retry_delay(attempt: int, retry_after: str | None = None, *, base: float = 1.0,
+                cap: float = 10.0) -> float:
+    """Seconds to wait before retry number `attempt` (0-based): 1, 2, 4... up to `cap`,
+    with a little jitter; a Retry-After header replaces that, still capped."""
+    wanted = parse_retry_after(retry_after)
+    if wanted is None:
+        wanted = base * 2 ** attempt + random.uniform(0, 0.3)
+    return min(wanted, cap)
+
+
+def is_transient_error(exc: Exception) -> bool:
+    """A dropped or reset connection, worth one more try. Not a timeout (it already
+    waited the whole navigation timeout) and not a DNS failure."""
+    if isinstance(exc, PWTimeout):
+        return False
+    text = str(exc)
+    return any(marker in text for marker in _TRANSIENT_ERRORS)
+
+
+@dataclass
+class _Slot:
+    delay: float
+    last_sent: float | None = None
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+
+class HostThrottle:
+    """Per-host pacing for one session. `pause` waits out the host's delay before a
+    navigation; `slot` does the same and holds the host for the request, so parallel
+    fetches reach one host one at a time. `sleep(seconds)` is awaited for the wait, so
+    the caller can record it (see `_wait`)."""
+
+    def __init__(self, start: float = THROTTLE_START_S, min_delay: float = THROTTLE_MIN_S,
+                 max_delay: float = THROTTLE_MAX_S,
+                 target_concurrency: float = THROTTLE_TARGET_CONCURRENCY):
+        self.start, self.min_delay, self.max_delay = start, min_delay, max_delay
+        self.target_concurrency = target_concurrency
+        self._slots: dict[str, _Slot] = {}
+
+    def _slot(self, host: str) -> _Slot:
+        host = host.lower()
+        if host.startswith("www."):
+            host = host[4:]
+        slot = self._slots.get(host)
+        if slot is None:
+            slot = self._slots[host] = _Slot(self.start)
+        return slot
+
+    def delay(self, host: str) -> float:
+        return self._slot(host).delay
+
+    def wait_time(self, host: str, now: float) -> float:
+        slot = self._slot(host)
+        if slot.last_sent is None:
+            return 0.0
+        return max(0.0, slot.delay - (now - slot.last_sent))
+
+    def mark_sent(self, host: str, now: float) -> None:
+        self._slot(host).last_sent = now
+
+    def record(self, host: str, latency: float, status: int | None,
+               retry_after: str | None = None) -> float:
+        """Adjust the host's delay after a response (`status` None: the connection failed)."""
+        slot = self._slot(host)
+        if status is None or status in BLOCK_STATUSES:
+            slot.delay = bumped_delay(slot.delay, retry_after, start=self.start, max_delay=self.max_delay)
+        else:
+            slot.delay = next_delay(slot.delay, latency, status, target_concurrency=self.target_concurrency,
+                                    min_delay=self.min_delay, max_delay=self.max_delay)
+        return slot.delay
+
+    async def pause(self, host: str, sleep) -> None:
+        wait = self.wait_time(host, time.monotonic())
+        if wait > 0:
+            await sleep(wait)
+        self.mark_sent(host, time.monotonic())
+
+    @asynccontextmanager
+    async def slot(self, host: str, sleep):
+        async with self._slot(host).lock:
+            await self.pause(host, sleep)
+            yield
+
+
+@dataclass
+class CacheEntry:
+    url: str
+    status: int
+    headers: dict
+    body: bytes
+    content_type: str
+    stored_at: float
+    max_age: float | None = None
+    etag: str = ""
+    last_modified: str = ""
+
+
+def cache_policy(headers: dict) -> tuple[bool, float | None]:
+    """(may be stored, max-age in seconds or None) from the Cache-Control header."""
+    control = (headers.get("cache-control") or "").lower()
+    if "no-store" in control:
+        return False, None
+    if "no-cache" in control:
+        return True, 0.0
+    found = re.search(r"max-age=(\d+)", control)
+    return True, (float(found.group(1)) if found else None)
+
+
+class HttpCache:
+    """Bodies fetched during one run, keyed by their final URL (the requested URL is an
+    alias when a redirect led there), reused while fresh and revalidated with ETag /
+    Last-Modified when stale. Least recently used entries go first when over the bounds."""
+
+    def __init__(self, ttl_s: float = HTTP_CACHE_TTL_S, max_entries: int = 200,
+                 max_bytes: int = 32 << 20, entry_max_bytes: int = 4 << 20):
+        self.ttl_s, self.max_entries = ttl_s, max_entries
+        self.max_bytes, self.entry_max_bytes = max_bytes, entry_max_bytes
+        self._entries: OrderedDict[str, CacheEntry] = OrderedDict()
+        self._aliases: dict[str, str] = {}
+        self._bytes = 0
+        self.hits = self.revalidated = self.misses = 0
+
+    def resolve(self, url: str) -> str:
+        return self._aliases.get(url, url)
+
+    def lookup(self, url: str, now: float) -> tuple[CacheEntry | None, bool]:
+        """(entry, fresh) for `url`; (None, False) when nothing is stored."""
+        key = self.resolve(url)
+        entry = self._entries.get(key)
+        if entry is None:
+            self.misses += 1
+            return None, False
+        self._entries.move_to_end(key)
+        limit = self.ttl_s if entry.max_age is None else entry.max_age
+        fresh = now - entry.stored_at < limit
+        if fresh:
+            self.hits += 1
+        return entry, fresh
+
+    def store(self, requested_url: str, entry: CacheEntry, now: float) -> bool:
+        if len(entry.body) > self.entry_max_bytes:
+            return False
+        storable, max_age = cache_policy(entry.headers)
+        if not storable:
+            return False
+        entry.max_age, entry.stored_at = max_age, now
+        entry.etag = entry.headers.get("etag", "")
+        entry.last_modified = entry.headers.get("last-modified", "")
+        old = self._entries.pop(entry.url, None)
+        if old is not None:
+            self._bytes -= len(old.body)
+        self._entries[entry.url] = entry
+        self._bytes += len(entry.body)
+        if requested_url != entry.url:
+            self._aliases[requested_url] = entry.url
+        while self._entries and (len(self._entries) > self.max_entries or self._bytes > self.max_bytes):
+            _, dropped = self._entries.popitem(last=False)
+            self._bytes -= len(dropped.body)
+        return True
+
+    def refresh(self, url: str, now: float, headers: dict) -> None:
+        """After a 304: the stored body is current again."""
+        entry = self._entries.get(self.resolve(url))
+        if entry is None:
+            return
+        entry.stored_at = now
+        _, max_age = cache_policy(headers)
+        if max_age is not None:
+            entry.max_age = max_age
+        entry.etag = headers.get("etag", entry.etag)
+        entry.last_modified = headers.get("last-modified", entry.last_modified)
+        self.revalidated += 1
+
+    @staticmethod
+    def validators(entry: CacheEntry) -> dict:
+        headers = {}
+        if entry.etag:
+            headers["If-None-Match"] = entry.etag
+        if entry.last_modified:
+            headers["If-Modified-Since"] = entry.last_modified
+        return headers
+
+
+@dataclass
+class FetchResult:
+    """What `_http_get` returns: the body and where it came from, or `error`."""
+    url: str = ""
+    status: int = 0
+    headers: dict = field(default_factory=dict)
+    body: bytes | None = None
+    content_type: str = ""
+    filename: str = ""
+    error: str = ""
+    cached: bool = False
+    age: float = 0.0
+    seconds: float = 0.0
+    hops: int = 0
+    retries: int = 0
+
+
+async def run_fetches(urls: list[str], fetch_one, *, limiter: asyncio.Semaphore, deadline_s: float) -> list:
+    """`await fetch_one(url)` for every URL, at most `limiter` at a time, all within
+    `deadline_s`. One result per URL, in order: what fetch_one returned, the exception it
+    raised, or None when the deadline passed before it finished."""
+    async def one(url):
+        async with limiter:
+            return await fetch_one(url)
+
+    tasks = [asyncio.ensure_future(one(url)) for url in urls]
+    try:
+        await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), deadline_s)
+    except asyncio.TimeoutError:
+        pass
+    out = []
+    for task in tasks:
+        if task.done() and not task.cancelled():
+            exc = task.exception()
+            out.append(exc if exc is not None else task.result())
+        else:
+            task.cancel()
+            out.append(None)
+    await asyncio.gather(*tasks, return_exceptions=True)
+    return out
+
+
+# ---- Rendering a fetched body without a browser ---------------------------------------
+
+_VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
+              "param", "source", "track", "wbr"}
+_SKIP_TAGS = {"script", "style", "noscript", "template", "svg", "iframe", "canvas", "object"}
+_BLOCK_TAGS = {"p", "div", "section", "article", "header", "footer", "nav", "aside", "main",
+               "ul", "ol", "table", "tr", "br", "hr", "blockquote", "pre", "form", "fieldset",
+               "figure", "figcaption", "details", "summary", "address", "dl", "dt", "dd",
+               "option", "label"}
+_HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
+_TEXT_TYPES = {"application/json", "application/xml", "application/javascript", "application/xhtml+xml",
+               "application/ld+json", "application/x-ndjson", "application/rss+xml", "application/atom+xml",
+               "application/x-www-form-urlencoded"}
+_BOT_CHECK_MARKERS = ("just a moment", "attention required", "verify you are human",
+                      "verifying you are human", "unusual traffic", "access denied",
+                      "are you a robot", "not a robot", "enable javascript and cookies to continue",
+                      "checking your browser", "captcha")
+# Markers that mean a challenge even on a 200 page ("captcha" alone appears in articles).
+_STRONG_BOT_MARKERS = ("verify you are human", "verifying you are human", "unusual traffic",
+                       "are you a robot", "enable javascript and cookies to continue")
+
+
+class _TextExtractor(HTMLParser):
+    """HTML to readable text: headings marked with #, list items with "-", table cells
+    tab-separated; scripts, styles and hidden elements left out. Also collects the title,
+    the links, and the text of <main> / <article> / role=main on its own."""
+
+    def __init__(self, base_url: str = ""):
+        super().__init__(convert_charrefs=True)
+        self.base_url = base_url
+        self.parts: list[str] = []
+        self.main_parts: list[str] = []
+        self.links: list[tuple[str, str]] = []
+        self.title = ""
+        self._skip: list[str] = []      # open tags inside a skipped element
+        self._main: list[str] = []      # open main-content tags
+        self._in_title = False
+        self._link: tuple[str, list[str]] | None = None
+
+    def _emit(self, text: str) -> None:
+        self.parts.append(text)
+        if self._main:
+            self.main_parts.append(text)
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if self._skip:
+            if tag not in _VOID_TAGS:
+                self._skip.append(tag)
+            return
+        hidden = (tag in _SKIP_TAGS or "hidden" in attrs or attrs.get("aria-hidden") == "true"
+                  or (tag == "input" and (attrs.get("type") or "").lower() == "hidden"))
+        if hidden:
+            if tag not in _VOID_TAGS:
+                self._skip.append(tag)
+            return
+        if tag in ("main", "article") or attrs.get("role") == "main":
+            self._main.append(tag)
+        if tag == "title":
+            self._in_title = True
+        elif tag == "a":
+            self._link = (attrs.get("href") or "", [])
+        elif tag == "img" and attrs.get("alt"):
+            self._emit(f" {attrs['alt']} ")
+        if tag in _HEADING_TAGS:
+            self._emit("\n\n" + "#" * int(tag[1]) + " ")
+        elif tag == "li":
+            self._emit("\n- ")
+        elif tag in ("td", "th"):
+            self._emit("\t")
+        elif tag in _BLOCK_TAGS:
+            self._emit("\n")
+
+    def handle_endtag(self, tag):
+        if self._skip:
+            if tag == self._skip[-1]:
+                self._skip.pop()
+            return
+        if tag == "title":
+            self._in_title = False
+        elif tag == "a" and self._link is not None:
+            href, texts = self._link
+            text = re.sub(r"\s+", " ", "".join(texts)).strip()
+            if href and text and not href.startswith(("javascript:", "#", "mailto:", "tel:")):
+                self.links.append((text[:120], urljoin(self.base_url, href)))
+            self._link = None
+        if tag in _HEADING_TAGS or tag in _BLOCK_TAGS:
+            self._emit("\n")
+        if self._main and tag == self._main[-1]:
+            self._main.pop()
+
+    def handle_data(self, data):
+        if self._skip:
+            return
+        if self._in_title:
+            self.title += data
+            return
+        self._emit(data)
+        if self._link is not None:
+            self._link[1].append(data)
+
+
+def html_to_text(markup: str, base_url: str = "") -> tuple[str, str, list[tuple[str, str]]]:
+    """(text, title, links) of an HTML document. The text is the main content when the
+    page marks one and it is long enough, else the whole body."""
+    parser = _TextExtractor(base_url)
+    try:
+        parser.feed(markup)
+        parser.close()
+    except Exception:
+        pass  # keep what was parsed before the markup broke the parser
+    text = "".join(parser.parts)
+    main = "".join(parser.main_parts)
+    if len(main.strip()) > 200:
+        text = main
+    title = re.sub(r"\s+", " ", parser.title).strip()
+    seen, links = set(), []
+    for label, href in parser.links:
+        if href not in seen:
+            seen.add(href)
+            links.append((label, href))
+    return _clean(text, 10**7), title, links
+
+
+def decode_body(body: bytes, content_type: str) -> str:
+    """The body as text: the header's charset, else a <meta charset>, else UTF-8."""
+    found = re.search(r"charset=[\"']?([\w-]+)", content_type or "", re.I)
+    charset = found.group(1) if found else None
+    if not charset:
+        meta = re.search(rb"<meta[^>]+charset=[\"']?([\w-]+)", body[:4096], re.I)
+        charset = meta.group(1).decode("ascii", "ignore") if meta else "utf-8"
+    try:
+        return body.decode(charset, errors="replace")
+    except LookupError:
+        return body.decode("utf-8", errors="replace")
+
+
+def render_fetched(body: bytes, content_type: str, url: str, mode: str = "auto",
+                   max_chars: int = MAX_CHARS, links: bool = False) -> tuple[str, str, str]:
+    """(text, title, kind) for a fetched body. `kind` is "text", "json" or "raw" when the
+    text is usable, "pdf" or "binary" when the body is a file (text is then empty)."""
+    ctype = (content_type or "").split(";")[0].strip().lower()
+    path = urlparse(url).path.lower()
+    if ctype == "application/pdf" or path.endswith(".pdf"):
+        return "", "", "pdf"
+    textual = (not ctype or ctype.startswith("text/") or ctype in _TEXT_TYPES
+               or ctype.endswith(("+json", "+xml")))
+    if not textual or b"\x00" in body[:1024]:
+        return "", "", "binary"
+    raw = decode_body(body, content_type)
+    if mode == "raw":
+        return _clean(raw, max_chars), "", "raw"
+    stripped = raw.lstrip()
+    as_json = mode == "json" or (mode == "auto" and ("json" in ctype or stripped[:1] in "[{"))
+    if as_json:
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            if mode == "json":
+                return "Not valid JSON. Raw text:\n" + _clean(raw, max_chars), "", "text"
+        else:
+            return _clean(json.dumps(data, indent=1, ensure_ascii=False), max_chars), "", "json"
+    if "html" in ctype or stripped[:1] == "<":
+        text, title, found = html_to_text(raw, url)
+        text = _clean(text, max_chars)
+        if links:
+            site = throttle_host(url)
+            same = [(label, href) for label, href in found if throttle_host(href) == site][:40]
+            if same:
+                text += "\n\nLinks (same site, first 40):\n" + "\n".join(f"- {label} -> {href}" for label, href in same)
+        return text, title, "text"
+    return _clean(raw, max_chars), "", "text"
+
+
+def looks_like_bot_check(status: int, title: str, text: str) -> bool:
+    """A challenge or block page (Cloudflare's "Just a moment", Google's "unusual
+    traffic", a CAPTCHA) rather than ordinary content or a plain error page."""
+    sample = f"{title}\n{text[:3000]}".lower()
+    if not any(marker in sample for marker in _BOT_CHECK_MARKERS):
+        return False
+    return status in (403, 429, 503) or any(marker in sample for marker in _STRONG_BOT_MARKERS)
+
+
+# ---- Search API -----------------------------------------------------------------------
+
+class SearchStats:
+    """web_search API calls in one session, for the usage report; `disabled_reason` is
+    set when the API refused the key or plan, so the session stops asking."""
+
+    def __init__(self):
+        self.calls = self.answered = self.errors = self.results = 0
+        self.seconds = 0.0
+        self.disabled_reason = ""
+
+    def snapshot(self) -> dict:
+        return {"calls": self.calls, "answered": self.answered, "errors": self.errors,
+                "results": self.results, "seconds": round(self.seconds, 3)}
+
+
+_brave_client: httpx.AsyncClient | None = None
+# Brave's free plan allows one request a second; parallel runs in a process share this.
+_brave_limiter = asyncio.Semaphore(2)
+
+
+def brave_enabled() -> bool:
+    return bool(BRAVE_SEARCH_API_KEY)
+
+
+def _proxy_url() -> str | None:
+    """The browser's proxy as a URL, so API calls leave from the same IP."""
+    server = os.getenv("PROXY_SERVER")
+    if not server:
+        return None
+    if "://" not in server:
+        server = "http://" + server
+    user = os.getenv("PROXY_USERNAME")
+    if not user:
+        return server
+    parsed = urlparse(server)
+    auth = f"{quote(user, safe='')}:{quote(os.getenv('PROXY_PASSWORD', ''), safe='')}"
+    return f"{parsed.scheme}://{auth}@{parsed.netloc}"
+
+
+def _brave_http() -> httpx.AsyncClient:
+    # Deliberately not subject to ALLOWED_DOMAINS (like IP_SERVICE_HOSTS): it is the
+    # search service, not a site the agent browses.
+    global _brave_client
+    if _brave_client is None:
+        _brave_client = httpx.AsyncClient(timeout=BRAVE_SEARCH_TIMEOUT_S + 2, proxy=_proxy_url())
+    return _brave_client
+
+
+def brave_params(query: str, count: int, *, language: str = SEARCH_LANGUAGE,
+                 country: str = SEARCH_COUNTRY, freshness: str = "") -> dict:
+    params = {"q": query, "count": max(1, min(int(count), 20)), "safesearch": "moderate",
+              "text_decorations": "false", "result_filter": "web"}
+    if language:
+        params["search_lang"] = language.split("-")[0].lower()
+    if country:
+        params["country"] = country.upper()
+    if freshness in ("pd", "pw", "pm", "py") or re.fullmatch(r"\d{4}-\d{2}-\d{2}to\d{4}-\d{2}-\d{2}", freshness or ""):
+        params["freshness"] = freshness
+    return params
+
+
+def parse_brave_results(data: dict, max_results: int) -> list[dict]:
+    out = []
+    for item in ((data or {}).get("web") or {}).get("results") or []:
+        url = (item.get("url") or "").strip()
+        if not url:
+            continue
+        out.append({"title": html.unescape((item.get("title") or url).strip()), "url": url,
+                    "snippet": html.unescape(item.get("description") or "")})
+        if len(out) >= max_results:
+            break
+    return out
+
+
+def format_search_results(query: str, engine: str, results: list[dict]) -> str:
+    """The web_search reply, the same for every engine."""
+    lines = []
+    for i, r in enumerate(results, 1):
+        line = f"{i}. {r['title'].strip()}\n   {r['url']}"
+        snippet = _clean(r.get("snippet") or "", 300)
+        lines.append(line + (f"\n   {snippet}" if snippet else ""))
+    return f"Top {len(results)} results for '{query}' ({engine}):\n\n" + "\n\n".join(lines)
+
+
+async def brave_search(query: str, max_results: int, *, stats: SearchStats | None = None,
+                       freshness: str = "") -> tuple[list[dict] | None, str]:
+    """(results, "") from the Brave Search API, or (None, problem). Never raises: a
+    refused key or plan disables the API for the session (`stats.disabled_reason`)."""
+    if not brave_enabled():
+        return None, "brave: BRAVE_SEARCH_API_KEY is not set"
+    if stats is not None and stats.disabled_reason:
+        return None, "brave: " + stats.disabled_reason
+    headers = {"X-Subscription-Token": BRAVE_SEARCH_API_KEY, "Accept": "application/json",
+               "Accept-Encoding": "gzip"}
+    params = brave_params(query, max_results, freshness=freshness)
+    if stats is not None:
+        stats.calls += 1
+    t0 = time.monotonic()
+    try:
+        for attempt in range(2):
+            async with _brave_limiter:
+                resp = await asyncio.wait_for(
+                    _brave_http().get(BRAVE_SEARCH_URL, params=params, headers=headers),
+                    BRAVE_SEARCH_TIMEOUT_S)
+            if resp.status_code == 429 and attempt == 0:
+                asked = parse_retry_after(resp.headers.get("retry-after"))
+                await asyncio.sleep(min(1.1 if asked is None else asked, 5.0))
+                continue
+            break
+        if resp.status_code in (401, 403, 422):
+            reason = f"the API refused the key or plan (HTTP {resp.status_code})"
+            if stats is not None:
+                stats.disabled_reason = reason
+                stats.errors += 1
+            return None, "brave: " + reason
+        if resp.status_code == 429:
+            if stats is not None:
+                stats.errors += 1
+            return None, "brave: rate limited"
+        resp.raise_for_status()
+        results = parse_brave_results(resp.json(), max_results)
+        if stats is not None:
+            stats.answered += 1
+            stats.results += len(results)
+        if not results:
+            return None, "brave returned no results"
+        return results, ""
+    except Exception as e:
+        if stats is not None:
+            stats.errors += 1
+        return None, f"brave failed: {type(e).__name__}: {e}"
+    finally:
+        if stats is not None:
+            stats.seconds += time.monotonic() - t0
+
+
 def _parse_pages(spec: str, total: int) -> list[int]:
     """'1-3,7' -> [1, 2, 3, 7], clipped to the document; [] when nothing is selected."""
     pages: set[int] = set()
@@ -1122,7 +1805,9 @@ def make_browser_tools(
         for frame, el in frames:
             where = urlparse(frame.url).hostname or "inline"
             if _is_captcha(frame.url):
-                items.append(f"(CAPTCHA frame from {where}: not listed; see the CAPTCHA rules)")
+                solver = captcha_solver(frame.url)
+                how = f"call {solver} to clear it" if solver else "see the CAPTCHA rules"
+                items.append(f"(CAPTCHA frame from {where}: not listed; {how})")
                 continue
             try:
                 found = await asyncio.wait_for(
@@ -1199,6 +1884,8 @@ def make_browser_tools(
             elements = await _elements(page)
         session.element_descs = {n: (role, label) for n, role, label in
                                  _ELEMENT_DESC.findall(text + elements)}
+        # Name the solver tool on a bot check, so the model tries it before giving up.
+        head = captcha_hint(page.url, elements) + head
         digest = hash((text, elements))
         same = session._last_read == (page.url, digest)
         session._last_read = (page.url, digest)
@@ -1207,7 +1894,9 @@ def make_browser_tools(
         return f"{head}\n\n{text}{elements}"
 
     async def _wait(name: str, awaitable):
-        """Run a wait and record how long it took, for the timing report."""
+        """Run a wait and record how long it took, for the timing report. The fetch tools
+        run outside session.lock, so when the model calls one alongside a page tool their
+        waits can interleave; only the timing report is affected."""
         t0 = time.monotonic()
         try:
             return await awaitable
@@ -1258,6 +1947,8 @@ def make_browser_tools(
             if note:
                 return note + "\n" + await _snapshot(page)
         if state == "bot_check_or_signin":
+            if text.startswith("(This page is a bot check."):
+                return text  # the read already names the tool that clears it
             return ("(This looks like a sign-in wall, CAPTCHA or access block. Stop and "
                     "report it rather than trying to get around it.)\n" + text)
         return text
@@ -1348,33 +2039,112 @@ def make_browser_tools(
     def _too_big(size: int) -> str:
         return f"File is {_fmt_size(size)}, above the DOWNLOAD_MAX_MB limit of {DOWNLOAD_MAX_MB:g} MB."
 
-    async def _fetch(url: str, limit: int) -> tuple[bytes | None, str, str, str]:
+    def _throttle_sleep(seconds: float):
+        return _wait("throttle", asyncio.sleep(seconds))
+
+    def _from_cache(entry: CacheEntry, now: float) -> FetchResult:
+        return FetchResult(url=entry.url, status=200, headers=entry.headers, body=entry.body,
+                           content_type=entry.content_type, cached=True, age=now - entry.stored_at,
+                           filename=_filename_from_response(entry.headers, entry.url, entry.content_type))
+
+    async def _http_get(url: str, limit: int, *, timeout_ms: int = NAV_TIMEOUT_MS, use_cache: bool = True,
+                        fresh: bool = False, extra_headers: dict | None = None, retries: int = 2) -> FetchResult:
         """GET `url` with the browser's cookies and proxy (so the static IP applies),
-        checking every redirect hop against ALLOWED_DOMAINS.
-        Returns (body, file name, content type, error message)."""
-        for _ in range(10):
-            if not session.url_allowed(url):
-                return None, "", "", f"Blocked: {urlparse(url).hostname} is not in ALLOWED_DOMAINS."
-            resp = await session.context.request.get(url, timeout=NAV_TIMEOUT_MS, max_redirects=0)
+        checking every redirect hop against ALLOWED_DOMAINS, paced by the host's throttle,
+        retried on transient failures and served from the run's cache while fresh (a stale
+        entry is revalidated). Does not take session.lock: it never touches the page."""
+        result = FetchResult(url=url)
+        if urlparse(url).scheme not in ("http", "https"):
+            result.error = f"Not a web URL: {url}"
+            return result
+        entry, is_fresh = session.http_cache.lookup(url, time.monotonic()) if use_cache else (None, False)
+        if entry is not None and not session.url_allowed(entry.url):
+            entry = None
+        if entry is not None and is_fresh and not fresh:
+            return _from_cache(entry, time.monotonic())
+        headers = dict(extra_headers or {})
+        if entry is not None and not fresh:
+            headers.update(HttpCache.validators(entry))
+        hop, attempt, started = url, 0, time.monotonic()
+        while True:
+            if not session.url_allowed(hop):
+                result.error = f"Blocked: {urlparse(hop).hostname} is not in ALLOWED_DOMAINS."
+                return result
+            host = throttle_host(hop)
+            t0 = time.monotonic()
             try:
-                location = resp.headers.get("location")
-                if 300 <= resp.status < 400 and location:
-                    url = urljoin(url, location)
+                async with session.throttle.slot(host, _throttle_sleep):
+                    resp = await session.context.request.get(
+                        hop, headers=headers or None, timeout=timeout_ms, max_redirects=0)
+            except Exception as e:
+                session.throttle.record(host, time.monotonic() - t0, None)
+                if is_transient_error(e) and attempt < retries:
+                    attempt += 1
+                    result.retries = attempt
+                    await _wait("retry", asyncio.sleep(retry_delay(attempt - 1)))
                     continue
-                if resp.status >= 400:
-                    return None, "", "", f"Download failed: HTTP {resp.status} for {url}."
-                length = resp.headers.get("content-length", "")
-                if length.isdigit() and int(length) > limit:
-                    return None, "", "", _too_big(int(length))
-                body = await resp.body()
-                headers = resp.headers
+                result.error = f"Fetch failed: {type(e).__name__}: {e}"
+                return result
+            latency = time.monotonic() - t0
+            wait_before_retry = None
+            try:
+                status, resp_headers = resp.status, dict(resp.headers)
+                session.throttle.record(host, latency, status, resp_headers.get("retry-after"))
+                location = resp_headers.get("location")
+                if 300 <= status < 400 and location:
+                    result.hops += 1
+                    if result.hops > 10:
+                        result.error = f"Download failed: too many redirects from {url}."
+                        return result
+                    hop = urljoin(hop, location)
+                    continue
+                if status == 304 and entry is not None:
+                    session.http_cache.refresh(entry.url, time.monotonic(), resp_headers)
+                    return _from_cache(entry, time.monotonic())
+                if status in TRANSIENT_STATUSES and attempt < retries:
+                    attempt += 1
+                    result.retries = attempt
+                    wait_before_retry = retry_delay(attempt - 1, resp_headers.get("retry-after"))
+                elif status >= 400:
+                    result.url, result.status, result.headers = hop, status, resp_headers
+                    result.content_type = resp_headers.get("content-type", "")
+                    result.error = f"HTTP {status} for {hop}."
+                    try:  # the error page itself, to tell a bot check from a plain error
+                        result.body = (await resp.body())[:65536]
+                    except Exception:
+                        pass
+                    return result
+                else:
+                    length = resp_headers.get("content-length", "")
+                    if length.isdigit() and int(length) > limit:
+                        result.error = _too_big(int(length))
+                        return result
+                    body = await resp.body()
             finally:
                 await resp.dispose()
+            if wait_before_retry is not None:
+                await _wait("retry", asyncio.sleep(wait_before_retry))
+                continue
             if len(body) > limit:
-                return None, "", "", _too_big(len(body))
-            content_type = headers.get("content-type", "")
-            return body, _filename_from_response(headers, url, content_type), content_type, ""
-        return None, "", "", f"Download failed: too many redirects from {url}."
+                result.error = _too_big(len(body))
+                return result
+            content_type = resp_headers.get("content-type", "")
+            result.url, result.status, result.headers, result.body = hop, status, resp_headers, body
+            result.content_type = content_type
+            result.filename = _filename_from_response(resp_headers, hop, content_type)
+            result.seconds = time.monotonic() - started
+            if use_cache and status == 200:
+                now = time.monotonic()
+                session.http_cache.store(url, CacheEntry(url=hop, status=status, headers=resp_headers, body=body,
+                                                         content_type=content_type, stored_at=now), now)
+            return result
+
+    async def _fetch(url: str, limit: int) -> tuple[bytes | None, str, str, str]:
+        """`_http_get` for download_file: (body, file name, content type, error message)."""
+        r = await _http_get(url, limit)
+        if r.error:
+            return None, "", "", ("Download failed: " + r.error if r.status >= 400 else r.error)
+        return r.body, r.filename, r.content_type, ""
 
     def _target(save_as: str, suggested: str) -> tuple[Path | None, str]:
         """Where a download goes: `save_as` if given, else a unique name in the workspace."""
@@ -1394,9 +2164,31 @@ def make_browser_tools(
         numbered list of interactive elements. Use full URLs including https://."""
         if not session.url_allowed(url):
             return f"Blocked: {urlparse(url).hostname} is not in ALLOWED_DOMAINS."
+        host = throttle_host(url)
+        # Pace the host before taking the lock, so a throttle wait never holds up a live takeover.
+        await session.throttle.pause(host, _throttle_sleep)
+        note = ""
         async with session.lock:
             try:
-                resp = await session.page.goto(url, wait_until="domcontentloaded")
+                for attempt in range(3):
+                    t0 = time.monotonic()
+                    try:
+                        resp = await session.page.goto(url, wait_until="domcontentloaded")
+                    except Exception as e:
+                        session.throttle.record(host, time.monotonic() - t0, None)
+                        if attempt < 2 and is_transient_error(e):
+                            note = f"(Retried after a dropped connection: {type(e).__name__}.)"
+                            await _wait("retry", asyncio.sleep(retry_delay(attempt)))
+                            continue
+                        raise
+                    status = resp.status if resp else 200
+                    retry_after = resp.headers.get("retry-after") if resp else None
+                    session.throttle.record(host, time.monotonic() - t0, status, retry_after)
+                    if status in (429, 502, 503, 504) and attempt < 2:
+                        note = f"(Retried after HTTP {status}.)"
+                        await _wait("retry", asyncio.sleep(retry_delay(attempt, retry_after)))
+                        continue
+                    break
                 if resp and "application/pdf" in resp.headers.get("content-type", "").lower():
                     return (f"{url} is a PDF file, not a web page. Save it with "
                             f'download_file(url="{url}") and read it with read_pdf.')
@@ -1407,8 +2199,9 @@ def make_browser_tools(
                     except PWTimeout:
                         pass  # many sites never go idle; content is usually there
                 await _settle(session.page)
-                return await _gate(session.page,
+                text = await _gate(session.page,
                                    await _snapshot(session.page, resp.status if resp else None))
+                return (note + "\n" if note else "") + text
             except Exception as e:
                 if "Download is starting" in str(e):
                     return (f"{url} is a file download, not a web page. Save it with "
@@ -1731,6 +2524,61 @@ def make_browser_tools(
                 return f"Could not handle the Turnstile check: {type(e).__name__}: {e}"
 
     @tool
+    async def solve_recaptcha(wait_for_text: str = "", seconds: float = 30.0) -> str:
+        """Clear a Google reCAPTCHA v2 check ("I'm not a robot" checkbox) by clicking
+        the checkbox as soon as it appears. Only for the simple checkbox version;
+        for image puzzles (select all traffic lights, etc.) use manual_captcha_handoff.
+
+        reCAPTCHA often passes on its own, so with `wait_for_text` (text expected on
+        the page once the check is over) the tool returns as soon as either the
+        checkbox or that text shows up. Without it, it waits up to `seconds` (max 60)
+        for the checkbox and treats "never appeared" as already passed. Returns the
+        page afterwards."""
+        async with session.lock:
+            page = session.page
+            timeout = int(max(1.0, min(float(seconds), 60.0)) * 1000)
+            try:
+                # Wait for the reCAPTCHA iframe to appear (it may load asynchronously)
+                try:
+                    await page.wait_for_selector(RECAPTCHA_IFRAME, timeout=10000)
+                except PWTimeout:
+                    return "No Google reCAPTCHA widget on this page." + chr(10) + await _snapshot(page)
+
+                # The checkbox is inside the recaptcha iframe.
+                # For reCAPTCHA Enterprise (google.com/recaptcha), the checkbox is at
+                # #recaptcha-anchor inside the anchor iframe.
+                checkbox = page.frame_locator(RECAPTCHA_IFRAME).first.locator('#recaptcha-anchor')
+                try:
+                    await checkbox.wait_for(state="visible", timeout=5000)
+                except PWTimeout:
+                    # Checkbox not visible yet; might appear later or already passed
+                    pass
+
+                candidates = [checkbox]
+                if wait_for_text:
+                    candidates.append(page.get_by_text(wait_for_text, exact=False).first)
+                winner = await _race(candidates, timeout)
+
+                if winner is None:
+                    note = ("The reCAPTCHA checkbox never became visible, so the check was "
+                            "treated as already passed.")
+                elif winner == 0:
+                    if await _click_if_present(checkbox):
+                        note = "Clicked the reCAPTCHA checkbox."
+                        # Give the widget a moment to verify and the page time to move on.
+                        try:
+                            await checkbox.wait_for(state="hidden", timeout=10000)
+                        except PWTimeout:
+                            note += " The checkbox is still showing; the check may have failed."
+                    else:
+                        note = "The reCAPTCHA checkbox disappeared before it could be clicked (passed on its own)."
+                else:
+                    note = f"'{wait_for_text}' appeared, so there was no challenge to solve."
+                return await _after_action(page, note)
+            except Exception as e:
+                return f"Could not handle the reCAPTCHA check: {type(e).__name__}: {e}"
+
+    @tool
     async def select_option(element: str | int, option: str) -> str:
         """Choose an option in a dropdown (<select>). `option` is the visible option
         text or its value. For custom (non-<select>) dropdowns, click the dropdown to
@@ -1862,12 +2710,22 @@ def make_browser_tools(
     # ---- searching, extracting and files ------------------------------------------
 
     @tool
-    async def web_search(query: str, max_results: int = 8) -> str:
+    async def web_search(query: str, max_results: int = 8, freshness: str = "") -> str:
         """Search the web and get results as title, URL and snippet. Use it when you
-        need a page but have no URL, then `browse` the result you want."""
+        need a page but have no URL, then `browse` or `fetch_page` the result you want.
+        It is a search API call, not a website visit, and does not touch your browser
+        tab. `freshness` limits results to the last day/week/month/year: "pd", "pw",
+        "pm" or "py"."""
         engines = [SEARCH_ENGINE] + [e for e in _SEARCH_ENGINES if e != SEARCH_ENGINE]
         max_results = max(1, min(int(max_results), 20))
         problems = []
+        if brave_enabled():
+            results, problem = await _wait("search_api", brave_search(
+                query, max_results, stats=session.search_stats, freshness=freshness))
+            if results:
+                return format_search_results(query, "brave", results)
+            problems.append(problem)
+        # Fallback: a search engine's results page in a side tab.
         async with session.lock:
             for engine in engines:
                 if engine not in _SEARCH_ENGINES:
@@ -1894,12 +2752,9 @@ def make_browser_tools(
                         pass
                     results = [r for r in await _evaluate(page, parse) if r.get("url")][:max_results]
                     if results:
-                        lines = []
-                        for i, r in enumerate(results, 1):
-                            line = f"{i}. {r['title'].strip()}\n   {_decode_search_url(r['url'])}"
-                            snippet = _clean(r.get("snippet") or "", 300)
-                            lines.append(line + (f"\n   {snippet}" if snippet else ""))
-                        return f"Top {len(results)} results for '{query}' ({engine}):\n\n" + "\n\n".join(lines)
+                        return format_search_results(query, engine, [
+                            {"title": r["title"], "url": _decode_search_url(r["url"]),
+                             "snippet": r.get("snippet") or ""} for r in results])
                     body = (await page.inner_text("body"))[:3000].lower()
                     bot_check = any(w in body for w in ("captcha", "unusual traffic", "are you a robot",
                                                         "verify you are human", "not a bot"))
@@ -1910,6 +2765,147 @@ def make_browser_tools(
                     await page.close()
         return (f"Search for '{query}' failed: " + "; ".join(problems)
                 + ". Try other words, or browse a relevant site and use its own search.")
+
+    # ---- fetching without rendering ------------------------------------------------
+
+    def _fetch_header(r: FetchResult, title: str) -> str:
+        bits = [f"HTTP {r.status}"]
+        if r.content_type:
+            bits.append(r.content_type.split(";")[0].strip())
+        if r.body is not None:
+            bits.append(_fmt_size(len(r.body)))
+        if r.cached:
+            bits.append(f"cached {r.age:.0f} s ago")
+        else:
+            bits.append(f"{r.seconds:.1f} s")
+            if r.hops:
+                bits.append(f"via {r.hops} redirect{'s' if r.hops > 1 else ''}")
+            if r.retries:
+                bits.append(f"retried {r.retries}x")
+        return f"URL: {r.url}\nTitle: {title or '(none)'}\nFetched: {', '.join(bits)}"
+
+    def _fetch_error(r: FetchResult) -> str:
+        """The message for a failed fetch; an error page that is a bot check says so."""
+        if r.status >= 400:
+            text = title = ""
+            if r.body:
+                try:
+                    text, title, _ = render_fetched(r.body, r.content_type, r.url, "auto", 3000)
+                except Exception:
+                    pass
+            message = f"Fetch failed: HTTP {r.status} for {r.url}."
+            if looks_like_bot_check(r.status, title, text):
+                message += " This looks like a bot check; open it with browse, which can pass it."
+            return message
+        return r.error
+
+    @tool
+    async def fetch_page(url: str, max_chars: int = MAX_CHARS, mode: str = "auto",
+                         links: bool = False, fresh: bool = False) -> str:
+        """Read a page over plain HTTP without rendering it: several times faster than
+        `browse`, and your browser tab is left alone (its element numbers stay valid).
+        Sent with the browser's cookies, so pages you are signed in to work. Best for
+        static pages (articles, docs, about/contact/pricing pages, listings) and JSON
+        endpoints. No scripts run, so use `browse` for anything you must click, type or
+        sign in to, for script-heavy apps, and when the result says "bot check", is a
+        403, or has almost no text. `mode`: "auto" (HTML to text, JSON pretty-printed),
+        "text", "json" or "raw". `links=True` lists the page's same-site links. A page
+        fetched earlier in this run comes from a cache; `fresh=True` fetches it again."""
+        mode = (mode or "auto").lower()
+        if mode not in ("auto", "text", "json", "raw"):
+            return "mode must be auto, text, json or raw."
+        max_chars = max(200, min(int(max_chars), 3 * MAX_CHARS))
+        r = await _http_get(url, int(DOWNLOAD_MAX_MB * 1024 * 1024), timeout_ms=FETCH_TIMEOUT_MS, fresh=fresh)
+        if r.error:
+            return _fetch_error(r)
+        text, title, kind = render_fetched(r.body, r.content_type, r.url, mode, max_chars, links=links)
+        if kind == "pdf":
+            return (f"{r.url} is a PDF file. Save it with download_file(url=\"{r.url}\") "
+                    "and read it with read_pdf.")
+        if kind == "binary":
+            what = r.content_type.split(";")[0].strip() or "binary"
+            return f"{r.url} is a {what} file, not a page. Save it with download_file if the task needs it."
+        return _fetch_header(r, title) + "\n\n" + text
+
+    @tool
+    async def fetch_many(urls: list[str], max_chars_each: int = 800, save_as: str = "") -> str:
+        """Read up to 20 pages at once over plain HTTP (see `fetch_page`): one call
+        instead of browsing a list of sites one by one. Returns each page's title, final
+        URL, status and the first `max_chars_each` characters of its text. Pass `save_as`
+        (a .json path in your workspace) to also store every page's full text, then read
+        that file for details. Pages that need scripts or a sign-in, or show a bot check,
+        come back short or as errors: `browse` those."""
+        cleaned, seen = [], set()
+        for u in urls or []:
+            u = str(u).strip()
+            if u and u not in seen:
+                seen.add(u)
+                cleaned.append(u)
+        if not cleaned:
+            return "Give a list of URLs to fetch."
+        dropped = max(0, len(cleaned) - FETCH_MANY_MAX_URLS)
+        cleaned = cleaned[:FETCH_MANY_MAX_URLS]
+        max_chars_each = max(100, min(int(max_chars_each), 3000))
+        limit = int(DOWNLOAD_MAX_MB * 1024 * 1024)
+
+        async def fetch_one(u: str) -> FetchResult:
+            return await _http_get(u, limit, timeout_ms=FETCH_TIMEOUT_MS)
+
+        results = await run_fetches(cleaned, fetch_one, limiter=session._fetch_limiter,
+                                    deadline_s=FETCH_MANY_DEADLINE_S)
+        rows, lines = [], []
+        ok = failed = blocked = 0
+        for i, (u, r) in enumerate(zip(cleaned, results), 1):
+            row = {"url": u, "final_url": "", "status": 0, "title": "", "content_type": "",
+                   "chars": 0, "text": "", "error": ""}
+            size = 0
+            if r is None:
+                row["error"] = f"timed out ({FETCH_MANY_DEADLINE_S}s deadline for the whole batch)"
+                failed += 1
+            elif isinstance(r, BaseException):
+                row["error"] = f"failed: {type(r).__name__}: {r}"
+                failed += 1
+            elif r.error:
+                row["error"], row["status"], row["final_url"] = _fetch_error(r), r.status, r.url
+                if r.error.startswith("Blocked"):
+                    blocked += 1
+                else:
+                    failed += 1
+            else:
+                text, title, kind = render_fetched(r.body, r.content_type, r.url, "auto", FETCH_MANY_SAVE_CHARS)
+                size = len(r.body)
+                if kind in ("pdf", "binary"):
+                    row["error"] = f"{kind} file, not a page; save it with download_file if needed"
+                    failed += 1
+                else:
+                    ok += 1
+                    row.update(final_url=r.url, status=r.status, title=title, chars=len(text), text=text,
+                               content_type=r.content_type.split(";")[0].strip())
+            rows.append(row)
+            if row["error"]:
+                lines.append(f"{i}. {u} -- {row['error']}")
+            else:
+                excerpt = re.sub(r"\s+", " ", row["text"])[:max_chars_each].strip()
+                head = f"{i}. {row['title'] or '(no title)'} -- {row['final_url']} [{row['status']}, {_fmt_size(size)}]"
+                lines.append(head + (f"\n   {excerpt}" if excerpt else ""))
+        summary = f"Fetched {ok} of {len(cleaned)} pages"
+        extras = ([f"{failed} failed"] if failed else []) + ([f"{blocked} blocked"] if blocked else [])
+        summary += f" ({', '.join(extras)})." if extras else "."
+        if dropped:
+            summary += f" {dropped} more URLs were skipped: at most {FETCH_MANY_MAX_URLS} per call."
+        if save_as:
+            path, err = _workspace_path(save_as)
+            if path is None:
+                return err
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+            summary += f" Saved full text of {ok} pages as JSON to {_relative(path)}."
+        text = summary + "\n\n" + "\n\n".join(lines)
+        cap = MAX_CHARS * 2
+        if len(text) > cap:
+            text = text[:cap] + (f"\n\n...[truncated, {len(text) - cap} more chars; "
+                                 "use save_as or a smaller max_chars_each]")
+        return text
 
     @tool
     async def extract_items(container: str = "", limit: int = 30, save_as: str = "",
@@ -2173,6 +3169,8 @@ def make_browser_tools(
     return [
         browse,
         web_search,
+        fetch_page,
+        fetch_many,
         read_current_page,
         find_on_page,
         list_links,
@@ -2185,6 +3183,7 @@ def make_browser_tools(
         set_checkbox,
         manual_captcha_handoff,
         solve_turnstile,
+        solve_recaptcha,
         select_option,
         hover,
         drag,

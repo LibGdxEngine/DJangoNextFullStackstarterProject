@@ -165,6 +165,17 @@ services:
       - AGENT_DATA_ROOT=/app/agent_data
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - MODEL=${AGENT_MODEL:-openrouter:anthropic/claude-sonnet-4.6}
+      - MODEL_REASONING_EFFORT=${AGENT_MODEL_REASONING_EFFORT:-low}
+      - MODEL_MAX_TOKENS=${AGENT_MODEL_MAX_TOKENS:-0}
+      # Page gate: a cheap decision model handles "still loading" / "covered by a popup" /
+      # "sign-in wall" before the main model sees the page. Empty DECIDER_MODEL turns it off.
+      - DECIDER_MODEL=${AGENT_DECIDER_MODEL:-typesafe/jev-1.14}
+      - DECIDER_PAGE_GATE=${AGENT_DECIDER_PAGE_GATE:-true}
+      - DECIDER_API_KEY=${AGENT_DECIDER_API_KEY:-}
+      - DECIDER_BASE_URL=${AGENT_DECIDER_BASE_URL:-https://openrouter.ai/api/alpha/decisions}
+      - VISION=${AGENT_VISION:-true}
+      - BROWSER_SNAPSHOT=${AGENT_BROWSER_SNAPSHOT:-inline}
+      - BROWSER_FAST_WAITS=${AGENT_BROWSER_FAST_WAITS:-true}
       - HEADLESS=true
       - ALLOW_ANY_EXIT_IP=${AGENT_ALLOW_ANY_EXIT_IP:-true}
       - STATIC_IP=${AGENT_STATIC_IP:-}
@@ -172,6 +183,19 @@ services:
       - PROXY_USERNAME=${AGENT_PROXY_USERNAME:-}
       - PROXY_PASSWORD=${AGENT_PROXY_PASSWORD:-}
       - ALLOWED_DOMAINS=${AGENT_ALLOWED_DOMAINS:-}
+      # web_search uses the Brave Search API with a key; without one it loads a search
+      # engine in a tab, which gets bot-checked. SEARCH_COUNTRY is a 2-letter code.
+      - BRAVE_SEARCH_API_KEY=${BRAVE_SEARCH_API_KEY:-}
+      - SEARCH_LANGUAGE=${AGENT_SEARCH_LANGUAGE:-en-US}
+      - SEARCH_COUNTRY=${AGENT_SEARCH_COUNTRY:-}
+      # Per-host pacing of page loads and fetches, the in-run fetch cache, and how many
+      # fetch_many pages are in flight at once.
+      - BROWSER_THROTTLE_START_S=${AGENT_BROWSER_THROTTLE_START_S:-1.0}
+      - BROWSER_THROTTLE_MIN_S=${AGENT_BROWSER_THROTTLE_MIN_S:-0.3}
+      - BROWSER_THROTTLE_MAX_S=${AGENT_BROWSER_THROTTLE_MAX_S:-12}
+      - BROWSER_THROTTLE_TARGET_CONCURRENCY=${AGENT_BROWSER_THROTTLE_TARGET_CONCURRENCY:-1.5}
+      - BROWSER_HTTP_CACHE_TTL_S=${AGENT_BROWSER_HTTP_CACHE_TTL_S:-300}
+      - FETCH_MAX_PARALLEL=${AGENT_FETCH_MAX_PARALLEL:-6}
     depends_on:
       db:
         condition: service_healthy

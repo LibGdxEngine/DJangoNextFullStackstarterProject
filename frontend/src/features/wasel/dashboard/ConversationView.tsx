@@ -242,7 +242,14 @@ export function ConversationView({ runId }: { runId: string }) {
 
                 {run && !active ? (
                   <div className="rounded-3xl border border-line bg-white p-6">
-                    <div className="text-xs text-muted-soft">النتيجة</div>
+                    <div className="flex items-center justify-between gap-3 text-xs text-muted-soft">
+                      <span>النتيجة</span>
+                      {run.model ? (
+                        <span dir="ltr" title="النموذج الذي نفّذ المهمة" className="truncate font-mono">
+                          {run.model}
+                        </span>
+                      ) : null}
+                    </div>
                     {run.final_text ? (
                       <div dir="auto" className="mt-2 text-base leading-loose whitespace-pre-wrap">
                         {run.final_text}

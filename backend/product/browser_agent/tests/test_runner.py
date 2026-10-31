@@ -12,7 +12,10 @@ from langgraph.graph import START, MessagesState, StateGraph
 from apps.organizations.models import Organization
 from product.browser_agent.engine.human import ask_human
 from product.browser_agent.models import AgentRun, AgentRunEvent, BrowserProfile
-from product.browser_agent.services import CHROMIUM_LOCK_FILES, ProfileBusy, execute_run
+from product.browser_agent.engine.policy import PolicyGuard
+from product.browser_agent.services import (
+    CHROMIUM_LOCK_FILES, ProfileBusy, execute_run, run_policy, system_prompt, with_user_handoff,
+)
 from product.browser_agent.tasks import run_agent
 
 
@@ -252,3 +255,96 @@ class ResumeRunTests(TransactionTestCase):
         self.assertEqual(calls, {'first': 1, 'second': 2})   # the finished step is not redone
         self.assertEqual([e['text'] for e in self.run.events.values_list('payload', flat=True)],
                          ['step one', 'step two'])
+
+
+class ProductAgentSetupTests(TransactionTestCase):
+    """What the app adds to the engine's agent: one live handoff tool, and a policy guard."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(name='Acme', slug='acme')
+        self.run = AgentRun.objects.create(organization=self.org, task='send the report')
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        override = override_settings(AGENT_RUNS_ROOT=Path(self.tmp.name), AGENT_PROFILES_ROOT=Path(self.tmp.name))
+        override.enable()
+        self.addCleanup(override.disable)
+
+    def test_one_handoff_tool_replaces_the_console_captcha_handoff(self):
+        engine_tools = [SimpleNamespace(name='browse'), SimpleNamespace(name='manual_captcha_handoff')]
+        names = [t.name for t in with_user_handoff(engine_tools, live=MagicMock())]
+        self.assertEqual(names, ['browse', 'hand_over_to_user'])
+
+    def test_system_prompt_names_the_live_handoff_tool(self):
+        prompt = system_prompt(None)
+        self.assertNotIn('manual_captcha_handoff', prompt)
+        self.assertIn('`hand_over_to_user`', prompt)
+
+    def test_run_gets_the_background_policy(self):
+        policy = run_policy(self.run)
+        self.assertTrue(policy.may_download)
+        self.assertFalse(policy.may_send_messages)
+        self.assertFalse(policy.may_post)
+        self.assertFalse(policy.may_submit_forms)
+        self.assertFalse(policy.may_upload)
+
+    def test_execute_run_puts_a_policy_guard_before_the_engine_middleware(self):
+        built = {}
+
+        def build(session, tools, workspace, **kw):
+            built.update(kw)
+            return FakeAgent(workspace)
+
+        engine = 'product.browser_agent.engine'
+        with patch(f'{engine}.browser_tools.BrowserSession.from_env', return_value=fake_session()), \
+                patch(f'{engine}.browser_tools.make_browser_tools', return_value=[]), \
+                patch(f'{engine}.agent.build_agent', side_effect=build):
+            async_to_sync(execute_run)(self.run.id)
+        self.run.refresh_from_db()
+        self.assertEqual(self.run.status, AgentRun.Status.SUCCEEDED, self.run.error)
+        guard = built['middleware'][0]
+        self.assertIsInstance(guard, PolicyGuard)
+        self.assertEqual(guard.policy, run_policy(self.run))
+        self.assertIs(guard.ask_human, ask_human)
+        self.assertGreater(len(built['middleware']), 1)   # the engine's own middleware still runs
+        self.assertIn('`hand_over_to_user`', built['system_prompt'])
+
+    def test_forbidden_click_pauses_for_approval_and_runs_once_approved(self):
+        """The guard asks through the same interrupt as ask_user, so the run parks with an
+        approve_action question and the answer resumes it."""
+        handled = []
+
+        async def click_send(state):
+            guard = PolicyGuard(run_policy(self.run), SimpleNamespace(element_descs={}, page=None),
+                                ask_human=ask_human)
+            request = SimpleNamespace(tool_call={'name': 'click', 'args': {'element': 'Send'}, 'id': 'c1'},
+                                      state=state)
+
+            async def handler(req):
+                handled.append(req.tool_call['name'])
+                return ToolMessage(content='Clicked Send.', tool_call_id='c1', name='click', id='t1')
+
+            result = await guard.awrap_tool_call(request, handler)
+            return {'messages': [AIMessage(content=result.content, id='done')]}
+
+        engine = 'product.browser_agent.engine'
+
+        def execute():
+            with patch(f'{engine}.browser_tools.BrowserSession.from_env', return_value=fake_session()), \
+                    patch(f'{engine}.browser_tools.make_browser_tools', return_value=[]), \
+                    patch(f'{engine}.agent.build_agent',
+                          side_effect=lambda s, tools, workspace, checkpointer, **kw: graph(checkpointer, click_send)):
+                async_to_sync(execute_run)(self.run.id)
+            self.run.refresh_from_db()
+
+        execute()
+        self.assertEqual(self.run.status, AgentRun.Status.WAITING, self.run.error)
+        self.assertEqual(self.run.question['kind'], 'approve_action')
+        self.assertEqual(self.run.question['options'], ['approve', 'deny'])
+        self.assertIn('send messages', self.run.question['question'])
+        self.assertEqual(handled, [])   # nothing ran before the user answered
+
+        AgentRun.objects.filter(pk=self.run.pk).update(status=AgentRun.Status.QUEUED, answer='approve')
+        execute()
+        self.assertEqual(self.run.status, AgentRun.Status.SUCCEEDED, self.run.error)
+        self.assertEqual(self.run.final_text, 'Clicked Send.')
+        self.assertEqual(handled, ['click'])

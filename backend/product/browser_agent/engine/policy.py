@@ -17,6 +17,10 @@ page read when there is one:
 - upload_file                                         -> may_upload
 - download_file                                       -> may_download
 
+fetch_page and fetch_many are reads and need no permission (their `save_as` writes
+the agent's own notes, like extract_items); each URL they load counts toward the
+domain's rate limit like a `browse`, since that is what the site sees.
+
 Search forms are free: a form marked role="search", one with a search field, or a
 GET form without message, email, password, phone or file fields.
 
@@ -155,6 +159,15 @@ def classify(tool: str, args: dict, label: str | None, role: str | None,
     return "may_submit_forms"
 
 
+def _load_urls(tool: str, args: dict) -> list[str]:
+    """The pages a tool call loads, for the rate limits."""
+    if tool in ("browse", "fetch_page") and args.get("url"):
+        return [str(args["url"])]
+    if tool == "fetch_many":
+        return [str(u) for u in (args.get("urls") or []) if u]
+    return []
+
+
 def _cost(messages) -> float:
     return sum(float((m.response_metadata or {}).get("cost") or 0)
                for m in messages if isinstance(m, AIMessage))
@@ -222,18 +235,23 @@ class PolicyGuard(AgentMiddleware):
             return self._refuse(request, f"this task's cost budget (${p.max_cost_usd:.2f}) is used "
                                          "up. Stop now and report what you have.")
 
-        if name == "browse" and args.get("url"):
-            host = urlparse(str(args["url"])).hostname or ""
-            limit = p.rate(host)
-            if limit:
-                domain, count, period = limit
-                now = time.monotonic()
+        if p.rate_limits:
+            wanted: dict[str, int] = {}   # limited domain -> page loads this call asks for
+            for url in _load_urls(name, args):
+                limit = p.rate(urlparse(url).hostname or "")
+                if limit:
+                    wanted[limit[0]] = wanted.get(limit[0], 0) + 1
+            now = time.monotonic()
+            for domain, asked in wanted.items():
+                _, count, period = p.rate(domain)
                 recent = [t for t in self.loads.get(domain, []) if now - t < period]
-                if len(recent) >= count:
+                left = count - len(recent)
+                if asked > left:
                     return self._refuse(request, f"the rate limit for {domain} ({count} page "
-                                                 f"loads per {period}s) is reached. Use what you "
+                                                 f"loads per {period}s) allows {max(left, 0)} more "
+                                                 f"and this call asks for {asked}. Use what you "
                                                  "have, or stop and report.")
-                self.loads[domain] = recent + [now]
+                self.loads[domain] = recent + [now] * asked
 
         role, label = self._target(args)
         element = None

@@ -50,7 +50,7 @@ class Output(BaseModel):
 OUTPUT_FILE = "leads.json"
 
 TOOLS = (
-    "browse", "web_search", "read_current_page", "find_on_page", "list_links",
+    "browse", "web_search", "fetch_page", "fetch_many", "read_current_page", "find_on_page", "list_links",
     "extract_items", "scroll", "wait_for", "go_back", "click", "type_text", "press_key",
     "dismiss_overlays", "download_file", "read_pdf", "list_tabs", "switch_tab",
     "close_tab", "manual_captcha_handoff", "solve_turnstile",
