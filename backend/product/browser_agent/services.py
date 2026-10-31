@@ -79,8 +79,17 @@ def _claim(run_id) -> AgentRun | None:
     run.status = AgentRun.Status.RUNNING
     run.started_at = run.started_at or timezone.now()
     run.heartbeat_at = timezone.now()
-    run.save(update_fields=['status', 'started_at', 'heartbeat_at', 'updated_at'])
+    run.model = run.model or configured_model()
+    run.save(update_fields=['status', 'started_at', 'heartbeat_at', 'model', 'updated_at'])
     return run
+
+
+def configured_model() -> str:
+    """The model name the worker will run with, as the engine reads it from the
+    environment (MODEL, filled from AGENT_MODEL in compose); recorded on each run."""
+    from .engine.agent import MODEL
+
+    return MODEL[:200]
 
 
 @sync_to_async

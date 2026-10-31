@@ -136,12 +136,13 @@ class AgentRunSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentRun
         fields = [
-            'id', 'organization', 'profile', 'role', 'role_detail', 'task', 'status', 'question', 'final_text',
-            'error', 'usage', 'cancel_requested', 'recoveries', 'created_at', 'started_at', 'finished_at',
+            'id', 'organization', 'profile', 'role', 'role_detail', 'task', 'status', 'model', 'question',
+            'final_text', 'error', 'usage', 'cancel_requested', 'recoveries', 'created_at', 'started_at',
+            'finished_at',
         ]
         read_only_fields = [
-            'id', 'status', 'question', 'final_text', 'error', 'usage', 'cancel_requested', 'recoveries',
-            'created_at', 'started_at', 'finished_at',
+            'id', 'status', 'model', 'question', 'final_text', 'error', 'usage', 'cancel_requested',
+            'recoveries', 'created_at', 'started_at', 'finished_at',
         ]
 
     def validate(self, attrs):

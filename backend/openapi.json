@@ -11931,6 +11931,11 @@
                         ],
                         "readOnly": true
                     },
+                    "model": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "The model the worker ran the task with, set when the run is claimed."
+                    },
                     "question": {
                         "readOnly": true,
                         "nullable": true,
@@ -11981,6 +11986,7 @@
                     "final_text",
                     "finished_at",
                     "id",
+                    "model",
                     "organization",
                     "question",
                     "recoveries",

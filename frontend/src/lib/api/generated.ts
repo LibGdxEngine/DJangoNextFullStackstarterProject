@@ -1287,6 +1287,8 @@ export interface components {
             readonly role_detail: components["schemas"]["AgentRoleSummary"] | null;
             task: string;
             readonly status: components["schemas"]["AgentRunStatusEnum"];
+            /** @description The model the worker ran the task with, set when the run is claimed. */
+            readonly model: string;
             /** @description What the agent asked while waiting: kind, question, options. */
             readonly question: unknown;
             readonly final_text: string;

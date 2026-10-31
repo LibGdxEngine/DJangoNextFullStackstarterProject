@@ -102,6 +102,8 @@ class AgentRun(BaseModel):
         AgentRole, null=True, blank=True, on_delete=models.SET_NULL, related_name='runs')
     task = models.TextField()
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    model = models.CharField(max_length=200, blank=True, default='', db_default='',
+                             help_text='The model the worker ran the task with, set when the run is claimed.')
     final_text = models.TextField(blank=True, default='')
     error = models.TextField(blank=True, default='')
     usage = models.JSONField(default=dict, blank=True)

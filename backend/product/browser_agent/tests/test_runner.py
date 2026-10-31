@@ -77,6 +77,11 @@ class ExecuteRunTests(TransactionTestCase):
         session.stop.assert_awaited_once()
         self.assertIsNotNone(self.run.finished_at)
 
+    def test_claim_records_the_configured_model(self):
+        with patch('product.browser_agent.services.configured_model', return_value='openrouter:test/model'):
+            self._execute(lambda ws: FakeAgent(ws))
+        self.assertEqual(self.run.model, 'openrouter:test/model')
+
     def test_agent_failure_is_recorded_and_browser_closed(self):
         session = self._execute(lambda ws: FakeAgent(ws, fail=True))
         self.assertEqual(self.run.status, AgentRun.Status.FAILED)
