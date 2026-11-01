@@ -45,7 +45,15 @@ from urllib.parse import urlparse
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, ToolMessage
 
-# Labels are matched from their start, case-insensitively, after trimming.
+# Labels are matched from their start, case-insensitively, after trimming, and only when
+# the label is a short command (see action_label): "Post" and "Publish now" are actions,
+# "Post audience Public" (an options dropdown) and "Send feedback" (a help link) are not.
+MAX_ACTION_WORDS = 3
+# Words that mark a control as settings, navigation or help rather than the action itself.
+NOT_ACTION_WORDS = {"audience", "settings", "setting", "options", "option", "privacy", "visibility",
+                    "menu", "preview", "help", "feedback", "tips", "about", "history", "later",
+                    "draft", "drafts", "scheduled", "templates", "guidelines", "policy", "policies",
+                    "more", "filters", "filter", "sort", "by"}
 SEND_LABELS = re.compile(
     r"^(send|reply|reply all|forward|comment|post comment|send message|message send|"
     r"connect|invite|send invite|send request)\b", re.I)
@@ -122,6 +130,18 @@ def submits_form(el: dict | None) -> bool:
         tag == "input" and type_ in ("submit", "image"))
 
 
+def action_label(label: str | None) -> str:
+    """`label` when it reads as a command the user would click to act ("Post", "Send",
+    "Publish now", "Share to feed"), else "". Long labels and labels naming settings,
+    audiences or help are controls around the action, which the agent may use freely."""
+    words = re.sub(r"[^\w\s'&-]", " ", label or "").split()
+    if not words or len(words) > MAX_ACTION_WORDS:
+        return ""
+    if any(word.lower() in NOT_ACTION_WORDS for word in words):
+        return ""
+    return " ".join(words)
+
+
 def is_enter(tool: str, args: dict) -> bool:
     return bool((tool == "type_text" and args.get("press_enter")) or (
         tool == "press_key" and str(args.get("key", "")).strip().lower() in ("enter", "return")))
@@ -140,11 +160,12 @@ def classify(tool: str, args: dict, label: str | None, role: str | None,
     if tool == "upload_file":
         return "may_upload"
     if tool == "click":
-        if SEND_LABELS.search(label):
+        action = action_label(label)
+        if SEND_LABELS.search(action):
             return "may_send_messages"
-        if POST_LABELS.search(label):
+        if POST_LABELS.search(action):
             return "may_post"
-        if SUBMIT_LABELS.search(label) or role == "submit":
+        if SUBMIT_LABELS.search(action) or role == "submit":
             return "may_submit_forms"
         if submits_form(element) and not is_search_form(element):
             return "may_submit_forms"
@@ -183,6 +204,9 @@ class PolicyGuard(AgentMiddleware):
         self.session = session
         self.ask_human = ask_human
         self.loads: dict[str, list[float]] = {}   # domain -> page load times (this worker)
+        # Permissions the user granted once in this run; the same kind of action is not
+        # asked about again (approving one "Post" covers the retry after a failed click).
+        self.granted: set[str] = set()
 
     def _target(self, args: dict) -> tuple[str | None, str | None]:
         element = args.get("element")
@@ -200,6 +224,8 @@ class PolicyGuard(AgentMiddleware):
                            name=call["name"], status="error")
 
     async def _approved(self, permission: str, describe: str) -> bool:
+        if permission in self.granted:
+            return True
         if self.ask_human is None:
             return False
         answer = self.ask_human(
@@ -210,7 +236,10 @@ class PolicyGuard(AgentMiddleware):
             answer = await answer
         if isinstance(answer, dict):
             answer = answer.get("answer", "")
-        return str(answer).strip().lower() in ("approve", "approved", "yes", "y", "allow", "ok")
+        approved = str(answer).strip().lower() in ("approve", "approved", "yes", "y", "allow", "ok")
+        if approved:
+            self.granted.add(permission)
+        return approved
 
     def _page_url(self) -> str:
         page = getattr(self.session, "page", None)
