@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from asgiref.sync import async_to_sync
-from django.test import TransactionTestCase, override_settings
+from django.test import SimpleTestCase, TransactionTestCase, override_settings
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.graph import START, MessagesState, StateGraph
 
@@ -14,7 +14,8 @@ from product.browser_agent.engine.human import ask_human
 from product.browser_agent.models import AgentRun, AgentRunEvent, BrowserProfile
 from product.browser_agent.engine.policy import PolicyGuard
 from product.browser_agent.services import (
-    CHROMIUM_LOCK_FILES, ProfileBusy, execute_run, run_policy, system_prompt, with_user_handoff,
+    CHROMIUM_LOCK_FILES, ProfileBusy, _message_events, execute_run, result_status, run_policy, system_prompt,
+    with_user_handoff,
 )
 from product.browser_agent.tasks import run_agent
 
@@ -162,6 +163,39 @@ class ExecuteRunTests(TransactionTestCase):
         self.assertEqual(session.profile_dir, str(profile.directory))
         profile.refresh_from_db()
         self.assertFalse(profile.in_use)
+
+
+class EventPayloadTests(SimpleTestCase):
+    """What the run view needs from each event: a call and its result share an id, the
+    result says whether the step worked and how long the tool took."""
+
+    def test_call_and_result_carry_the_call_id(self):
+        call = AIMessage(content='', id='a1', tool_calls=[{'name': 'browse', 'args': {'url': 'x'}, 'id': 'c1'}])
+        [(kind, payload)] = _message_events(call)
+        self.assertEqual((kind, payload), ('tool_call', {'name': 'browse', 'args': {'url': 'x'}, 'id': 'c1'}))
+        result = ToolMessage(content='URL: x\nTitle: X', name='browse', tool_call_id='c1', id='t1',
+                             additional_kwargs={'tool_s': 2.345})
+        [(kind, payload)] = _message_events(result)
+        self.assertEqual(kind, 'tool_result')
+        self.assertEqual(payload, {'name': 'browse', 'content': 'URL: x\nTitle: X', 'call_id': 'c1',
+                                   'status': 'ok', 'seconds': 2.3})
+
+    def test_result_status(self):
+        def msg(content, **kw):
+            return ToolMessage(content=content, name='t', tool_call_id='c', **kw)
+
+        self.assertEqual(result_status(msg('Error: write_todos is not a valid tool', status='error')), 'error')
+        self.assertEqual(result_status(msg('Fetch failed: HTTP 404 for https://x/.')), 'failed')
+        self.assertEqual(result_status(msg('Failed to open https://x/: Error: net::ERR_HTTP2_PROTOCOL_ERROR')), 'failed')
+        self.assertEqual(result_status(msg('Skipped: noon.com is unreachable from this browser')), 'failed')
+        self.assertEqual(result_status(msg('Not done: the user declined.')), 'failed')
+        self.assertEqual(result_status(msg("Note: you already ran browse(url='x') at step 7 and got: Failed to open x. "
+                                           "Repeating it won't help.\n\nFailed to open x: Error: net::ERR")), 'failed')
+        self.assertEqual(result_status(msg('(Retried after HTTP 503.)\nURL: https://x/\nTitle: Fine')), 'ok')
+        self.assertEqual(result_status(msg('(Retried after HTTP 503.)\n(This looks like a sign-in wall, CAPTCHA or access '
+                                           'block. Stop and report it.)\nURL: https://x/\nTitle: Security check')), 'failed')
+        self.assertEqual(result_status(msg('Fetched 3 of 5 pages (2 failed). Saved full text')), 'ok')
+        self.assertEqual(result_status(msg("Top 10 results for 'q' (brave):")), 'ok')
 
 
 class WorkerDied(BaseException):

@@ -21,6 +21,12 @@ from .models import AgentArtifact, AgentRun, AgentRunEvent, BrowserProfile
 logger = logging.getLogger(__name__)
 
 PAYLOAD_LIMIT = 2000
+# How a tool result starts when the step did not do what was asked. The run view uses
+# the status to mark the step; the model still gets the full text.
+FAILURE_PREFIXES = ('Error', 'Failed', 'Fetch failed', 'Download failed', 'Could not', 'Skipped',
+                    'Blocked', 'Not done', 'Nobody took over', 'No element', 'No repeated items',
+                    'Give a list', 'mode must be', '(This looks like a sign-in wall', '(This page is a bot check',
+                    'The user gave up')
 # Files Chromium leaves in a profile folder to mark it open. A run holds its profile
 # exclusively (BrowserProfile.in_use), so any of these present before launch were left
 # by a worker that died, and Chromium would refuse to open the profile over them.
@@ -40,20 +46,43 @@ def _clip(value) -> str:
     return text[:PAYLOAD_LIMIT]
 
 
+def result_status(message) -> str:
+    """'error' when the tool itself failed (an unknown tool, an exception), 'failed'
+    when it ran but reports that the step did not work, else 'ok'."""
+    if getattr(message, 'status', 'success') == 'error':
+        return 'error'
+    content = message.content if isinstance(message.content, str) else ''
+    first = content.lstrip().split('\n', 1)[0]
+    # A repeat note or a retry note comes before the result it wraps.
+    for prefix in ('Note: you already ran', '(Retried after'):
+        if first.startswith(prefix) and '\n' in content:
+            first = content.split('\n', 1)[1].lstrip().split('\n', 1)[0]
+    return 'failed' if first.startswith(FAILURE_PREFIXES) else 'ok'
+
+
 def _message_events(message) -> list[tuple[str, dict]]:
-    """Translate one LangChain message into zero or more (kind, payload) events."""
+    """Translate one LangChain message into zero or more (kind, payload) events. A tool
+    call carries its id and a tool result the id of its call, so the run view can pair
+    them even when calls ran in parallel; the result also says whether the step worked
+    and how long the tool took (StepTimer)."""
     from langchain_core.messages import AIMessage, ToolMessage
     from .engine.agent import _text
 
     if isinstance(message, ToolMessage):
-        return [(AgentRunEvent.Kind.TOOL_RESULT, {'name': message.name, 'content': _clip(message.content)})]
+        payload = {'name': message.name, 'content': _clip(message.content), 'call_id': message.tool_call_id,
+                   'status': result_status(message)}
+        seconds = message.additional_kwargs.get('tool_s')
+        if seconds is not None:
+            payload['seconds'] = round(float(seconds), 1)
+        return [(AgentRunEvent.Kind.TOOL_RESULT, payload)]
     if isinstance(message, AIMessage):
         events = []
         text = _text(message).strip()
         if text:
             events.append((AgentRunEvent.Kind.MESSAGE, {'text': _clip(text)}))
         for call in message.tool_calls or []:
-            events.append((AgentRunEvent.Kind.TOOL_CALL, {'name': call['name'], 'args': call.get('args') or {}}))
+            events.append((AgentRunEvent.Kind.TOOL_CALL,
+                           {'name': call['name'], 'args': call.get('args') or {}, 'id': call.get('id')}))
         return events
     return []
 
@@ -324,6 +353,21 @@ Fetching instead of browsing:
   returns a 403, "bot check" or almost no text.
 - `web_search` is an API call; it does not open a tab and never counts as using a site
   the user named.
+
+Spending steps well (the user watches every step and pays for each one):
+- Start a task of more than a few steps with `write_todos` and keep it current: it is
+  the progress the user sees. Reconcile it before you finish.
+- Never guess a site's URLs (its search page, catalog paths, product or category
+  slugs). Open only URLs that `web_search`, `list_links` or a page read gave you. To
+  look inside one site, use `web_search` with `site:<host> <words>` or browse its home
+  page and use its own search box. A guessed URL that comes back 404 is a wasted step.
+- A result that says a host is unreachable or skipped is final for this run: do not try
+  that host again through another tool or path. Note it in your report instead.
+- One pass per source: search, read the pages that matter once (`fetch_many` for a
+  list, `extract_items` for a listing page), write down what you learned, move on. Do
+  not re-read a page for a bigger excerpt unless it was cut off. For a comparison or
+  survey, six to eight good sources are plenty; stop searching when new results repeat
+  what you already have, and write the report.
 """
 
 HANDOFF_PROMPT = """

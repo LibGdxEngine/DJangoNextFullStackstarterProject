@@ -622,6 +622,30 @@ def _parse_domains(raw: str | None) -> list[str]:
     return [d.strip().lower().lstrip(".") for d in (raw or "").split(",") if d.strip()]
 
 
+# How a page read names an element's role -> the ARIA roles to look it up by.
+_DESC_ROLE_ALIASES = {
+    "a": ("link",), "summary": ("button",), "textarea": ("textbox",), "select": ("combobox",),
+    "submit input": ("button",), "button input": ("button",), "reset input": ("button",),
+    "search input": ("searchbox", "textbox"), "image input": ("button",),
+}
+_ARIA_ROLES = {"button", "link", "tab", "menuitem", "menuitemcheckbox", "menuitemradio", "checkbox",
+               "radio", "switch", "slider", "combobox", "option", "textbox", "searchbox", "listbox",
+               "treeitem", "spinbutton", "cell", "gridcell", "row", "heading", "img", "dialog"}
+
+
+def roles_for_desc(role: str | None, default: tuple[str, ...]) -> tuple[str, ...]:
+    """The ARIA roles to search for an element a page read described as `role`
+    (e.g. "text input" -> textbox); `default` when the description is no ARIA role."""
+    role = (role or "").strip().lower()
+    if role in _DESC_ROLE_ALIASES:
+        return _DESC_ROLE_ALIASES[role]
+    if role.endswith(" input"):
+        return ("textbox",)
+    if role in _ARIA_ROLES:
+        return (role,)
+    return tuple(default)
+
+
 def captcha_solver(frame_url: str) -> str | None:
     """The tool that clears the CAPTCHA widget served from `frame_url`, or None when
     only a person can (hCaptcha, Arkose, picture puzzles)."""
@@ -696,6 +720,15 @@ class BrowserSession:
         self._return_to: dict[Page, Page] = {}
         # Set when the current tab (a sign-in popup, say) closed itself.
         self.popup_closed = False
+        # Lines to show above the next page read (e.g. that a stale element number was
+        # resolved by its label), cleared once shown.
+        self.notes: list[str] = []
+        # Hosts that could not be reached at all (dropped connections, timeouts, DNS or
+        # TLS failures): host -> how many times, and host -> why, once given up on. A
+        # host that failed HOST_GIVE_UP_AFTER times is skipped for the rest of the run
+        # instead of costing a step (and the retries inside it) every time.
+        self.host_failures: dict[str, int] = {}
+        self.unreachable: dict[str, str] = {}
         # Serialize page access; every tool works on the same tab.
         self.lock = asyncio.Lock()
         # Fixed waits the tools spent, as (name, seconds); StepTimer reads and
@@ -1098,6 +1131,75 @@ def is_transient_error(exc: Exception) -> bool:
         return False
     text = str(exc)
     return any(marker in text for marker in _TRANSIENT_ERRORS)
+
+
+# Connection-level failures after which a host is given up on for the run.
+HOST_GIVE_UP_AFTER = 2
+_UNREACHABLE_REASONS = (
+    (("ENOTFOUND", "ERR_NAME_NOT_RESOLVED", "EAI_AGAIN", "getaddrinfo"), "its address does not resolve"),
+    (("SSL", "EPROTO", "ERR_CERT", "ERR_SSL", "certificate"), "its TLS certificate is broken"),
+    (("Timeout", "ERR_TIMED_OUT", "ETIMEDOUT"), "it does not answer in time"),
+    (("ERR_HTTP2_PROTOCOL_ERROR", "ERR_CONNECTION", "ECONNRESET", "ECONNREFUSED", "socket hang up",
+      "ERR_EMPTY_RESPONSE"), "it drops the connection, which usually means it blocks automated browsers"),
+)
+
+
+def unreachable_reason(error: str) -> str | None:
+    """Why a host could not be reached, in plain words, when `error` (an exception's
+    text) describes a connection-level failure; None for an HTTP response or anything
+    else the next request might get past."""
+    for markers, reason in _UNREACHABLE_REASONS:
+        if any(marker in error for marker in markers):
+            return reason
+    return None
+
+
+def note_host_failure(session, host: str, error: str) -> str | None:
+    """Count a connection-level failure against `host`; once it has failed
+    HOST_GIVE_UP_AFTER times the host is marked unreachable. Returns the reason when
+    the failure counts, else None."""
+    reason = unreachable_reason(error)
+    if reason is None or not host:
+        return None
+    count = session.host_failures.get(host, 0) + 1
+    session.host_failures[host] = count
+    if count >= HOST_GIVE_UP_AFTER:
+        session.unreachable[host] = reason
+    return reason
+
+
+def unreachable_note(session, host: str) -> str:
+    """The message a tool returns for a host already given up on, or ""."""
+    reason = session.unreachable.get(host)
+    if not reason:
+        return ""
+    times = session.host_failures.get(host, HOST_GIVE_UP_AFTER)
+    return (f"Skipped: {host} is unreachable from this browser ({reason}; {times} attempts failed). "
+            "Do not try it again in any form (browse, fetch_page, another path on it). Get the "
+            "information elsewhere and say in your report that this site could not be reached.")
+
+
+def guessed_url_hint(url: str, status: int) -> str:
+    """A note for a 404 on a URL that looks typed from memory (a search or catalog path
+    with a query), so the model stops guessing site URLs."""
+    parsed = urlparse(url)
+    looks_guessed = bool(parsed.query) or any(
+        part in parsed.path.lower() for part in ("/search", "/catalogsearch", "/find"))
+    if status != 404 or not looks_guessed:
+        return ""
+    host = throttle_host(url)
+    return (" This looks like a guessed URL; sites rarely use the search or catalog paths you "
+            f"expect. Do not guess URLs: use web_search with `site:{host} <words>`, or browse "
+            f"https://{host}/ and use its own search box, and follow the links a page gives you.")
+
+
+def script_shell_hint(text: str, body_size: int) -> str:
+    """A note when a fetched HTML page has almost no readable text for its size: a
+    script-drawn app shell, which only `browse` can render."""
+    if body_size < 40_000 or len(text.strip()) >= 400:
+        return ""
+    return (f"(Only {len(text.strip())} characters of readable text in a {_fmt_size(body_size)} page: "
+            "it is drawn by scripts. Fetching it again will not help; use browse for this page.)")
 
 
 @dataclass
@@ -1876,6 +1978,9 @@ def make_browser_tools(
         if session.popup_closed:
             session.popup_closed = False
             head = "(The popup tab closed; you are back on the tab that opened it.)\n" + head
+        if session.notes:
+            head = "\n".join(session.notes) + "\n" + head
+            session.notes.clear()
         if inline is not None:
             text = inline[0]
             elements = await _elements(page, start=inline[1])
@@ -1979,6 +2084,20 @@ def make_browser_tools(
                         return loc, ""
                 except Exception:
                     pass
+            # The page re-rendered the element (or there are several alike): fall back to
+            # the role and label the number stood for in the last read, like a person
+            # looking for "the Post button" rather than "element 35".
+            if desc and desc[1].strip() and not desc[1].strip("[] ").isdigit():
+                role, label = desc
+                found, _ = await _locate(page, label, roles=roles_for_desc(role, roles),
+                                         allow_hidden=allow_hidden)
+                if found is not None:
+                    session.notes.append(f'(Element [{n}] had been re-rendered by the page; '
+                                         f'used the {role} labelled "{label}" instead.)')
+                    return found, ""
+                return None, (f'No element [{target}] on this page, and nothing labelled "{label}" '
+                              "either. Numbers change after every page read; call read_current_page "
+                              "for fresh ones.")
             return None, (f"No element [{target}] on this page. Numbers change after every "
                           "page read; call read_current_page for fresh ones.")
         target = str(target)
@@ -2071,6 +2190,10 @@ def make_browser_tools(
                 result.error = f"Blocked: {urlparse(hop).hostname} is not in ALLOWED_DOMAINS."
                 return result
             host = throttle_host(hop)
+            skipped = unreachable_note(session, host)
+            if skipped:
+                result.error = skipped
+                return result
             t0 = time.monotonic()
             try:
                 async with session.throttle.slot(host, _throttle_sleep):
@@ -2084,6 +2207,8 @@ def make_browser_tools(
                     await _wait("retry", asyncio.sleep(retry_delay(attempt - 1)))
                     continue
                 result.error = f"Fetch failed: {type(e).__name__}: {e}"
+                if note_host_failure(session, host, str(e)) and host in session.unreachable:
+                    result.error += "\n" + unreachable_note(session, host)
                 return result
             latency = time.monotonic() - t0
             wait_before_retry = None
@@ -2165,6 +2290,9 @@ def make_browser_tools(
         if not session.url_allowed(url):
             return f"Blocked: {urlparse(url).hostname} is not in ALLOWED_DOMAINS."
         host = throttle_host(url)
+        skipped = unreachable_note(session, host)
+        if skipped:
+            return skipped
         # Pace the host before taking the lock, so a throttle wait never holds up a live takeover.
         await session.throttle.pause(host, _throttle_sleep)
         note = ""
@@ -2206,7 +2334,10 @@ def make_browser_tools(
                 if "Download is starting" in str(e):
                     return (f"{url} is a file download, not a web page. Save it with "
                             f'download_file(url="{url}"), then read it with read_pdf or the file tools.')
-                return f"Failed to open {url}: {type(e).__name__}: {e}"
+                failed = f"Failed to open {url}: {type(e).__name__}: {e}"
+                if note_host_failure(session, host, str(e)) and host in session.unreachable:
+                    failed += "\n" + unreachable_note(session, host)
+                return failed
 
     @tool
     async def read_current_page(max_chars: int = MAX_CHARS, full_page: bool = False) -> str:
@@ -2796,7 +2927,7 @@ def make_browser_tools(
             message = f"Fetch failed: HTTP {r.status} for {r.url}."
             if looks_like_bot_check(r.status, title, text):
                 message += " This looks like a bot check; open it with browse, which can pass it."
-            return message
+            return message + guessed_url_hint(r.url, r.status)
         return r.error
 
     @tool
@@ -2825,7 +2956,8 @@ def make_browser_tools(
         if kind == "binary":
             what = r.content_type.split(";")[0].strip() or "binary"
             return f"{r.url} is a {what} file, not a page. Save it with download_file if the task needs it."
-        return _fetch_header(r, title) + "\n\n" + text
+        shell = script_shell_hint(text, len(r.body or b"")) if kind == "text" else ""
+        return _fetch_header(r, title) + "\n\n" + (shell + "\n" if shell else "") + text
 
     @tool
     async def fetch_many(urls: list[str], max_chars_each: int = 800, save_as: str = "") -> str:
@@ -2881,12 +3013,16 @@ def make_browser_tools(
                     ok += 1
                     row.update(final_url=r.url, status=r.status, title=title, chars=len(text), text=text,
                                content_type=r.content_type.split(";")[0].strip())
+                    if kind == "text":
+                        row["note"] = script_shell_hint(text, size)
             rows.append(row)
             if row["error"]:
                 lines.append(f"{i}. {u} -- {row['error']}")
             else:
                 excerpt = re.sub(r"\s+", " ", row["text"])[:max_chars_each].strip()
                 head = f"{i}. {row['title'] or '(no title)'} -- {row['final_url']} [{row['status']}, {_fmt_size(size)}]"
+                if row.get("note"):
+                    head += f"\n   {row['note']}"
                 lines.append(head + (f"\n   {excerpt}" if excerpt else ""))
         summary = f"Fetched {ok} of {len(cleaned)} pages"
         extras = ([f"{failed} failed"] if failed else []) + ([f"{blocked} blocked"] if blocked else [])

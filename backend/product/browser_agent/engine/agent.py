@@ -26,6 +26,7 @@ from deepagents import (
 )
 from deepagents.backends import FilesystemBackend
 from deepagents.profiles.provider.provider_profiles import apply_provider_profile
+from langchain.agents.middleware import TodoListMiddleware
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
@@ -155,9 +156,10 @@ def make_model(model: str = MODEL, *, max_tokens: int = 0, reasoning_effort: str
 
 
 def default_middleware(session: BrowserSession) -> list:
-    """Point out repeated actions, show only the URL/title of old page reads, time
-    every model and tool call, and retry passing model errors."""
-    return [RepeatGuard(session), TrimOldSnapshots(), StepTimer(session), model_retry()]
+    """Give the agent the `write_todos` plan the prompt tells it to keep (deepagents no
+    longer adds it by itself), point out repeated actions, show only the URL/title of
+    old page reads, time every model and tool call, and retry passing model errors."""
+    return [TodoListMiddleware(), RepeatGuard(session), TrimOldSnapshots(), StepTimer(session), model_retry()]
 
 
 def build_agent(session: BrowserSession, *, model: str = MODEL,

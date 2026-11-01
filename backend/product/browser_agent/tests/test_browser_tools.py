@@ -19,7 +19,7 @@ from product.browser_agent.engine.browser_tools import (
     MAX_CHARS, HostThrottle, HttpCache, SearchStats, brave_params, brave_search, bumped_delay, cache_policy,
     captcha_hint, captcha_solver, decode_body, format_search_results, html_to_text, is_transient_error,
     looks_like_bot_check, make_browser_tools, next_delay, parse_brave_results, parse_retry_after, render_fetched,
-    retry_delay, run_fetches, throttle_host,
+    retry_delay, roles_for_desc, run_fetches, throttle_host, unreachable_reason,
 )
 from product.browser_agent.engine.packs import load_pack
 from product.browser_agent.engine.policy import Policy, PolicyGuard, classify
@@ -58,7 +58,8 @@ def fake_session(responses):
         throttle=HostThrottle(0, 0, 0), http_cache=HttpCache(), search_stats=SearchStats(),
         _fetch_limiter=asyncio.Semaphore(6), waits=[], lock=asyncio.Lock(), page=None,
         element_frames={}, element_descs={}, snapshot_mode='list', fast_waits=False, page_gate=False,
-        blocked=[], popup_closed=False, _last_read=None, vision=False, headless=True,
+        blocked=[], popup_closed=False, notes=[], host_failures={}, unreachable={}, _last_read=None,
+        vision=False, headless=True,
         context=SimpleNamespace(request=SimpleNamespace(get=get)),
     )
     return session
@@ -189,6 +190,86 @@ class RetryTests(SimpleTestCase):
             out = h.run('fetch_page', url='https://example.com/')
         self.assertIn('Title: Acme', out)
         self.assertEqual(h.get.await_count, 2)
+
+
+class UnreachableHostTests(SimpleTestCase):
+    """A host that cannot be reached twice is skipped for the rest of the run, so the
+    agent does not spend a step (and the retries inside it) on it again and again."""
+
+    def test_unreachable_reason_names_connection_failures_only(self):
+        self.assertIn('drops the connection', unreachable_reason('Page.goto: net::ERR_HTTP2_PROTOCOL_ERROR at x'))
+        self.assertIn('does not answer', unreachable_reason('APIRequestContext.get: Timeout 20000ms exceeded.'))
+        self.assertIn('does not resolve', unreachable_reason('getaddrinfo ENOTFOUND www.btoga.com'))
+        self.assertIn('TLS', unreachable_reason('write EPROTO ...:SSL routines:ssl3_read_bytes:tlsv1 unrecognized name'))
+        self.assertIsNone(unreachable_reason('HTTP 404 for https://x/'))
+
+    def test_second_fetch_failure_gives_up_on_the_host_and_the_third_is_skipped(self):
+        h = ToolHarness(self, browser_tools.PWTimeout('APIRequestContext.get: Timeout 20000ms exceeded.'))
+        first = h.run('fetch_page', url='https://noon.example/search?q=a')
+        self.assertTrue(first.startswith('Fetch failed: TimeoutError'), first)
+        self.assertNotIn('Skipped', first)
+        second = h.run('fetch_page', url='https://www.noon.example/other')
+        self.assertIn('Skipped: noon.example is unreachable from this browser (it does not answer in time; '
+                      '2 attempts failed)', second)
+        self.assertEqual(h.get.await_count, 2)
+        third = h.run('fetch_page', url='https://noon.example/third')
+        self.assertTrue(third.startswith('Skipped: noon.example is unreachable'), third)
+        self.assertEqual(h.get.await_count, 2)   # no request went out
+        # Other hosts are unaffected.
+        self.assertEqual(h.session.unreachable, {'noon.example': 'it does not answer in time'})
+
+    def test_fetch_many_skips_a_dead_host_without_requests(self):
+        h = ToolHarness(self, lambda url, **kw: page_response(url))
+        h.session.unreachable['dead.example'] = 'it drops the connection'
+        h.session.host_failures['dead.example'] = 2
+        out = h.run('fetch_many', urls=['https://dead.example/a', 'https://ok.example/'])
+        self.assertIn('1. https://dead.example/a -- Skipped: dead.example is unreachable', out)
+        self.assertEqual(h.get.await_count, 1)
+
+    def test_browse_counts_failures_to_open_and_then_skips_the_host(self):
+        h = ToolHarness(self, [])
+        goto = AsyncMock(side_effect=Exception('Page.goto: net::ERR_HTTP2_PROTOCOL_ERROR at https://noon.example/'))
+        h.session.page = SimpleNamespace(goto=goto, is_closed=lambda: False, url='about:blank')
+        with patch(f'{ENGINE}.retry_delay', return_value=0.0):
+            first = h.run('browse', url='https://noon.example/a')
+            second = h.run('browse', url='https://noon.example/b')
+        self.assertTrue(first.startswith('Failed to open https://noon.example/a'), first)
+        self.assertNotIn('Skipped', first)
+        self.assertIn('Skipped: noon.example is unreachable from this browser (it drops the connection', second)
+        attempts = goto.await_count   # each call retried the dropped connection internally
+        third = h.run('browse', url='https://noon.example/c')
+        self.assertTrue(third.startswith('Skipped: noon.example is unreachable'), third)
+        self.assertEqual(goto.await_count, attempts)
+
+
+class FetchHintTests(SimpleTestCase):
+    """Fetch results say when a URL was guessed or a page needs the browser, so the
+    model changes approach instead of trying variations."""
+
+    def test_404_on_a_search_looking_url_says_not_to_guess(self):
+        h = ToolHarness(self, [StubResponse(404, b'<html><title>Not found</title></html>')])
+        out = h.run('fetch_page', url='https://btech.example/en/search?q=macbook')
+        self.assertTrue(out.startswith('Fetch failed: HTTP 404 for https://btech.example/en/search?q=macbook.'), out)
+        self.assertIn('guessed URL', out)
+        self.assertIn('site:btech.example', out)
+
+    def test_404_on_a_plain_page_url_gets_no_guess_hint(self):
+        h = ToolHarness(self, [StubResponse(404, b'<html><title>Not found</title></html>')])
+        out = h.run('fetch_page', url='https://example.com/missing')
+        self.assertNotIn('guessed', out)
+
+    def test_a_script_drawn_shell_is_pointed_out(self):
+        body = (b'<html><head><title>Shop</title><script>' + b'x' * 60000 + b'</script></head>'
+                b'<body><main><p>Skip to content</p></main></body></html>')
+        h = ToolHarness(self, [StubResponse(200, body, {'content-type': 'text/html'})])
+        out = h.run('fetch_page', url='https://shop.example/')
+        self.assertIn('drawn by scripts', out)
+        self.assertIn('use browse for this page', out)
+
+    def test_an_ordinary_page_gets_no_shell_hint(self):
+        h = ToolHarness(self, [page_response()])
+        out = h.run('fetch_page', url='https://example.com/')
+        self.assertNotIn('drawn by scripts', out)
 
 
 class CacheTests(SimpleTestCase):
@@ -553,6 +634,14 @@ class WiringTests(SimpleTestCase):
         self.assertTrue({'fetch_page', 'fetch_many'} <= TRACKED_TOOLS)
         self.assertFalse({'fetch_page', 'fetch_many'} & PAGE_TOOLS)
 
+    def test_default_middleware_provides_the_todo_tool_the_prompt_names(self):
+        from product.browser_agent.engine.agent import SYSTEM_PROMPT, default_middleware
+
+        self.assertIn('`write_todos`', SYSTEM_PROMPT)
+        middleware = default_middleware(fake_session([]))
+        tools = [t.name for m in middleware for t in getattr(m, 'tools', [])]
+        self.assertIn('write_todos', tools)
+
     def test_trimmed_fetches_point_back_at_fetch_page(self):
         shrunk = TrimOldSnapshots()._shrink('URL: https://x/\nTitle: T\nFetched: HTTP 200, 1 KB\n\nlots of text')
         self.assertIn('call fetch_page again (it is cached)', shrunk)
@@ -565,6 +654,56 @@ class WiringTests(SimpleTestCase):
     def test_make_browser_tools_exposes_the_fetch_tools_after_search(self):
         names = [t.name for t in ToolHarness(self, []).tools.values()]
         self.assertEqual(names[:4], ['browse', 'web_search', 'fetch_page', 'fetch_many'])
+
+
+def fake_page(matches):
+    """A page whose numbered element is gone; `matches` is what get_by_role finds."""
+    stale = SimpleNamespace(count=AsyncMock(return_value=0))
+    none = SimpleNamespace(count=AsyncMock(return_value=0))
+    by_role = SimpleNamespace(count=AsyncMock(return_value=len(matches)), nth=lambda i: matches[i])
+    frame = SimpleNamespace(
+        locator=lambda selector: SimpleNamespace(first=stale) if 'data-agent-id' in selector else none,
+        get_by_role=lambda role, name=None: by_role, get_by_label=lambda t: none,
+        get_by_placeholder=lambda t: none, get_by_text=lambda t, exact=False: none)
+    page = SimpleNamespace(main_frame=frame, frames=[frame], evaluate=AsyncMock(return_value=False),
+                           wait_for_timeout=AsyncMock(), is_closed=lambda: False, url='https://x/')
+    return page
+
+
+class StaleElementNumberTests(SimpleTestCase):
+    """A number from the last page read that the page has since re-rendered is resolved by
+    the role and label it stood for, instead of failing the step."""
+
+    def test_roles_for_desc(self):
+        self.assertEqual(roles_for_desc('button', ('link', 'button')), ('button',))
+        self.assertEqual(roles_for_desc('text input', ('link',)), ('textbox',))
+        self.assertEqual(roles_for_desc('submit input', ('link',)), ('button',))
+        self.assertEqual(roles_for_desc('a', ('button',)), ('link',))
+        self.assertEqual(roles_for_desc('div', ('link', 'button')), ('link', 'button'))
+
+    def test_stale_number_falls_back_to_the_label_and_says_so_on_the_next_read(self):
+        h = ToolHarness(self, [])
+        found = SimpleNamespace(is_visible=AsyncMock(return_value=True), scroll_into_view_if_needed=AsyncMock())
+        h.session.page = fake_page([found])
+        h.session.element_descs = {'35': ('button', 'Post')}
+        out = h.run('scroll', element='35')
+        self.assertTrue(out.startswith('Scrolled.'), out)
+        found.scroll_into_view_if_needed.assert_awaited_once()
+        self.assertEqual(h.session.notes, ['(Element [35] had been re-rendered by the page; '
+                                           'used the button labelled "Post" instead.)'])
+
+    def test_error_names_the_label_when_nothing_matches_it_either(self):
+        h = ToolHarness(self, [])
+        h.session.page = fake_page([])
+        h.session.element_descs = {'35': ('button', 'Post')}
+        out = h.run('scroll', element='35')
+        self.assertTrue(out.startswith('No element [35] on this page, and nothing labelled "Post" either.'), out)
+
+    def test_unknown_number_keeps_the_plain_error(self):
+        h = ToolHarness(self, [])
+        h.session.page = fake_page([])
+        out = h.run('scroll', element='35')
+        self.assertTrue(out.startswith('No element [35] on this page. Numbers change'), out)
 
 
 class CaptchaHintTests(SimpleTestCase):

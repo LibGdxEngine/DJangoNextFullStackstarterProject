@@ -70,6 +70,29 @@ it("downloads a file the agent saved when its button is clicked", async () => {
   expect(link.download).toBe("leads.csv");
 });
 
+it("folds the agent's working files away and labels each file with where it came from", () => {
+  const notes = new Map([
+    ["eg_stores_2.json", { working: true, text: "نصوص ٥ صفحات قرأها (noon.com، jumia.com.eg)" }],
+    ["report.md", { working: false, text: "ملف كتبه الوكيل" }],
+  ]);
+  const { container } = render(
+    <ArtifactList
+      runId="r1"
+      notes={notes}
+      artifacts={[
+        { id: "a1", kind: "file", path: "workspace/eg_stores_2.json", size: 8439, created_at: "" },
+        { id: "a2", kind: "file", path: "workspace/report.md", size: 300, created_at: "" },
+      ]}
+    />,
+  );
+  expect(screen.getByText("الملفات (١)")).toBeDefined();
+  expect(screen.getByText("ملف كتبه الوكيل")).toBeDefined();
+  const folded = container.querySelector("details");
+  expect(folded?.open).toBe(false);
+  expect(folded?.textContent).toContain("ملفات العمل (١)");
+  expect(folded?.textContent).toContain("نصوص ٥ صفحات قرأها");
+});
+
 it("shows the error when a download fails", async () => {
   vi.mocked(agentApi.downloadArtifact).mockRejectedValue(new Error("The request timed out."));
   render(<ArtifactList runId="r1" artifacts={[{ id: "a1", kind: "screenshot", path: "screenshots/x.png", size: 10, created_at: "" }]} />);
