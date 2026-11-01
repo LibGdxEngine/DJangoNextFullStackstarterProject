@@ -16,7 +16,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from apps.organizations.models import Organization
 
 from .live import get_frame, get_state, push_input, release_control, request_control
-from .models import AgentRole, AgentRun, TaskTemplate
+from .models import AgentRole, AgentRun, BrowserProfile, TaskTemplate
 from .serializers import (
     AgentAnswerSerializer, AgentArtifactSerializer, AgentControlRequestSerializer, AgentControlStateSerializer,
     AgentInputSerializer, AgentLiveSerializer, AgentRoleSerializer, AgentRunEventSerializer,
@@ -120,7 +120,10 @@ class AgentRunViewSet(mixins.CreateModelMixin, mixins.ListModelMixin,
         active = AgentRun.objects.filter(organization=organization, status__in=AgentRun.ACTIVE).count()
         if active >= settings.AGENT_MAX_ACTIVE_RUNS_PER_ORG:
             raise ValidationError({'organization': 'Too many runs are already active; wait for one to finish.'})
-        run = serializer.save(created_by=self.request.user)
+        # Without a named profile the run opens the member's own browser profile in this
+        # organization, so sites they signed in to stay signed in from one run to the next.
+        profile = serializer.validated_data.get('profile') or BrowserProfile.personal(organization, self.request.user)
+        run = serializer.save(created_by=self.request.user, profile=profile)
         run_agent.delay_on_commit(str(run.id))
 
     @extend_schema(

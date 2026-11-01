@@ -49,8 +49,7 @@ Mobser/
 ├── caddy/                          # Reverse proxy configuration
 │   ├── Caddyfile                   # Production routing & automated TLS
 │   └── Caddyfile.dev               # Development proxy routing
-├── scripts/                        # Automation & database seeding scripts
-│   └── seed_dev_data.py            # Development database seed script
+├── scripts/                        # CI, release and API contract scripts
 ├── docker-compose.yml              # Development Docker Compose
 ├── docker-compose.prod.yml         # Production Docker Compose
 ├── Makefile                        # Central developer operations CLI

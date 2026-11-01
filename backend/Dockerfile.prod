@@ -4,6 +4,8 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=core.settings.prod
+# Chromium for the browser agent lives outside /app; only the celery_browser service runs it.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Set working directory
 WORKDIR /app
@@ -21,7 +23,9 @@ RUN apt-get update \
 
 # Install Python dependencies
 COPY requirements.lock /app/
-RUN pip install --no-cache-dir -r requirements.lock
+RUN pip install --no-cache-dir -r requirements.lock \
+    && patchright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy project files
 COPY . /app/
@@ -32,7 +36,7 @@ RUN DJANGO_SETTINGS_MODULE=core.settings.schema OTEL_ENABLED=false \
     python manage.py collectstatic --noinput
 
 # Create folders for static/media files and adjust ownership
-RUN mkdir -p /app/staticfiles /app/media \
+RUN mkdir -p /app/staticfiles /app/media /app/agent_data \
     && chown -R django:django /app
 
 # Switch to non-root user for security

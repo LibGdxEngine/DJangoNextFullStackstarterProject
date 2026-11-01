@@ -20,6 +20,7 @@ x-backend: &backend
     RUN_MIGRATIONS: "false"
     RUN_COLLECTSTATIC: "false"
     SECURE_SSL_REDIRECT: "False"
+    AGENT_DATA_ROOT: /app/agent_data
   restart: unless-stopped
   logging: *logging
   mem_limit: 384m
@@ -69,6 +70,7 @@ services:
     <<: *backend
     volumes:
       - media_data:/app/media
+      - agent_data:/app/agent_data
     command: [gunicorn, --config, gunicorn.conf.py, --bind, "0.0.0.0:8000", --workers, "1", --threads, "2", --access-logfile, "-", core.wsgi:application]
     depends_on:
       db:
@@ -118,6 +120,25 @@ services:
       backend:
         condition: service_healthy
 
+  # Runs browser-agent jobs: Chromium needs more memory, processes and /dev/shm than the
+  # other workers. Same image; the API reads the files it saves from agent_data.
+  celery_browser:
+    <<: *backend
+    volumes:
+      - agent_data:/app/agent_data
+    environment:
+      <<: *backend-environment
+      HOME: /tmp
+      HEADLESS: "true"
+    command: [celery, -A, core, worker, -l, info, -Q, browser, --concurrency=1, -n, "browser@%h"]
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 512
+    shm_size: 256m
+    depends_on:
+      backend:
+        condition: service_healthy
+
   celery_beat:
     <<: *backend
     command: [celery, -A, core, beat, -l, info]
@@ -152,6 +173,7 @@ volumes:
   postgres_data:
   redis_data:
   media_data:
+  agent_data:
 
 networks:
   default:

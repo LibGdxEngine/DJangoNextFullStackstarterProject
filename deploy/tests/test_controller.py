@@ -335,7 +335,7 @@ class StateTests(unittest.TestCase):
     def test_capacity_retains_host_reserve_and_accounts_for_initial_peak(self):
         del self.controller.capacity
         with patch.object(c.shutil, 'disk_usage', return_value=Mock(free=10 * 1024 ** 3)), \
-                patch.object(c.Path, 'read_text', return_value='MemAvailable: 2097152 kB\n'):
+                patch.object(c.Path, 'read_text', return_value='MemAvailable: 3145728 kB\n'):
             with self.assertRaisesRegex(c.DeployError, 'memory'):
                 self.controller.capacity()
             self.controller.state['current'] = release(9)

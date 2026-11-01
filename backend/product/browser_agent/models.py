@@ -6,8 +6,14 @@ from apps.organizations.models import Organization
 
 
 class BrowserProfile(BaseModel):
-    """A persistent Chromium profile (cookies, logins) that one run at a time may use."""
+    """A persistent Chromium profile (cookies, logins, site storage) that one run at a time
+    may use. With a user it is that member's own browser in the organization: the runs they
+    start without naming a profile open it, so a site they signed in to during one run is
+    still signed in during the next. Without a user it is a shared profile of the organization."""
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='browser_profiles')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE, related_name='browser_profiles',
+        help_text='Owner of a personal profile; null for a profile shared by the organization.')
     name = models.CharField(max_length=100)
     in_use = models.BooleanField(default=False)
 
@@ -17,6 +23,19 @@ class BrowserProfile(BaseModel):
 
     def __str__(self):
         return f'{self.organization} / {self.name}'
+
+    @staticmethod
+    def personal_name(user) -> str:
+        return f'user:{user.pk}'
+
+    @classmethod
+    def personal(cls, organization, user) -> 'BrowserProfile':
+        """The user's own profile in ``organization``, created the first time it is needed.
+        Its name is fixed per user, so two requests creating it at once collide on the
+        (organization, name) constraint and get_or_create hands both the one that won."""
+        profile, _ = cls.objects.get_or_create(
+            organization=organization, user=user, defaults={'name': cls.personal_name(user)})
+        return profile
 
     @property
     def directory(self):
@@ -102,6 +121,8 @@ class AgentRun(BaseModel):
         AgentRole, null=True, blank=True, on_delete=models.SET_NULL, related_name='runs')
     task = models.TextField()
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    model = models.CharField(max_length=200, blank=True, default='', db_default='',
+                             help_text='The model the worker ran the task with, set when the run is claimed.')
     final_text = models.TextField(blank=True, default='')
     error = models.TextField(blank=True, default='')
     usage = models.JSONField(default=dict, blank=True)

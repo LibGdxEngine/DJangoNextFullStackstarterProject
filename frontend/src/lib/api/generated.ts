@@ -1277,7 +1277,10 @@ export interface components {
             readonly id: string;
             /** Format: uuid */
             organization: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description A browser profile shared by the organization. Left out, the run uses your own profile there, which keeps the sites you signed in to signed in across your runs.
+             */
             profile?: string | null;
             /**
              * Format: uuid
@@ -1287,6 +1290,8 @@ export interface components {
             readonly role_detail: components["schemas"]["AgentRoleSummary"] | null;
             task: string;
             readonly status: components["schemas"]["AgentRunStatusEnum"];
+            /** @description The model the worker ran the task with, set when the run is claimed. */
+            readonly model: string;
             /** @description What the agent asked while waiting: kind, question, options. */
             readonly question: unknown;
             readonly final_text: string;
@@ -1321,7 +1326,10 @@ export interface components {
         AgentRunRequest: {
             /** Format: uuid */
             organization: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description A browser profile shared by the organization. Left out, the run uses your own profile there, which keeps the sites you signed in to signed in across your runs.
+             */
             profile?: string | null;
             /**
              * Format: uuid

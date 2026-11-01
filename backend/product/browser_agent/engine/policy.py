@@ -17,6 +17,10 @@ page read when there is one:
 - upload_file                                         -> may_upload
 - download_file                                       -> may_download
 
+fetch_page and fetch_many are reads and need no permission (their `save_as` writes
+the agent's own notes, like extract_items); each URL they load counts toward the
+domain's rate limit like a `browse`, since that is what the site sees.
+
 Search forms are free: a form marked role="search", one with a search field, or a
 GET form without message, email, password, phone or file fields.
 
@@ -41,7 +45,15 @@ from urllib.parse import urlparse
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, ToolMessage
 
-# Labels are matched from their start, case-insensitively, after trimming.
+# Labels are matched from their start, case-insensitively, after trimming, and only when
+# the label is a short command (see action_label): "Post" and "Publish now" are actions,
+# "Post audience Public" (an options dropdown) and "Send feedback" (a help link) are not.
+MAX_ACTION_WORDS = 3
+# Words that mark a control as settings, navigation or help rather than the action itself.
+NOT_ACTION_WORDS = {"audience", "settings", "setting", "options", "option", "privacy", "visibility",
+                    "menu", "preview", "help", "feedback", "tips", "about", "history", "later",
+                    "draft", "drafts", "scheduled", "templates", "guidelines", "policy", "policies",
+                    "more", "filters", "filter", "sort", "by"}
 SEND_LABELS = re.compile(
     r"^(send|reply|reply all|forward|comment|post comment|send message|message send|"
     r"connect|invite|send invite|send request)\b", re.I)
@@ -118,6 +130,18 @@ def submits_form(el: dict | None) -> bool:
         tag == "input" and type_ in ("submit", "image"))
 
 
+def action_label(label: str | None) -> str:
+    """`label` when it reads as a command the user would click to act ("Post", "Send",
+    "Publish now", "Share to feed"), else "". Long labels and labels naming settings,
+    audiences or help are controls around the action, which the agent may use freely."""
+    words = re.sub(r"[^\w\s'&-]", " ", label or "").split()
+    if not words or len(words) > MAX_ACTION_WORDS:
+        return ""
+    if any(word.lower() in NOT_ACTION_WORDS for word in words):
+        return ""
+    return " ".join(words)
+
+
 def is_enter(tool: str, args: dict) -> bool:
     return bool((tool == "type_text" and args.get("press_enter")) or (
         tool == "press_key" and str(args.get("key", "")).strip().lower() in ("enter", "return")))
@@ -136,11 +160,12 @@ def classify(tool: str, args: dict, label: str | None, role: str | None,
     if tool == "upload_file":
         return "may_upload"
     if tool == "click":
-        if SEND_LABELS.search(label):
+        action = action_label(label)
+        if SEND_LABELS.search(action):
             return "may_send_messages"
-        if POST_LABELS.search(label):
+        if POST_LABELS.search(action):
             return "may_post"
-        if SUBMIT_LABELS.search(label) or role == "submit":
+        if SUBMIT_LABELS.search(action) or role == "submit":
             return "may_submit_forms"
         if submits_form(element) and not is_search_form(element):
             return "may_submit_forms"
@@ -153,6 +178,15 @@ def classify(tool: str, args: dict, label: str | None, role: str | None,
             or SEARCH_FIELD.search(label)):
         return None
     return "may_submit_forms"
+
+
+def _load_urls(tool: str, args: dict) -> list[str]:
+    """The pages a tool call loads, for the rate limits."""
+    if tool in ("browse", "fetch_page") and args.get("url"):
+        return [str(args["url"])]
+    if tool == "fetch_many":
+        return [str(u) for u in (args.get("urls") or []) if u]
+    return []
 
 
 def _cost(messages) -> float:
@@ -170,6 +204,9 @@ class PolicyGuard(AgentMiddleware):
         self.session = session
         self.ask_human = ask_human
         self.loads: dict[str, list[float]] = {}   # domain -> page load times (this worker)
+        # Permissions the user granted once in this run; the same kind of action is not
+        # asked about again (approving one "Post" covers the retry after a failed click).
+        self.granted: set[str] = set()
 
     def _target(self, args: dict) -> tuple[str | None, str | None]:
         element = args.get("element")
@@ -187,6 +224,8 @@ class PolicyGuard(AgentMiddleware):
                            name=call["name"], status="error")
 
     async def _approved(self, permission: str, describe: str) -> bool:
+        if permission in self.granted:
+            return True
         if self.ask_human is None:
             return False
         answer = self.ask_human(
@@ -197,7 +236,10 @@ class PolicyGuard(AgentMiddleware):
             answer = await answer
         if isinstance(answer, dict):
             answer = answer.get("answer", "")
-        return str(answer).strip().lower() in ("approve", "approved", "yes", "y", "allow", "ok")
+        approved = str(answer).strip().lower() in ("approve", "approved", "yes", "y", "allow", "ok")
+        if approved:
+            self.granted.add(permission)
+        return approved
 
     def _page_url(self) -> str:
         page = getattr(self.session, "page", None)
@@ -222,18 +264,23 @@ class PolicyGuard(AgentMiddleware):
             return self._refuse(request, f"this task's cost budget (${p.max_cost_usd:.2f}) is used "
                                          "up. Stop now and report what you have.")
 
-        if name == "browse" and args.get("url"):
-            host = urlparse(str(args["url"])).hostname or ""
-            limit = p.rate(host)
-            if limit:
-                domain, count, period = limit
-                now = time.monotonic()
+        if p.rate_limits:
+            wanted: dict[str, int] = {}   # limited domain -> page loads this call asks for
+            for url in _load_urls(name, args):
+                limit = p.rate(urlparse(url).hostname or "")
+                if limit:
+                    wanted[limit[0]] = wanted.get(limit[0], 0) + 1
+            now = time.monotonic()
+            for domain, asked in wanted.items():
+                _, count, period = p.rate(domain)
                 recent = [t for t in self.loads.get(domain, []) if now - t < period]
-                if len(recent) >= count:
+                left = count - len(recent)
+                if asked > left:
                     return self._refuse(request, f"the rate limit for {domain} ({count} page "
-                                                 f"loads per {period}s) is reached. Use what you "
+                                                 f"loads per {period}s) allows {max(left, 0)} more "
+                                                 f"and this call asks for {asked}. Use what you "
                                                  "have, or stop and report.")
-                self.loads[domain] = recent + [now]
+                self.loads[domain] = recent + [now] * asked
 
         role, label = self._target(args)
         element = None

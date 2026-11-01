@@ -26,6 +26,7 @@ from deepagents import (
 )
 from deepagents.backends import FilesystemBackend
 from deepagents.profiles.provider.provider_profiles import apply_provider_profile
+from langchain.agents.middleware import TodoListMiddleware
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
@@ -53,11 +54,15 @@ How to browse:
   list of interactive elements like `[12] button "Next"`.
 - If the user names a site, app or search engine ("use Google", "on Facebook",
   "in Gmail", "with Google Maps"), do the task there: `browse` to it and use its own
-  search box and pages. `web_search` runs on Bing, so it does not count as using
-  Google; never swap in another site or engine for the one the user named. If that
-  site blocks you, stop and report it instead of switching.
+  search box and pages. `web_search` is a search API, not a website, so it does not
+  count as using Google or Bing; never swap in another site or engine for the one the
+  user named. If that site blocks you, stop and report it instead of switching.
 - Only when the user named no site: `web_search` returns titles, links and snippets
-  for a query; then `browse` the result you want.
+  for a query; then `browse` or `fetch_page` the result you want.
+- `fetch_page(url)` returns a page's readable text (or JSON) over plain HTTP without
+  rendering it, and `fetch_many(urls=[...])` does that for up to 20 pages at once; use
+  them for pages you only need to read. They run no scripts, so use `browse` for
+  anything you must interact with or sign in to, and when a fetch says "bot check".
 - To interact, pass that number as `element` (e.g. click(12)). Numbers are
   reassigned every time a page is read, so only use numbers from the most recent
   result; call `read_current_page` to get fresh ones. The list also shows state:
@@ -86,12 +91,13 @@ How to browse:
 - Use `write_todos` to plan multi-page tasks. Save long findings and final
   reports with the file tools; files are kept on disk after the run.
 - If a page shows a login wall, CAPTCHA or access block, stop and report it;
-  do not try to get around it. One exception: whenever a page asks whether you
+  do not try to get around it. Two exceptions: whenever a page asks whether you
   are human or a bot with a Cloudflare Turnstile checkbox ("Verify you are
   human"), call `solve_turnstile` to click it; if the check is still there
-  afterwards, stop and report it. `solve_turnstile` only handles that checkbox:
-  for image puzzles or text codes offer `manual_captcha_handoff` instead, and
-  never click or solve those controls yourself.
+  afterwards, stop and report it. Similarly, for a Google reCAPTCHA v2 checkbox
+  ("I'm not a robot"), call `solve_recaptcha` to click it. Both tools only handle
+  the simple checkbox: for image puzzles or text codes offer `manual_captcha_handoff`
+  instead, and never click or solve those controls yourself.
 - Cite the URLs you used in your final answer.
 
 Signing in with Google, Apple, Microsoft etc.:
@@ -150,9 +156,10 @@ def make_model(model: str = MODEL, *, max_tokens: int = 0, reasoning_effort: str
 
 
 def default_middleware(session: BrowserSession) -> list:
-    """Point out repeated actions, show only the URL/title of old page reads, time
-    every model and tool call, and retry passing model errors."""
-    return [RepeatGuard(session), TrimOldSnapshots(), StepTimer(session), model_retry()]
+    """Give the agent the `write_todos` plan the prompt tells it to keep (deepagents no
+    longer adds it by itself), point out repeated actions, show only the URL/title of
+    old page reads, time every model and tool call, and retry passing model errors."""
+    return [TodoListMiddleware(), RepeatGuard(session), TrimOldSnapshots(), StepTimer(session), model_retry()]
 
 
 def build_agent(session: BrowserSession, *, model: str = MODEL,

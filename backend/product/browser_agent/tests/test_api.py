@@ -44,6 +44,48 @@ class AgentRunApiTests(APITestCase):
         self.assertEqual(run.status, AgentRun.Status.QUEUED)
         self.assertEqual(run.created_by, self.user)
         enqueue.assert_called_once_with(str(run.id))
+        # The run opens the caller's own browser profile in this organization.
+        self.assertEqual((run.profile.user, run.profile.organization), (self.user, self.org))
+        self.assertEqual(res.data["profile"], run.profile.id)
+
+    @override_settings(AGENT_MAX_ACTIVE_RUNS_PER_ORG=10)
+    @patch("product.browser_agent.views.run_agent.delay_on_commit")
+    def test_a_members_runs_share_one_profile_per_organization(self, enqueue):
+        def create(body):
+            res = self.client.post(self.list_url, body, format="json")
+            self.assertEqual(res.status_code, 201, res.data)
+            return res.data["profile"]
+
+        OrganizationMember.objects.create(organization=self.other_org, user=self.user)
+        body = {"organization": str(self.org.id), "task": "sign in to facebook"}
+        first = create(body)
+        second = create({**body, "task": "post on facebook", "profile": None})
+        elsewhere = create({**body, "organization": str(self.other_org.id)})
+        self.assertEqual(first, second)            # the sign-in from the first run is still there
+        self.assertNotEqual(first, elsewhere)      # but not in another organization
+        self.assertEqual(BrowserProfile.objects.filter(user=self.user).count(), 2)
+        self.client.force_authenticate(self.other)
+        OrganizationMember.objects.create(organization=self.org, user=self.other)
+        self.assertNotEqual(first, create(body))   # never another member's browser
+
+    @patch("product.browser_agent.views.run_agent.delay_on_commit")
+    def test_rejects_another_members_personal_profile(self, enqueue):
+        OrganizationMember.objects.create(organization=self.org, user=self.other)
+        theirs = BrowserProfile.personal(self.org, self.other)
+        res = self.client.post(self.list_url, {
+            "organization": str(self.org.id), "task": "x", "profile": str(theirs.id)}, format="json")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.data["error"]["fields"]["profile"], ["Profile belongs to another user."])
+        enqueue.assert_not_called()
+
+    @patch("product.browser_agent.views.run_agent.delay_on_commit")
+    def test_a_shared_profile_can_still_be_named(self, enqueue):
+        shared = BrowserProfile.objects.create(organization=self.org, name="sales desk")
+        res = self.client.post(self.list_url, {
+            "organization": str(self.org.id), "task": "x", "profile": str(shared.id)}, format="json")
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(AgentRun.objects.get().profile, shared)
+        self.assertFalse(BrowserProfile.objects.filter(user=self.user).exists())
 
     @patch("product.browser_agent.views.run_agent.delay_on_commit")
     def test_cannot_create_in_foreign_organization(self, enqueue):

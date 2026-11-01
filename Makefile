@@ -108,7 +108,7 @@ makemigrations:
 	docker compose exec backend python manage.py makemigrations
 
 seed:
-	docker compose exec backend python scripts/seed_dev_data.py
+	docker compose exec backend python manage.py seed_dev_data
 
 createsuperuser:
 	docker compose exec backend python manage.py createsuperuser

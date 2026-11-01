@@ -5,6 +5,7 @@ later one carry on from the last finished step: after the agent asks the user
 something (the run waits, and the answer queues it again) or after its worker died
 (the reaper queues it again)."""
 import asyncio
+import inspect
 import logging
 import shutil
 from contextlib import asynccontextmanager
@@ -20,6 +21,20 @@ from .models import AgentArtifact, AgentRun, AgentRunEvent, BrowserProfile
 logger = logging.getLogger(__name__)
 
 PAYLOAD_LIMIT = 2000
+# How a tool result starts when the step did not do what was asked. The run view uses
+# the status to mark the step; the model still gets the full text.
+FAILURE_PREFIXES = ('Error', 'Failed', 'Fetch failed', 'Download failed', 'Could not', 'Skipped',
+                    'Blocked', 'Not done', 'Nobody took over', 'No element', 'No repeated items',
+                    'Give a list', 'mode must be', '(This looks like a sign-in wall', '(This page is a bot check',
+                    'The user gave up')
+# Files Chromium leaves in a profile folder to mark it open. A run holds its profile
+# exclusively (BrowserProfile.in_use), so any of these present before launch were left
+# by a worker that died, and Chromium would refuse to open the profile over them.
+CHROMIUM_LOCK_FILES = ('SingletonLock', 'SingletonSocket', 'SingletonCookie')
+
+
+class ProfileBusy(Exception):
+    """The run's browser profile is open in another run; the run stays queued to be retried."""
 
 
 def run_directory(run: AgentRun) -> Path:
@@ -31,20 +46,43 @@ def _clip(value) -> str:
     return text[:PAYLOAD_LIMIT]
 
 
+def result_status(message) -> str:
+    """'error' when the tool itself failed (an unknown tool, an exception), 'failed'
+    when it ran but reports that the step did not work, else 'ok'."""
+    if getattr(message, 'status', 'success') == 'error':
+        return 'error'
+    content = message.content if isinstance(message.content, str) else ''
+    first = content.lstrip().split('\n', 1)[0]
+    # A repeat note or a retry note comes before the result it wraps.
+    for prefix in ('Note: you already ran', '(Retried after'):
+        if first.startswith(prefix) and '\n' in content:
+            first = content.split('\n', 1)[1].lstrip().split('\n', 1)[0]
+    return 'failed' if first.startswith(FAILURE_PREFIXES) else 'ok'
+
+
 def _message_events(message) -> list[tuple[str, dict]]:
-    """Translate one LangChain message into zero or more (kind, payload) events."""
+    """Translate one LangChain message into zero or more (kind, payload) events. A tool
+    call carries its id and a tool result the id of its call, so the run view can pair
+    them even when calls ran in parallel; the result also says whether the step worked
+    and how long the tool took (StepTimer)."""
     from langchain_core.messages import AIMessage, ToolMessage
     from .engine.agent import _text
 
     if isinstance(message, ToolMessage):
-        return [(AgentRunEvent.Kind.TOOL_RESULT, {'name': message.name, 'content': _clip(message.content)})]
+        payload = {'name': message.name, 'content': _clip(message.content), 'call_id': message.tool_call_id,
+                   'status': result_status(message)}
+        seconds = message.additional_kwargs.get('tool_s')
+        if seconds is not None:
+            payload['seconds'] = round(float(seconds), 1)
+        return [(AgentRunEvent.Kind.TOOL_RESULT, payload)]
     if isinstance(message, AIMessage):
         events = []
         text = _text(message).strip()
         if text:
             events.append((AgentRunEvent.Kind.MESSAGE, {'text': _clip(text)}))
         for call in message.tool_calls or []:
-            events.append((AgentRunEvent.Kind.TOOL_CALL, {'name': call['name'], 'args': call.get('args') or {}}))
+            events.append((AgentRunEvent.Kind.TOOL_CALL,
+                           {'name': call['name'], 'args': call.get('args') or {}, 'id': call.get('id')}))
         return events
     return []
 
@@ -73,14 +111,28 @@ def _claim(run_id) -> AgentRun | None:
     if run.profile_id:
         claimed = BrowserProfile.objects.filter(pk=run.profile_id, in_use=False).update(in_use=True)
         if not claimed:
-            run.error = 'Browser profile is in use by another run.'
-            _finish(run, AgentRun.Status.FAILED, release_profile=False)
-            return None
+            # One Chromium at a time per profile. The run waits its turn (the task retries
+            # it) unless it has already waited as long as a whole run may take.
+            waited = (timezone.now() - run.updated_at).total_seconds()
+            if waited > settings.AGENT_RUN_TIMEOUT:
+                run.error = f'Browser profile was in use by another run for over {int(waited)}s.'
+                _finish(run, AgentRun.Status.FAILED, release_profile=False)
+                return None
+            raise ProfileBusy(str(run.profile_id))
     run.status = AgentRun.Status.RUNNING
     run.started_at = run.started_at or timezone.now()
     run.heartbeat_at = timezone.now()
-    run.save(update_fields=['status', 'started_at', 'heartbeat_at', 'updated_at'])
+    run.model = run.model or configured_model()
+    run.save(update_fields=['status', 'started_at', 'heartbeat_at', 'model', 'updated_at'])
     return run
+
+
+def configured_model() -> str:
+    """The model name the worker will run with, as the engine reads it from the
+    environment (MODEL, filled from AGENT_MODEL in compose); recorded on each run."""
+    from .engine.agent import MODEL
+
+    return MODEL[:200]
 
 
 @sync_to_async
@@ -105,12 +157,25 @@ def _page_url(session) -> str:
         return ''
 
 
+async def _save_logins(session) -> None:
+    """Write the browser's session cookies into its profile now, not only when the browser
+    closes, so a sign-in made during the run survives this worker dying."""
+    save = getattr(session, '_save_session_cookies', None)
+    if save is None:
+        return
+    result = save()
+    if inspect.isawaitable(result):
+        await result
+
+
 async def _keep_beating(run_id, session) -> None:
-    """Tell the reaper this run's worker is alive, and remember the page to reopen."""
+    """Tell the reaper this run's worker is alive, remember the page to reopen, and keep
+    the profile's saved sign-ins current."""
     while True:
         await asyncio.sleep(settings.AGENT_HEARTBEAT_S)
         try:
             await _beat(run_id, _page_url(session))
+            await _save_logins(session)
         except Exception:
             logger.exception('Heartbeat for run %s failed', run_id)
 
@@ -208,6 +273,17 @@ def _cancel_requested(run_id) -> bool:
     return AgentRun.objects.filter(pk=run_id, cancel_requested=True).exists()
 
 
+def clear_stale_locks(directory: Path) -> None:
+    """Remove Chromium's lock files from a profile folder before launching in it."""
+    for name in CHROMIUM_LOCK_FILES:
+        path = directory / name
+        try:
+            if path.is_symlink() or path.exists():
+                path.unlink()
+        except OSError:
+            logger.warning('Could not remove stale lock %s', path)
+
+
 def collect_artifacts(run: AgentRun) -> None:
     """Record the run's screenshots and workspace files. Safe to call repeatedly while the
     run is still writing: sizes are refreshed for files that keep growing."""
@@ -243,6 +319,57 @@ class RunCancelled(Exception):
 
 HANDOFF_TIMEOUT_S = 10 * 60
 
+BROWSING_PROMPT = """
+
+Reading pages and finishing actions:
+- Read the page first (`read_current_page`, `find_on_page`); take a `screenshot` only
+  when the text does not explain what is blocking you, such as a control that does not
+  react or a layout question the text cannot answer.
+- When a click is intercepted by a dialog or overlay, do not repeat it. Close the
+  overlay once (`press_key` Escape or `dismiss_overlays`); if the click still fails,
+  `browse` to the direct URL of the action instead (the composer, the settings page,
+  the form) rather than clicking its button on the page that hides it.
+- After posting, submitting, sending or saving anything, open the destination (the
+  profile, the sent folder, the list the item should appear in) and confirm the result
+  is there with the settings you chose before you report success. Returning to the
+  home page is not confirmation.
+- Bot checks: when a page read starts with "(This page is a bot check" it names the tool
+  that clears it (`solve_turnstile` or `solve_recaptcha`). Call that tool once before
+  anything else, including on Google's "unusual traffic" page, where the checkbox
+  appears after a moment. Only if the check remains, or becomes a picture puzzle, hand
+  the browser to the user or report it. Do not switch to another site or search engine
+  to get around a check.
+
+Fetching instead of browsing:
+- Prefer `fetch_page` for static pages: articles, documentation, about/contact/pricing
+  pages, directories, public listings and JSON endpoints. It is several times faster
+  than `browse`, does not move your browser tab, and pages fetched earlier in the run
+  come back instantly from a cache.
+- When you have a list of sites or URLs to check (candidate companies, search results),
+  call `fetch_many` once with all of them and `save_as` a JSON file, then read the file;
+  do not `browse` them one by one.
+- Use `browse` when you need to click, type, scroll, sign in or wait for content, for
+  script-heavy apps (social networks, maps, dashboards, webmail), and whenever a fetch
+  returns a 403, "bot check" or almost no text.
+- `web_search` is an API call; it does not open a tab and never counts as using a site
+  the user named.
+
+Spending steps well (the user watches every step and pays for each one):
+- Start a task of more than a few steps with `write_todos` and keep it current: it is
+  the progress the user sees. Reconcile it before you finish.
+- Never guess a site's URLs (its search page, catalog paths, product or category
+  slugs). Open only URLs that `web_search`, `list_links` or a page read gave you. To
+  look inside one site, use `web_search` with `site:<host> <words>` or browse its home
+  page and use its own search box. A guessed URL that comes back 404 is a wasted step.
+- A result that says a host is unreachable or skipped is final for this run: do not try
+  that host again through another tool or path. Note it in your report instead.
+- One pass per source: search, read the pages that matter once (`fetch_many` for a
+  list, `extract_items` for a listing page), write down what you learned, move on. Do
+  not re-read a page for a bigger excerpt unless it was cut off. For a comparison or
+  survey, six to eight good sources are plenty; stop searching when new results repeat
+  what you already have, and write the report.
+"""
+
 HANDOFF_PROMPT = """
 
 Working with the user (they watch your browser live in the app and can take it over):
@@ -255,14 +382,23 @@ Working with the user (they watch your browser live in the app and can take it o
 - For a decision only the user can make (which account to use, whether to send, post or
   submit something, a detail the request leaves out), call `ask_user` and carry on with
   the answer instead of ending your turn with a question. The run waits for them.
+- Sending a message, posting, submitting a form (other than a search) and uploading a
+  file are held for the user's approval automatically; the run waits for their answer.
+  A result starting with "Not done" means they declined: do not look for another way to
+  do it; carry on without it or stop and tell them.
 """
 
 
 def with_user_handoff(tools: list, live: LiveScreencast) -> list:
-    """Swap the console-only CAPTCHA handoff for one that works through the live view."""
+    """Replace the engine's console-only CAPTCHA handoff with one tool that works through
+    the live view, for CAPTCHAs and sign-ins alike (system_prompt() renames the engine's
+    mentions of the old tool to it)."""
     from langchain_core.tools import tool
 
-    async def handoff(reason: str) -> str:
+    @tool
+    async def hand_over_to_user(reason: str) -> str:
+        """Ask the user to take over the live browser, for example to sign in or solve a
+        CAPTCHA, and wait until they hand it back. `reason` tells them what to do."""
         outcome = await live.wait_for_user(reason, HANDOFF_TIMEOUT_S)
         if outcome == 'returned':
             return ('The user finished and handed the browser back. Read the current page to '
@@ -270,19 +406,7 @@ def with_user_handoff(tools: list, live: LiveScreencast) -> list:
         return (f'Nobody took over within {HANDOFF_TIMEOUT_S // 60} minutes. Stop and report '
                 'what is blocking you.')
 
-    @tool
-    async def hand_over_to_user(reason: str) -> str:
-        """Ask the user to take over the live browser, for example to sign in or solve a
-        CAPTCHA, and wait until they hand it back. `reason` tells them what to do."""
-        return await handoff(reason)
-
-    @tool
-    async def manual_captcha_handoff() -> str:
-        """Pause for the user to complete a CAPTCHA in the live browser, then continue."""
-        return await handoff('CAPTCHA')
-
-    kept = [t for t in tools if t.name != 'manual_captcha_handoff']
-    return kept + [hand_over_to_user, manual_captcha_handoff]
+    return [t for t in tools if t.name != 'manual_captcha_handoff'] + [hand_over_to_user]
 
 
 def role_prompt(role) -> str:
@@ -295,6 +419,26 @@ def role_prompt(role) -> str:
     return prompt
 
 
+def system_prompt(role) -> str:
+    """The engine's shared browsing rules, adapted to a run in the app: its CAPTCHA
+    handoff is `hand_over_to_user` (with_user_handoff), then the role, the product's
+    browsing rules and how to work with the user watching live."""
+    from .engine.agent import SYSTEM_PROMPT
+
+    shared = SYSTEM_PROMPT.replace('`manual_captcha_handoff`', '`hand_over_to_user`')
+    return shared + role_prompt(role) + BROWSING_PROMPT + HANDOFF_PROMPT
+
+
+def run_policy(run: AgentRun):
+    """What the run may do without asking. A run comes in through the API and works on a
+    signed-in profile, so it gets the general pack's policy for unwatched tasks: reading
+    and downloading are free; sending, posting, submitting forms and uploading pause the
+    run with an approve_action question (PolicyGuard's ask_human is human.ask_human)."""
+    from .engine.packs import load_pack
+
+    return load_pack('general').policy_for({'task': run.task}, background=True)
+
+
 async def execute_run(run_id) -> None:
     """Run the agent for ``run_id`` until it finishes or asks the user something, starting
     where an earlier execution of the run stopped. Agent failures are recorded, not raised."""
@@ -305,9 +449,10 @@ async def execute_run(run_id) -> None:
     from langgraph.errors import GraphRecursionError
     from langgraph.types import Command
 
-    from .engine.agent import SYSTEM_PROMPT, Usage, _text, build_agent
+    from .engine.agent import Usage, _text, build_agent, default_middleware
     from .engine.browser_tools import BrowserSession, make_browser_tools
-    from .engine.human import ask_user
+    from .engine.human import ask_human, ask_user
+    from .engine.policy import PolicyGuard
 
     recursion_limit = settings.AGENT_RECURSION_LIMIT
     config = {'configurable': {'thread_id': str(run.id)}, 'recursion_limit': recursion_limit}
@@ -317,6 +462,8 @@ async def execute_run(run_id) -> None:
 
     session = BrowserSession.from_env()
     if run.profile_id:
+        run.profile.directory.mkdir(parents=True, exist_ok=True)
+        clear_stale_locks(run.profile.directory)
         session.profile_dir = str(run.profile.directory)
     else:
         # Throwaway profile so concurrent runs never fight over one Chromium profile.
@@ -337,8 +484,10 @@ async def execute_run(run_id) -> None:
             tools = make_browser_tools(
                 session, screenshot_dir=str(root / 'screenshots'), files_dir=str(workspace))
             tools = with_user_handoff(tools, live) + [ask_user]
+            guard = PolicyGuard(run_policy(run), session, ask_human=ask_human)
             agent = build_agent(session, tools=tools, workspace=str(workspace), checkpointer=saver,
-                                system_prompt=SYSTEM_PROMPT + role_prompt(run.role) + HANDOFF_PROMPT)
+                                system_prompt=system_prompt(run.role),
+                                middleware=[guard, *default_middleware(session)])
 
             snap = await agent.aget_state(config)
             done = list((snap.values or {}).get('messages', []))

@@ -21,3 +21,6 @@ test-results/
 *.key
 deploy/runtime.env
 deploy/config.json
+# Browser-agent run files and Chromium profiles (users' sign-ins) written outside Docker.
+agent_data/
+backend/browser_profile/

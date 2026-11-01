@@ -31,10 +31,11 @@ from .browser_tools import BrowserSession
 TRACKED_TOOLS = {
     "browse", "click", "type_text", "set_checkbox", "select_option", "hover",
     "press_key", "find_on_page", "list_links", "web_search", "download_file",
-    "switch_tab", "dismiss_overlays", "drag",
+    "switch_tab", "dismiss_overlays", "drag", "fetch_page", "fetch_many",
 }
 # Tools whose result depends on the page they run on, so the URL is part of the key.
-PAGE_TOOLS = TRACKED_TOOLS - {"browse", "web_search", "download_file", "switch_tab"}
+PAGE_TOOLS = TRACKED_TOOLS - {"browse", "web_search", "download_file", "switch_tab",
+                              "fetch_page", "fetch_many"}
 
 
 def _outcome(content: str) -> str:
@@ -118,8 +119,10 @@ class TrimOldSnapshots(AgentMiddleware):
                 if not line.strip():
                     break
                 header.append(line)
-            return "\n".join(notes + header +
-                             ["[page text trimmed; call read_current_page to see it again]"])
+            fetched = any(line.startswith("Fetched: ") for line in header)
+            again = ("call fetch_page again (it is cached) to see it" if fetched
+                     else "call read_current_page to see it again")
+            return "\n".join(notes + header + [f"[page text trimmed; {again}]"])
         if len(content) > self.max_chars:
             return content[:self.max_chars] + "\n...[trimmed]"
         return None

@@ -11902,7 +11902,8 @@
                     "profile": {
                         "type": "string",
                         "format": "uuid",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "A browser profile shared by the organization. Left out, the run uses your own profile there, which keeps the sites you signed in to signed in across your runs."
                     },
                     "role": {
                         "type": "string",
@@ -11930,6 +11931,11 @@
                             }
                         ],
                         "readOnly": true
+                    },
+                    "model": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "The model the worker ran the task with, set when the run is claimed."
                     },
                     "question": {
                         "readOnly": true,
@@ -11981,6 +11987,7 @@
                     "final_text",
                     "finished_at",
                     "id",
+                    "model",
                     "organization",
                     "question",
                     "recoveries",
@@ -12043,7 +12050,8 @@
                     "profile": {
                         "type": "string",
                         "format": "uuid",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "A browser profile shared by the organization. Left out, the run uses your own profile there, which keeps the sites you signed in to signed in across your runs."
                     },
                     "role": {
                         "type": "string",
